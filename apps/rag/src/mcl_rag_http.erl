@@ -1,8 +1,6 @@
 %%% @doc Small Cowboy HTTP helpers used by slice API handlers.
 %%%
-%%% Plays the role hecate_sdk's hecate_plugin_api played for plugins,
-%%% minus the plugin contract. Promote into hecate-om if a second
-%%% service needs the exact same set.
+%%% Promote into mcl_om if a second service needs the exact same set.
 -module(mcl_rag_http).
 
 -export([

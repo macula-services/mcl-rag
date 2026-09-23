@@ -16,8 +16,8 @@
 %%% Deliberately NOT coordinated with `refresh_corpus_scheduler' (the
 %%% module that notices file changes and re-embeds): same
 %%% "two independent, uncoordinated reconciliation loops, eventual
-%%% consistency" shape this fleet's own GitOps already uses elsewhere
-%%% (hecate-reconcile.timer + watchtower). This loop's only job is
+%%% consistency" shape the fleet's own GitOps reconciler already has.
+%%% This loop's only job is
 %%% keeping every configured checkout current with git; noticing that
 %%% files changed and re-embedding them is `refresh_corpus_scheduler''s
 %%% own separate concern, on its own separate timer, reading the same

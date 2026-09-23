@@ -13,8 +13,8 @@
 
 -export([retrieve/1]).
 
-%% @doc Used by `answer_query_api' directly and by `hecate_rag_federation'
-%% to fill `macula_rag''s response payload.
+%% @doc Used by `answer_query_api' (local HTTP) and by `mcl_rag_mesh_rpc'
+%% (the `answer_query' procedure).
 -spec retrieve(map()) -> {ok, [map()]} | {error, term()}.
 retrieve(Params) when is_map(Params) ->
     search_chunks_semantic:handle(Params).

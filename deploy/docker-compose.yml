@@ -4,6 +4,7 @@
 # port, the environment variables its own code reads, and its health check.
 #
 #   MCL_REALM=<64-hex> \
+#     MCL_REALM_NAME=<the realm name whose sha256 is MCL_REALM> \
 #     MCL_REALM_KEY=<hex of the realm's public signing key> \
 #     MACULA_STATION_SEEDS=station.example:4433 \
 #     MACULA_STATION_NODE_IDS=<64-hex node id of that station> \
@@ -32,6 +33,14 @@ services:
       # a fresh anonymous one, so every recreate (watchtower does them as
       # routine) would mint a new node id while the service looks healthy.
       - secrets:/etc/mcl/secrets
+      # ⚠ THE SHARED MEMORY: the barrel store and the corpus checkouts. On an
+      # anonymous volume every recreate would start an empty memory and
+      # re-embed the whole corpus, looking healthy the entire time.
+      - data:/var/lib/mcl-rag
+      # Which repos the corpus holds. Read-only: the node syncs these, it never
+      # edits the list. Their ids are the watermark namespace, so renaming one
+      # re-embeds that repo.
+      - ./corpus-repos.json:/etc/mcl-rag/corpus-repos.json:ro
     labels:
       # Only meaningful if you run watchtower: it pulls a new :latest and
       # recreates the container. Harmless otherwise.
@@ -40,6 +49,9 @@ services:
       # No default. A service that guesses its realm announces itself where
       # nobody can attribute it, and that looks exactly like a healthy node.
       - MCL_REALM=${MCL_REALM:?set MCL_REALM to the 64-hex realm tag}
+      # The realm NAME, for joining the org's federated retrieval. Its sha256
+      # must be MCL_REALM, or joining is refused and /health says down.
+      - MCL_REALM_NAME=${MCL_REALM_NAME:?set MCL_REALM_NAME to the realm name whose sha256 is MCL_REALM}
       # The TRUST ANCHOR, and a different thing from MCL_REALM above: that is
       # an identifier, this is the realm's public signing key, hex encoded.
       # Without it nothing org-namespaced resolves, the boot claim never
@@ -58,6 +70,16 @@ services:
       - MCL_COOKIE=mcl_rag
       # Host networking means a port already bound on this host fails SILENTLY.
       - MCL_HEALTH_PORT=8450
+      # The node ids allowed to delete or rewrite the store (64 hex each,
+      # comma-separated). Empty means nobody: the destructive procedures
+      # refuse every caller, and queries and add_knowledge stay open.
+      # macula-cli's upload_knowledge callers belong here.
+      - MCL_RAG_OPERATORS=${MCL_RAG_OPERATORS:-}
+      # Topic classification keys (Groq, then DeepSeek as fallback). Secrets:
+      # supply them from the host's env file, never commit them. Empty turns
+      # classification into a refusal, not a crash.
+      - MCL_RAG_TOPIC_API_KEY=${MCL_RAG_TOPIC_API_KEY:-}
+      - MCL_RAG_TOPIC_FALLBACK_API_KEY=${MCL_RAG_TOPIC_FALLBACK_API_KEY:-}
 
 # The identity volume, NAMED HERE rather than left to the project name, so a
 # `docker compose -p` with a different name reuses the same key instead of
@@ -65,3 +87,5 @@ services:
 volumes:
   secrets:
     name: mcl-rag-secrets
+  data:
+    name: mcl-rag-data

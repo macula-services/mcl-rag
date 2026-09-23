@@ -3,7 +3,7 @@
 %% Retrieval over a realm-bound corpus, and the deposits agents remember into
 %% it, served as seventeen org-namespaced procedures under `mcl-rag'. Its data
 %% is one barrel database, `rag_chunks' (documents and vectors), under the
-%% data dir, opened exactly as hecate-rag opened it.
+%% data dir. A store migrated from the predecessor service opens as it is.
 %%
 %% SIX CALLBACKS, ALL REQUIRED. mcl_om resolves them BY NAME at startup, so the
 %% `-behaviour' attribute below turns a missing one into a compile error.
@@ -50,9 +50,10 @@ opened(opening) -> {degraded, store_opening}.
 %% comes from config). Each goes through mcl_om's simple handler into
 %% mcl_rag_mesh_rpc's handler of the same name.
 %%
-%% ⚠ ALL SEVENTEEN ARE OPEN to any caller the station admits, as they were in
-%% hecate-rag, including the destructive prune_chunks, retire_document and
-%% schedule_reembed. Gating them is a decision not yet taken; see the README.
+%% ⚠ EIGHT ARE OPERATOR-ONLY: every procedure that deletes, replaces or
+%% rewrites what the store holds (rag_operators:operator_only/0) refuses a
+%% caller whose verified node id is not in `operators'. Queries and
+%% add_knowledge stay open to any caller the station admits.
 capabilities() ->
     [cap(Name) || Name <- [<<"ingest_document">>, <<"embed_document">>,
                            <<"upload_knowledge">>, <<"add_knowledge">>,

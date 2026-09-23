@@ -2,10 +2,9 @@
 #
 # The mesh shared memory: retrieval over a realm-bound corpus, and the deposits agents remember into it
 #
-# NO DATA VOLUME AS GENERATED. The scaffold writes nothing, and a named volume
-# for data that does not exist is a promise the image cannot keep. Add one
-# together with the code that writes it, and declare it here and in the compose
-# file at the same time.
+# ⚠ THE SHARED MEMORY LIVES ON A VOLUME, /var/lib/mcl-rag: one barrel database
+# (documents, attachments, vectors) plus the corpus checkouts. Declared here and
+# in the compose file together; the eunit suite holds the two to each other.
 
 # ⚠ THE RUNTIME IS PINNED IN TWO PLACES AND THEY MUST AGREE: here and `lint.yml'
 # beside it. A generated service that builds on one release and tests on another
@@ -13,7 +12,7 @@
 #
 # This template said 27 from the beginning and nothing revisited it, so every
 # service scaffolded from it inherited 27 while development machines moved on.
-# In `hecate-biotope' that cost three commits of red CI on a crash that does not
+# In a sibling service that cost three commits of red CI on a crash that does not
 # occur on the development release at all, and because `build-push.yml' is a
 # separate workflow the image shipped to the fleet regardless.
 # ⚠ PINNED BY TAG AND DIGEST. `erlang:28-alpine' floats, and when Docker Hub
@@ -54,6 +53,18 @@ RUN rebar3 get-deps
 
 COPY config ./config
 COPY apps ./apps
+
+# THE CORPUS-SYNC NIF IS BUILT HERE, against musl, and never copied in. It was
+# once committed as a workstation build, which links glibc: it loaded in every
+# local test and would never have loaded on this image, so the corpus would
+# silently have stopped syncing. It is built AFTER `COPY apps' so a stale local
+# priv/lib cannot overwrite it (.dockerignore keeps it out too). zlib-dev: the
+# vendored libgit2 links the system zlib.
+RUN apk add --no-cache zlib-dev
+COPY native ./native
+COPY scripts ./scripts
+RUN bash scripts/build-corpus-sync-nif.sh
+
 RUN rebar3 as prod release
 
 FROM docker.io/alpine:3.22
@@ -70,8 +81,9 @@ LABEL org.opencontainers.image.source="https://github.com/macula-services/mcl-ra
 # library: Error loading shared library liblz4.so.1: No such file or
 # directory" and the whole node exits, since kernel can't start.
 # Confirmed live: this stage shipped without them once already.
+# zlib: the corpus-sync NIF's libgit2 links it dynamically.
 RUN apk add --no-cache ncurses-libs libstdc++ libgcc openssl ca-certificates curl \
-        zstd-libs snappy lz4-libs
+        zstd-libs snappy lz4-libs zlib
 WORKDIR /app
 COPY --from=builder /build/_build/prod/rel/mcl_rag ./
 
@@ -82,11 +94,20 @@ ENV MCL_NODE_NAME=mcl_rag
 ENV MCL_NODE_HOST=127.0.0.1
 ENV MCL_COOKIE=mcl_rag
 ENV MCL_HEALTH_PORT=8450
+# The local HTTP API: loopback only, because it has writes and no
+# authentication. The mesh procedures are the public surface.
+ENV MCL_RAG_HTTP_PORT=8470
+ENV MCL_RAG_HTTP_IP=127.0.0.1
+ENV MCL_DATA_DIR=/var/lib/mcl-rag
 
-VOLUME ["/etc/mcl/secrets"]
+VOLUME ["/etc/mcl/secrets", "/var/lib/mcl-rag"]
 
 EXPOSE 8450
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+# THE START PERIOD OUTLASTS THE STORE OPEN. Opening rebuilds the vector index:
+# 190-227 s on the workstation for the production corpus, longer on a Celeron,
+# and /health is honestly `degraded, store_opening' throughout. A shorter start
+# period lets an orchestrator kill a healthy open and loop it forever.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=900s --retries=3 \
     CMD curl -fsS "http://127.0.0.1:${MCL_HEALTH_PORT}/health" || exit 1
 
 CMD ["/app/bin/mcl_rag", "foreground"]

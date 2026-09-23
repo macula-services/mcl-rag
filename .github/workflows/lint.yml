@@ -54,7 +54,7 @@ jobs:
       # snappy) can't actually open: `db_open' fails with "The specified
       # blob compression type Snappy is not available." Hit for real in
       # mcl_om's own CI (see its lint-and-test.yml for the incident) and
-      # again in hecate-stations, the first scaffolded service to actually
+      # again in a sibling service, the first scaffolded one to actually
       # exercise read_model_id/0 in CI -- install all four, not just
       # whichever one happened to be exercised first.
       - run: apt-get update && apt-get install -y --no-install-recommends cmake build-essential libsnappy-dev liblz4-dev libzstd-dev libbz2-dev curl

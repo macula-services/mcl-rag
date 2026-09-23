@@ -9,7 +9,7 @@
         {http_ip,        "${MCL_RAG_HTTP_IP}"},
         %% ⚠ THE SHARED MEMORY LIVES HERE: one barrel database, `rag_chunks'
         %% (docs, attachments, vectors/), plus the corpus checkout. Mount it on
-        %% a persistent volume; the directory hecate-rag used opens as it is.
+        %% a persistent volume (the image's MCL_DATA_DIR, /var/lib/mcl-rag).
         {data_dir,       "${MCL_DATA_DIR}"},
         %% Vectors come from mcl-embedder over the mesh, raw text, 384 dims:
         %% the dimension every stored vector has. Changing either needs the
@@ -22,8 +22,8 @@
         {operators,      "${MCL_RAG_OPERATORS}"},
         {embed_provider, mcl_embedder},
         {embed_dim,      384},
-        %% The model every stored vector was made with (hecate-embedder, then
-        %% mcl-embedder, both load it). Federated retrieval only merges scores
+        %% The model every stored vector was made with (mcl-embedder loads
+        %% it). Federated retrieval only merges scores
         %% between shards naming the same model and dimension.
         {embed_model,    <<"intfloat/multilingual-e5-small">>},
         %% This node as one shard of the org's federated retrieval (macula_rag,

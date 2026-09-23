@@ -112,10 +112,10 @@ classify_topics_from_map_accepts_atom_keys_test() ->
     ?assertEqual(3, classify_topics_v1:get_max_topics(Cmd)).
 
 detect_corpus_change_from_map_accepts_atom_keys_test() ->
-    {ok, Cmd} = detect_corpus_change_v1:from_map(#{corpus_id => <<"hecate-corpus">>,
+    {ok, Cmd} = detect_corpus_change_v1:from_map(#{corpus_id => <<"macula">>,
                                                     source_path => <<"a.md">>,
                                                     diff_hash => <<"h1">>}),
-    ?assertEqual(<<"hecate-corpus">>, detect_corpus_change_v1:get_corpus_id(Cmd)),
+    ?assertEqual(<<"macula">>, detect_corpus_change_v1:get_corpus_id(Cmd)),
     ?assertEqual(<<"a.md">>, detect_corpus_change_v1:get_source_path(Cmd)),
     ?assertEqual(<<"h1">>, detect_corpus_change_v1:get_diff_hash(Cmd)).
 
@@ -128,9 +128,9 @@ detect_corpus_change_from_map_does_not_silently_lose_a_real_corpus_id_test() ->
     ?assertMatch({ok, _}, Result).
 
 schedule_reembed_from_map_accepts_atom_keys_test() ->
-    {ok, Cmd} = schedule_reembed_v1:from_map(#{corpus_id => <<"hecate-corpus">>,
+    {ok, Cmd} = schedule_reembed_v1:from_map(#{corpus_id => <<"macula">>,
                                                source_path => <<"a.md">>}),
-    ?assertEqual(<<"hecate-corpus">>, schedule_reembed_v1:get_corpus_id(Cmd)),
+    ?assertEqual(<<"macula">>, schedule_reembed_v1:get_corpus_id(Cmd)),
     ?assertEqual(<<"a.md">>, schedule_reembed_v1:get_source_path(Cmd)).
 
 rerank_results_from_map_accepts_atom_keys_test() ->

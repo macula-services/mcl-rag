@@ -5,5 +5,7 @@ erl_crash.dump
 _checkouts/
 rebar3.crashdump
 data/
-priv/lib/
+# Anchored to the app, not the root: a bare `priv/lib/` matched nothing here,
+# and a glibc NIF built on the workstation was committed through it.
+apps/*/priv/lib/
 native/*/target/

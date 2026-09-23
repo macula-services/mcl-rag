@@ -30,7 +30,7 @@
 %%% `upsert_source' stored under -- both call sites use the same
 %%% namespaced id for that reason, not just for the storage-collision
 %%% one. Contract-visible: `mcl-rag.get_document_verbatim' now needs
-%%% `"<repo-id>/<relative-path>"', e.g. `"hecate-corpus/roles/devops.md"'.
+%%% `"<repo-id>/<relative-path>"', e.g. `"macula/README.md"'.
 %%%
 %%% Deliberately immediate, not a separately-scheduled async drain: a
 %%% markdown-sized re-ingest is cheap (a handful of embedder calls per

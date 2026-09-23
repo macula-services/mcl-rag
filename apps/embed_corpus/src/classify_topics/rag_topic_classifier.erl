@@ -2,7 +2,7 @@
 %%%
 %%% Calls an OpenAI-compatible chat completion API (Groq by default,
 %%% since 2026-09-07 -- was NVIDIA NIM, persistently rate-limited
-%%% fleet-wide, see hecate-spartan's own history) to classify text into
+%%% fleet-wide) to classify text into
 %%% 1-N topic labels. Returns a list of binary topic strings.
 %%%
 %%% Config (under the `mcl_rag' app env):

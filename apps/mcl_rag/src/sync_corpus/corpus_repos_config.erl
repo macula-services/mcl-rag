@@ -7,15 +7,14 @@
 %%% repo.
 %%%
 %%% Deliberately re-read from disk on every call, not cached: the file
-%%% is bind-mounted from `macula-demo/infrastructure' (git-tracked,
-%%% pulled by `hecate-reconcile.timer' every 2 minutes on the host) --
-%%% re-reading a small JSON file each poll tick is cheap, and it's what
+%%% is bind-mounted read-only from this repo's deploy/corpus-repos.json
+%%% (see deploy/docker-compose.yml) -- re-reading a small JSON file each poll tick is cheap, and it's what
 %%% makes a repo list edit take effect on this service's very next tick
 %%% with no restart, the same "observe git, apply on change" shape the
 %%% repos themselves get.
 %%%
 %%% File shape:
-%%%   {"repos": [{"id": "hecate-corpus", "url": "https://...",
+%%%   {"repos": [{"id": "macula", "url": "https://...",
 %%%               "branch": "main"}, ...]}
 %%% `branch' is optional; an absent/empty one means "whatever the
 %%% remote's own default branch is" (both `git2::build::RepoBuilder'
