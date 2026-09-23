@@ -42,6 +42,8 @@ do_schedule(Cmd) ->
 
 request_for_source({error, not_found}, _Cmd) ->
     {error, not_ingested};
+request_for_source({error, _} = Refused, _Cmd) ->
+    Refused;
 request_for_source({ok, #{document_id := DocId}}, Cmd) ->
     %% priority/scheduled_at are optional on the command -- `undefined'
     %% (Erlang's "absent," not barrel's own `nil') would crash barrel's

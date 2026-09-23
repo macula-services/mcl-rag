@@ -94,9 +94,30 @@ the_shipped_config_names_the_org_test() ->
 %% Health and authority
 %%==============================================================================
 
-%% The D25 provider grant for each procedure is reported by mcl_om itself.
-the_service_itself_is_healthy_test() ->
-    ?assertEqual(ok, ?SERVICE:health()).
+%% The D25 provider grant for each procedure is reported by mcl_om itself;
+%% the service's own verdict is its store. Opening rebuilds the vector index,
+%% minutes on the production corpus, and every call is refused meanwhile, so
+%% /health says so rather than reporting a service that answers nothing.
+the_service_is_healthy_once_its_store_is_open_test() ->
+    with_store_status(open, fun() -> ?assertEqual(ok, ?SERVICE:health()) end).
+
+health_is_degraded_while_the_store_opens_test() ->
+    with_store_status(opening, fun() ->
+        ?assertEqual({degraded, store_opening}, ?SERVICE:health())
+    end).
+
+%% A store that is not running is down, not a crash of /health.
+health_is_down_without_a_store_test() ->
+    ?assertEqual(undefined, whereis(rag_store)),
+    ?assertEqual({down, store_not_running}, ?SERVICE:health()).
+
+%% A registered stand-in for the store process, answering `Status'.
+with_store_status(Status, Test) ->
+    Stand = spawn(fun() -> receive stop -> ok end end),
+    true = register(rag_store, Stand),
+    ok = meck:new(rag_store, [passthrough, no_link]),
+    ok = meck:expect(rag_store, status, fun() -> Status end),
+    try Test() after meck:unload(rag_store), Stand ! stop end.
 
 the_resolved_mcl_om_reports_provider_grants_test() ->
     {module, _} = code:ensure_loaded(mcl_om_capabilities),

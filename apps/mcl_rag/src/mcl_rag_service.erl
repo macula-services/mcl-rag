@@ -29,10 +29,19 @@ operators_checked({error, Reason})  -> error({invalid_rag_operators, Reason}).
 
 stop(_State) -> ok.
 
-%% Nothing of the service's own is reported here: whether callers can REACH
-%% each procedure (its realm-issued D25 provider grant) is reported by mcl_om's
-%% /health itself, combined with this verdict.
-health() -> ok.
+%% The service's own verdict is its store. Opening it rebuilds the vector
+%% index, minutes on the production corpus, and every call is refused with
+%% `{error, store_opening}' meanwhile, so /health says so. Whether callers can
+%% REACH each procedure (its realm-issued D25 provider grant) is reported by
+%% mcl_om's /health itself, combined with this verdict.
+health() ->
+    store_health(whereis(rag_store)).
+
+store_health(undefined) -> {down, store_not_running};
+store_health(_Pid)      -> opened(rag_store:status()).
+
+opened(open)    -> ok;
+opened(opening) -> {degraded, store_opening}.
 
 %% The seventeen procedures, registered by mcl_om as `mcl-rag/<name>' (the org
 %% comes from config). Each goes through mcl_om's simple handler into

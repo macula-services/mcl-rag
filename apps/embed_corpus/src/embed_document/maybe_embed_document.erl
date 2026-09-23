@@ -42,7 +42,8 @@ do_embed(Cmd) ->
     Id = embed_document_v1:get_document_id(Cmd),
     case rag_store:get_source_content(Id) of
         {ok, Content} -> chunk_and_store(Id, Content);
-        {error, not_found} -> {error, not_ingested}
+        {error, not_found} -> {error, not_ingested};
+        {error, _} = Refused -> Refused
     end.
 
 chunk_and_store(Id, #{source_path := SourcePath, raw_bytes := RawBytes}) ->

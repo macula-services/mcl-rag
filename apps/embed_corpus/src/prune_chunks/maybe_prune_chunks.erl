@@ -33,7 +33,8 @@ do_prune(Cmd) ->
     Id = prune_chunks_v1:get_document_id(Cmd),
     case rag_store:get_source(Id) of
         {ok, #{source_path := SourcePath}} -> prune_source(Id, SourcePath, Cmd);
-        {error, not_found}                 -> {error, not_ingested}
+        {error, not_found}                 -> {error, not_ingested};
+        {error, _} = Refused               -> Refused
     end.
 
 prune_source(Id, SourcePath, Cmd) ->

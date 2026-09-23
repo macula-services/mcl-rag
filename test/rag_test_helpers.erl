@@ -22,10 +22,20 @@
 %% suite's own `start_mcl_rag/0' tries to bind the same one.
 -define(POST_STOP_SETTLE_MS, 10000).
 
+%% The store opens in the background and refuses every call until it has
+%% (rag_store:status/0), so a suite starts only once it serves.
+-define(STORE_OPEN_WAIT_MS, 30000).
+
 -spec start_mcl_rag() -> ok.
 start_mcl_rag() ->
     {ok, _} = application:ensure_all_started(mcl_rag),
-    ok.
+    store_open(rag_store:status(), ?STORE_OPEN_WAIT_MS).
+
+store_open(open, _Left) -> ok;
+store_open(opening, Left) when Left =< 0 -> error(store_did_not_open);
+store_open(opening, Left) ->
+    timer:sleep(50),
+    store_open(rag_store:status(), Left - 50).
 
 -spec stop_mcl_rag() -> ok.
 stop_mcl_rag() ->

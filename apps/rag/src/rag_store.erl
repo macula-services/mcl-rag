@@ -61,7 +61,8 @@
     find_source_by_path/1,
     get_watermark/2,
     put_watermark/3,
-    put_reembed_request/1
+    put_reembed_request/1,
+    status/0
 ]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
@@ -89,7 +90,8 @@
 %% eventually, rather than waiting forever.
 -define(CALL_TIMEOUT, 60000).
 
--record(state, {db = undefined :: map() | undefined}).
+%% `opening' until the open started at init lands; the db map after.
+-record(state, {db = opening :: map() | opening}).
 
 %%% API
 
@@ -151,7 +153,7 @@ search_vector(Vector, TopK)
 get(ChunkId) when is_binary(ChunkId) ->
     gen_server:call(?MODULE, {get, ChunkId}, ?CALL_TIMEOUT).
 
--spec size() -> non_neg_integer().
+-spec size() -> non_neg_integer() | {error, store_opening}.
 size() ->
     gen_server:call(?MODULE, size, ?CALL_TIMEOUT).
 
@@ -232,10 +234,28 @@ put_watermark(CorpusId, SourcePath, DiffHash)
 put_reembed_request(#{document_id := Id} = Req) when is_binary(Id) ->
     gen_server:call(?MODULE, {put_reembed_request, Req}, ?CALL_TIMEOUT).
 
+%% @doc `opening' while the store is being opened (every other call is then
+%% refused with `{error, store_opening}'), `open' once it serves. Answered at
+%% once in either state, so /health can read it.
+-spec status() -> opening | open.
+status() ->
+    gen_server:call(?MODULE, status, ?CALL_TIMEOUT).
+
 %%% gen_server
 
+%% The open starts here, in a linked process, not on the first call.
+%% Opening the production store rebuilds its HNSW index: 227 s for 22,316
+%% vectors on a workstation, longer on a Celeron. Run inside this process it
+%% blocked every caller for all of that, and each died on the call timeout.
 init([]) ->
+    Store = self(),
+    _ = spawn_link(fun() -> Store ! {opened, open_db()} end),
     {ok, #state{}}.
+
+handle_call(status, _From, #state{db = opening} = S) ->
+    {reply, opening, S};
+handle_call(status, _From, S) ->
+    {reply, open, S};
 
 handle_call({put_chunk, Id, Content, Meta}, _From, S0) ->
     with_db(S0, fun(Db) -> put_chunk_doc(Db, Id, Content, Meta) end);
@@ -256,7 +276,7 @@ handle_call({get, Id}, _From, S0) ->
     with_db(S0, fun(Db) -> chunk_from_doc(barrel:get_doc(Db, Id)) end);
 
 handle_call(size, _From, S0) ->
-    with_db(S0, fun(Db) -> chunk_count(Db) end, 0);
+    with_db(S0, fun(Db) -> chunk_count(Db) end);
 
 handle_call({upsert_source, Source}, _From, S0) ->
     with_db(S0, fun(Db) -> put_source_doc(Db, Source) end);
@@ -271,10 +291,10 @@ handle_call({get_source_content, Id}, _From, S0) ->
     with_db(S0, fun(Db) -> source_content_from_doc(barrel:get_doc(Db, source_id(Id))) end);
 
 handle_call({list_sources, Offset, Limit}, _From, S0) ->
-    with_db(S0, fun(Db) -> list_sources_page(Db, Offset, Limit) end, {ok, []});
+    with_db(S0, fun(Db) -> list_sources_page(Db, Offset, Limit) end);
 
 handle_call({list_chunks_by_source, SourcePath, Limit}, _From, S0) ->
-    with_db(S0, fun(Db) -> list_chunks_by_source_page(Db, SourcePath, Limit) end, {ok, []});
+    with_db(S0, fun(Db) -> list_chunks_by_source_page(Db, SourcePath, Limit) end);
 
 handle_call({find_source_by_path, SourcePath}, _From, S0) ->
     with_db(S0, fun(Db) -> find_source_by_path_doc(Db, SourcePath) end);
@@ -291,31 +311,31 @@ handle_call({put_reembed_request, Req}, _From, S0) ->
 handle_call(_, _From, S) -> {reply, {error, unknown_call}, S}.
 
 handle_cast(_, S) -> {noreply, S}.
+handle_info({opened, {ok, Db}}, #state{db = opening} = S) ->
+    {noreply, S#state{db = Db}};
+%% A store that cannot open stops, and its supervisor decides; it does not
+%% stay up answering every call with an error nobody is shown.
+handle_info({opened, {error, Reason}}, #state{db = opening} = S) ->
+    {stop, {store_open_failed, Reason}, S};
 handle_info(_, S) -> {noreply, S}.
 terminate(_, _)   -> ok.
 
-%%% Internals — lazy open
+%%% Internals — the open state
 %%
 %% `Fun' returns a plain result (`ok', `{ok, _}' or `{error, _}'), never a
 %% gen_server reply tuple — this is the one place that wraps it, so every
 %% `handle_call' clause above reads as "what does this call actually
 %% compute" with no `{reply, _, State}' boilerplate repeated per clause.
-%% `size/0' and the list queries pass a 3rd-arg fallback because their
-%% "no db yet" answer is a value (`0', `{ok, []}'), not an error.
+%%
+%% While the store opens, every call is refused with `{error, store_opening}'.
+%% There is no stand-in answer: `size' 0 or an empty list would tell
+%% retire_document and prune_chunks a document had no chunks, and they would
+%% report success having removed nothing.
 
-with_db(S0, Fun) ->
-    with_db(S0, Fun, undefined).
-
-with_db(#state{db = undefined} = S0, Fun, OnOpenError) ->
-    case open_db() of
-        {ok, Db}        -> reply_result(Fun(Db), S0#state{db = Db});
-        {error, _} = E  -> {reply, on_open_error(OnOpenError, E), S0}
-    end;
-with_db(#state{db = Db} = S0, Fun, _OnOpenError) ->
+with_db(#state{db = opening} = S0, _Fun) ->
+    {reply, {error, store_opening}, S0};
+with_db(#state{db = Db} = S0, Fun) ->
     reply_result(Fun(Db), S0).
-
-on_open_error(undefined, Error) -> Error;
-on_open_error(Fallback, _Error) -> Fallback.
 
 reply_result(Result, State) -> {reply, Result, State}.
 
@@ -336,13 +356,25 @@ reply_result(Result, State) -> {reply, Result, State}.
 %% RocksDB creates its own directory but not a missing parent, so the data
 %% dir and the vectors dir are made first: a fresh volume, or a data dir
 %% nobody has created yet, otherwise fails every open with `enoent' (the
-%% pipeline suites did, the first time they ran instead of skipping).
+%% pipeline suites did, the first time they ran instead of skipping). A dir
+%% that cannot be made is named, with its path, in the store's stop reason.
 open_db() ->
-    ok = filelib:ensure_path(data_dir()),
-    ok = filelib:ensure_path(vector_data_dir()),
+    open_in(dirs_made([data_dir(), vector_data_dir()])).
+
+dirs_made([]) -> ok;
+dirs_made([Dir | Rest]) -> dir_made(filelib:ensure_path(Dir), Dir, Rest).
+
+dir_made(ok, _Dir, Rest)            -> dirs_made(Rest);
+dir_made({error, Reason}, Dir, _Rest) -> {error, {data_dir_unusable, Dir, Reason}}.
+
+open_in({error, _} = Unusable) -> Unusable;
+open_in(ok) ->
     barrel:open(?DB_NAME, #{
         docdb => #{data_dir => data_dir()},
         vectordb => #{db_path => vector_data_dir()},
+        %% Opened in a short-lived process (see init/1): the vector store
+        %% goes under barrel's supervisor, not linked to that process.
+        store_supervised => true,
         embedding => #{
             fields => [],
             mode => sync,

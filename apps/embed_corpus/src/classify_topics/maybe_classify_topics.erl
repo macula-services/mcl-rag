@@ -42,6 +42,7 @@ do_classify(Cmd, Params) ->
     MaxTopics = classify_topics_v1:get_max_topics(Cmd),
     case rag_store:get_source_content(DocId) of
         {error, not_found} -> {error, not_ingested};
+        {error, _} = Refused -> Refused;
         {ok, Content}      -> classify_chunks(Content, DocId, MaxTopics, Params)
     end.
 
@@ -49,7 +50,8 @@ classify_chunks(#{source_path := SourcePath}, DocId, MaxTopics, Params) ->
     Path = path_or_id(SourcePath, DocId),
     case rag_store:list_chunks_by_source(Path, 500) of
         {ok, []}   -> {error, not_embedded};
-        {ok, Chunks} -> classify_and_tag(mode(Params), Chunks, MaxTopics, DocId)
+        {ok, Chunks} -> classify_and_tag(mode(Params), Chunks, MaxTopics, DocId);
+        {error, _} = Refused -> Refused
     end.
 
 classify_and_tag(document, Chunks, MaxTopics, DocId) ->

@@ -158,8 +158,8 @@ check_and_refresh(RepoId, RelPath, Content) ->
     Detect = #{<<"corpus_id">> => RepoId, <<"source_path">> => DocId,
                <<"diff_hash">> => Hash},
     case maybe_detect_corpus_change:detect(Detect) of
-        {ok, #{changed := true}}  -> refresh_changed(RepoId, DocId, Content);
-        {ok, #{changed := false}} -> ok;
+        {ok, #{changed := 1}} -> refresh_changed(RepoId, DocId, Content);
+        {ok, #{changed := 0}} -> ok;
         {error, Reason} ->
             logger:warning("[refresh_corpus_scheduler] ~s: detect error path=~ts ~p",
                             [RepoId, DocId, Reason])

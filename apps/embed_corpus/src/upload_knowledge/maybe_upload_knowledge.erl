@@ -37,13 +37,18 @@ do_upload(Cmd) ->
     RawBytes = upload_knowledge_v1:get_raw_bytes(Cmd),
     DepositedBy = upload_knowledge_v1:get_deposited_by(Cmd),
     Path = path_or_id(SourcePath, Id),
-    ok = rag_store:upsert_source(#{
+    Source = #{
         document_id => Id,
         source_path => Path,
         source_type => SourceType,
         raw_bytes => RawBytes,
         deposited_by => hex_or_undefined(DepositedBy)
-    }),
+    },
+    source_stored(rag_store:upsert_source(Source), Id, Path, RawBytes, DepositedBy).
+
+source_stored({error, _} = Refused, _Id, _Path, _RawBytes, _DepositedBy) ->
+    Refused;
+source_stored(ok, Id, Path, RawBytes, DepositedBy) ->
     Chunks = with_deposited_by(markdown_chunker:chunk_text(RawBytes, Path, ?MAX_CHUNK_CHARS), DepositedBy),
     {Stored, Errors} = rag_chunk_embedder:embed_and_store(Chunks),
     log_errors(Errors),

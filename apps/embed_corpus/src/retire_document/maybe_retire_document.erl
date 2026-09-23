@@ -54,7 +54,9 @@ with_source({ok, #{source_path := Path}}, Id) ->
 %% are the orphans described above; none means there is genuinely no
 %% such document.
 with_source({error, not_found}, Id) ->
-    forget_chunks_then(Id, Id, no_source).
+    forget_chunks_then(Id, Id, no_source);
+with_source({error, _} = Refused, _Id) ->
+    Refused.
 
 forget_chunks_then(Path, Id, Kind) ->
     case rag_store:list_chunks_by_source(Path, ?MAX_DOCUMENT_CHUNKS) of

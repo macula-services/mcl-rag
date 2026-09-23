@@ -27,7 +27,7 @@
 
 -export([detect/1]).
 
--spec detect(map()) -> {ok, #{corpus_id := binary(), source_path := binary(), changed := boolean()}} |
+-spec detect(map()) -> {ok, #{corpus_id := binary(), source_path := binary(), changed := 0 | 1}} |
                         {error, term()}.
 detect(Params) when is_map(Params) ->
     case detect_corpus_change_v1:from_map(Params) of
@@ -50,19 +50,27 @@ do_detect(Cmd) ->
     compare_and_record(CorpusId, SourcePath, NewHash).
 
 compare_and_record(CorpusId, SourcePath, NewHash) ->
-    record_if_changed(CorpusId, SourcePath, NewHash, changed(rag_store:get_watermark(CorpusId, SourcePath), NewHash)).
+    watermark_read(rag_store:get_watermark(CorpusId, SourcePath), CorpusId, SourcePath, NewHash).
+
+%% A watermark the store could not read is not a missing one: reading it as
+%% "no prior hash" would report every path changed while the store opens.
+watermark_read({error, Reason} = Refused, _CorpusId, _SourcePath, _NewHash) when Reason =/= not_found ->
+    Refused;
+watermark_read(Watermark, CorpusId, SourcePath, NewHash) ->
+    record_if_changed(CorpusId, SourcePath, NewHash, changed(Watermark, NewHash)).
 
 %% same hash as last time -> no change; a different (or no) prior hash -> a real change.
+%% Reported as 1 or 0, not a boolean: the reply crosses the wire.
 changed({ok, #{diff_hash := NewHash}}, NewHash) -> false;
 changed({ok, #{diff_hash := _Other}}, _NewHash) -> true;
 changed({error, not_found}, _NewHash)           -> true.
 
 record_if_changed(CorpusId, SourcePath, _NewHash, false) ->
-    {ok, #{corpus_id => CorpusId, source_path => SourcePath, changed => false}};
+    {ok, #{corpus_id => CorpusId, source_path => SourcePath, changed => 0}};
 record_if_changed(CorpusId, SourcePath, NewHash, true) ->
     watermark_written(rag_store:put_watermark(CorpusId, SourcePath, NewHash), CorpusId, SourcePath).
 
 watermark_written(ok, CorpusId, SourcePath) ->
-    {ok, #{corpus_id => CorpusId, source_path => SourcePath, changed => true}};
+    {ok, #{corpus_id => CorpusId, source_path => SourcePath, changed => 1}};
 watermark_written({error, _} = E, _CorpusId, _SourcePath) ->
     E.
