@@ -28,13 +28,26 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   An eunit suite holds the Containerfile, compose and the templated configs to
   each other.
 
+### Changed
+
+- On `mcl_om` 0.27, which no longer brings `barrel_docdb`. This service
+  declares it itself, and rocksdb links the system librocksdb
+  (`-DWITH_SYSTEM_ROCKSDB=ON`) instead of compiling its bundled copy. It builds
+  in `macula-ci-otp-rocksdb` and runs on `macula-pq-runtime-rocksdb` (Debian
+  trixie), both pinned by digest. It used to build and run on alpine.
+- The boot claim carries `MCL_SERVICE_NAME=mcl-rag` and the deploying host's
+  `MCL_BOX`, so the realm's Providers desk shows the service and box.
+
 ### Fixed
 
+- barrel_docdb's system database lives on the data volume. Its `data_dir`
+  default is `/tmp/barrel_data`, inside the container.
 - The ports are the registered ones (macula-fleet `PORTS.md`): health 8450,
   the loopback HTTP API 8451. The image had said 8470, which is mcl-sentinel's,
   and under host networking a collision is a silent bind failure.
-- The corpus-sync NIF is built in the image against musl. The port had
-  committed a workstation build, which links glibc and would never have
-  loaded on alpine. A root-anchored `.gitignore` rule had let it through.
+- The corpus-sync NIF is built in the image, against the image's own
+  libraries. The port had committed a workstation build, which would never
+  have loaded in the image. A root-anchored `.gitignore` rule had let it
+  through.
 - The health check's start period (900 s) outlasts the store open, which
   rebuilds the vector index and takes minutes.

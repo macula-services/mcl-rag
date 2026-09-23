@@ -74,13 +74,32 @@ the_ports_are_the_registered_ones_test() ->
     ?assertMatch({match, _}, re:run(Compose, <<"- MCL_HEALTH_PORT=8450\\n">>)),
     ?assertMatch({match, _}, re:run(read("Containerfile"), <<"EXPOSE 8450 8451\\n">>)).
 
+%% barrel_docdb keeps its system database (`_barrel_system') under its own
+%% `data_dir' app env, which defaults to /tmp/barrel_data: inside the
+%% container, gone on every recreate. It lives on the data volume, beside
+%% rag_chunks.
+barrel_system_db_is_on_the_data_volume_test() ->
+    ?assertMatch({match, _},
+                 re:run(read("config/sys.config.src"),
+                        <<"\\{barrel_docdb, \\[\\{data_dir, +\"\\$\\{MCL_DATA_DIR\\}\"\\}\\]\\}">>)).
+
+%% Every node that claims on the realm shows its host and service on the
+%% Providers desk: mcl_om reads MCL_SERVICE_NAME and MCL_BOX. The service
+%% name is ours; the box is the deploying host's to say.
+the_claim_carries_its_labels_test() ->
+    Compose = read("deploy/docker-compose.yml"),
+    ?assertMatch({match, _}, re:run(Compose, <<"- MCL_SERVICE_NAME=mcl-rag\\n">>)),
+    ?assertMatch({match, _}, re:run(Compose, <<"- MCL_BOX=\\$\\{MCL_BOX:-\\}\\n">>)).
+
 %% relx puts in the release only what an `applications' list reaches, while
 %% the test code path holds every rebar dep. An app called directly but not
 %% listed passes every suite and is `undef' in production: macula_rag was
 %% (join_federation), and dialyzer, not a test, noticed.
 every_directly_called_app_is_listed_test() ->
     [?assert(lists:member(Dep, applications(App)))
-     || {App, Dep} <- [{mcl_rag, macula_rag}, {mcl_rag, ranch}, {rag, barrel_embed}]].
+     || {App, Dep} <- [{mcl_rag, macula_rag}, {mcl_rag, ranch}, {rag, barrel_embed},
+                       %% mcl_om stopped bringing it in 0.27; the store is ours.
+                       {rag, barrel_docdb}]].
 
 %%==============================================================================
 

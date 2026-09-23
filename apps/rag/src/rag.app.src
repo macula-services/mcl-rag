@@ -10,6 +10,8 @@
         cowboy,
         jsx,
         barrel,
+        %% The store's document half; declared by this service since mcl_om 0.27.
+        barrel_docdb,
         %% rag_embed_mcl_embedder implements its barrel_embed_provider.
         barrel_embed
     ]},

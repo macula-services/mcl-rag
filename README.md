@@ -55,11 +55,14 @@ runs, `/health` reports `degraded, store_opening` and every call is refused with
 
     scripts/health.sh                      # against a running node
 
-Building the image needs a Rust toolchain. macula ships a QUIC NIF, and this
-service has its own corpus-sync NIF (`native/mcl_rag_corpus_sync_nif`). The
-alpine build compiles both from source, because a binary built elsewhere links
-a different libc. Locally, `scripts/build-corpus-sync-nif.sh` builds the
-corpus-sync NIF into `priv/lib/`, which is gitignored.
+The build and CI run in `ghcr.io/macula-io/macula-ci-otp-rocksdb`, and the
+image runs on `ghcr.io/macula-io/macula-pq-runtime-rocksdb`, both pinned by
+digest. rocksdb links the system librocksdb 11.1.2 those images carry (the
+override in `rebar.config`), so building outside them stops at "Could not find
+RocksDB" unless your machine has that library. This service's own corpus-sync
+NIF (`native/mcl_rag_corpus_sync_nif`, Rust) is built inside the image, never
+copied in; locally, `scripts/build-corpus-sync-nif.sh` builds it into
+`priv/lib/`, which is gitignored.
 
     podman build -t mcl-rag -f Containerfile .
 
@@ -78,6 +81,8 @@ corpus-sync NIF into `priv/lib/`, which is gitignored.
 | `MCL_DATA_DIR` | `/var/lib/mcl-rag` | The store and the corpus checkouts. Mount it on a persistent volume (compose names it `mcl-rag-data`). |
 | `MCL_RAG_HTTP_PORT` | `8451` | The local HTTP API. Registered in macula-fleet `PORTS.md`, like the health port. |
 | `MCL_RAG_HTTP_IP` | `127.0.0.1` | Keep it on loopback: the API has writes and no authentication. |
+| `MCL_SERVICE_NAME` | `mcl-rag` | Label on the boot claim the realm's operator sees on the Providers desk. |
+| `MCL_BOX` | from the host | Label naming the box, also on the boot claim. Set it where you deploy. |
 | `MCL_HEALTH_PORT` | `8450` | Health endpoint. Host networking makes a collision a silent bind failure, so check the host before changing.  |
 | `MCL_NODE_NAME` | `mcl_rag` | Erlang node name. |
 | `MCL_NODE_HOST` | `127.0.0.1` | Erlang node host. |

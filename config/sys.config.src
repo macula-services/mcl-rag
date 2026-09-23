@@ -113,5 +113,9 @@
     {macula, [
         {crypto_profile, pq_hybrid}
     ]},
+    %% barrel_docdb's system database (`_barrel_system') lives under this
+    %% data_dir, whose default is /tmp/barrel_data: inside the container, gone
+    %% on every recreate. It sits on the data volume beside rag_chunks.
+    {barrel_docdb, [{data_dir, "${MCL_DATA_DIR}"}]},
     {kernel, [{logger_level, info}]}
 ].

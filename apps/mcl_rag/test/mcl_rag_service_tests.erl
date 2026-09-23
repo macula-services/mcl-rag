@@ -218,24 +218,31 @@ the_http_api_binds_loopback_by_default_test() ->
 %% toolchain step insists on, .tool-versions, and this VM. Lint's image itself
 %% is a dated CI image, so it is held to its digest separately.
 the_runtime_agrees_between_the_image_the_ci_and_this_vm_test() ->
-    Image = pinned("Containerfile",
-                   "^FROM docker\\.io/(?:hexpm/)?erlang:([0-9]+\\.[0-9]+\\.[0-9]+)"
-                   "-alpine[^@\\s]*@sha256:[0-9a-f]{64} AS builder$"),
-    CiCheck = pinned(".github/workflows/lint.yml",
-                     "\\{<<\"([0-9]+\\.[0-9]+\\.[0-9]+)\">>, true\\} -> halt\\(0\\);"),
+    Check = "\\{<<\"([0-9]+\\.[0-9]+\\.[0-9]+)\">>, true\\} -> halt\\(0\\);",
+    Image = pinned("Containerfile", Check),
+    CiCheck = pinned(".github/workflows/lint.yml", Check),
     Tools = pinned(".tool-versions", "^erlang ([0-9]+\\.[0-9]+\\.[0-9]+)$"),
     %% Sorted and deduplicated, so a failure prints every version rather than
     %% the first pair that happened to be compared.
     ?assertEqual([Image], lists:usort([Image, CiCheck, Tools, running_otp()])).
 
-%% Lint runs in the shared CI image, whose tag is a build date, not a release:
-%% the release is what its toolchain step insists on (above). What keeps it
-%% from floating is the digest.
-the_ci_image_is_pinned_by_digest_test() ->
+%% The build and runtime images are the team's rocksdb pair, named by digest:
+%% the build image carries librocksdb 11.1.2 for the rocksdb override, and a
+%% release built there needs librocksdb.so.11 at run time, which only the
+%% runtime image of the pair has. Their tags move daily, so only a digest
+%% says what builds. The OTP release the builder holds is asserted by its own
+%% RUN step, the line the guard above reads.
+images_are_the_digest_pinned_rocksdb_pair_test() ->
+    Digest = "@sha256:[0-9a-f]{64}",
+    ?assertMatch(<<_/binary>>,
+                 pinned("Containerfile",
+                        "^FROM (ghcr\\.io/macula-io/macula-ci-otp-rocksdb)" ++ Digest ++ " AS builder$")),
+    ?assertMatch(<<_/binary>>,
+                 pinned("Containerfile",
+                        "^FROM (ghcr\\.io/macula-io/macula-pq-runtime-rocksdb)" ++ Digest ++ "$")),
     ?assertMatch(<<_/binary>>,
                  pinned(".github/workflows/lint.yml",
-                        "^\\s+image: (ghcr\\.io/macula-io/macula-ci-otp:[0-9]{8}-[0-9]{4})"
-                        "@sha256:[0-9a-f]{64}$")).
+                        "^\\s+image: (ghcr\\.io/macula-io/macula-ci-otp-rocksdb)" ++ Digest ++ "$")).
 
 %% The full release, 28.4.3 and not 28: `otp_release' names only the major.
 running_otp() ->

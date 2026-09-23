@@ -1,5 +1,6 @@
 # Build artefacts from the workstation never enter the image: a cargo target or
-# a priv/lib NIF built here links glibc, and the image is musl.
+# a priv/lib NIF built here links the workstation's libraries, not the build
+# image's, and a copy of it once shipped in place of the image's own build.
 _build/
 native/*/target/
 apps/*/priv/lib/

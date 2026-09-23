@@ -65,6 +65,11 @@ services:
       # that dial could never connect anyway.
       - MACULA_STATION_SEEDS=${MACULA_STATION_SEEDS:?set MACULA_STATION_SEEDS to "host[:port][,host[:port]...]"}
       - MACULA_STATION_NODE_IDS=${MACULA_STATION_NODE_IDS:?set MACULA_STATION_NODE_IDS to the matching 64-hex node ids, comma-separated}
+      # The labels on this node's boot claim, shown on the realm's Providers
+      # desk: which service, on which box. MCL_BOX comes from the host that
+      # deploys it.
+      - MCL_SERVICE_NAME=mcl-rag
+      - MCL_BOX=${MCL_BOX:-}
       - MCL_NODE_NAME=mcl_rag
       - MCL_NODE_HOST=127.0.0.1
       - MCL_COOKIE=mcl_rag

@@ -1,11 +1,11 @@
-# Structural lint and unit tests. Runs on the glibc erlang image, where macula
+# Structural lint and unit tests. Runs in the digest-pinned macula-ci-otp-rocksdb image, where macula
 # resolves a prebuilt QUIC NIF -- but macula_cbor_nif (and the crypto/ucan/did/
 # mri NIFs beside it) have no such fallback and ALWAYS build from source, so a
 # Rust toolchain is needed here too or `rebar3 compile' fails in the
 # macula_cbor_nif hook before a single test runs (its build script refuses to
 # silently skip, because a package that compiles clean and fails every caller
-# at runtime with nif_not_loaded is worse). The alpine image build forces a
-# source build for everything including macula_quic; see the Containerfile.
+# at runtime with nif_not_loaded is worse). rocksdb itself is NOT compiled:
+# the override in rebar.config links the image's librocksdb 11.1.2.
 
 name: lint-and-test
 
@@ -19,10 +19,11 @@ jobs:
   check:
     runs-on: ubuntu-latest
     container:
-      # ⚠ THE SAME PINNED CI IMAGE THE LOCAL GATE RUNS IN: OTP 28.4.3 with the
-      # Rust toolchain, by digest. The Containerfile's builder is the same
-      # release; the step below refuses anything else.
-      image: ghcr.io/macula-io/macula-ci-otp:20260923-1347@sha256:b2260d084a3d3c5e0b74932c4ee052a0cadfddddb6587d5d2214873e6bb06330
+      # ⚠ THE SAME DIGEST-PINNED BUILD IMAGE AS THE Containerfile: OTP 28.4.3,
+      # Rust, cmake, the zlib headers and librocksdb 11.1.2 for the
+      # system-rocksdb override. The toolchain step below refuses any other
+      # release.
+      image: ghcr.io/macula-io/macula-ci-otp-rocksdb@sha256:da4ea316b91f4f29efc8036fa9d95a3b1f3efde8b85cb5997780f140e0f2f6d8
     steps:
       - uses: actions/checkout@v4
       - name: Verify the toolchain is the one we think it is
@@ -37,25 +38,6 @@ jobs:
                 {<<"28.4.3">>, true} -> halt(0);
                 _                    -> halt(1)
             end.'
-      # cmake, build-essential: mcl_om pulls in rocksdb (via barrel_docdb)
-      # and khepri/ra transitively, UNCONDITIONALLY -- needed even for a
-      # storeless, producer-only service. libssl-dev is not listed because
-      # the debian-based erlang image already ships it; alpine (the
-      # Containerfile's runtime base) does not, which is why it's explicit
-      # there.
-      #
-      # libsnappy-dev liblz4-dev libzstd-dev libbz2-dev: rocksdb's CMakeLists
-      # auto-detects each of these via find_package() and, if one is
-      # missing, silently disables it rather than failing the build -- so
-      # the compile step goes green while producing a NIF whose runtime
-      # config (barrel_docdb defaults document-body/BlobDB compression to
-      # snappy) can't actually open: `db_open' fails with "The specified
-      # blob compression type Snappy is not available." Hit for real in
-      # mcl_om's own CI (see its lint-and-test.yml for the incident) and
-      # again in a sibling service, the first scaffolded one to actually
-      # exercise read_model_id/0 in CI -- install all four, not just
-      # whichever one happened to be exercised first.
-      - run: apt-get update && apt-get install -y --no-install-recommends cmake build-essential libsnappy-dev liblz4-dev libzstd-dev libbz2-dev zlib1g-dev curl
       # The corpus-sync NIF: the suites load it, and nothing else builds it.
       - run: bash scripts/build-corpus-sync-nif.sh
       - run: rebar3 lint
