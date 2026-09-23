@@ -1,0 +1,16 @@
+{application, query_sources, [
+    {description, "Source read model (per-document metadata) (QRY)"},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {mod, {query_sources_app, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        crypto,
+        cowboy,
+        rag
+    ]},
+    {env, []},
+    {modules, []},
+    {licenses, ["Apache-2.0"]}
+]}.

@@ -1,0 +1,19 @@
+{application, refresh_corpus, [
+    {description, "Detect corpus changes and schedule re-embed (CMD)"},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {mod, {refresh_corpus_app, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        crypto,
+        cowboy,
+        reckon_db,
+        evoq,
+        reckon_evoq,
+        rag
+    ]},
+    {env, []},
+    {modules, []},
+    {licenses, ["Apache-2.0"]}
+]}.

@@ -1,0 +1,17 @@
+{application, rag, [
+    {description, "Shared root + notation for the mcl-rag service's umbrella apps"},
+    {vsn, "0.1.0"},
+    {registered, [rag_store]},
+    {mod, {rag_app, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        crypto,
+        cowboy,
+        jsx,
+        barrel
+    ]},
+    {env, []},
+    {modules, []},
+    {licenses, ["Apache-2.0"]}
+]}.

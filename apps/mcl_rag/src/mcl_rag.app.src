@@ -1,16 +1,31 @@
 {application, mcl_rag, [
     {description, "The mesh shared memory: retrieval over a realm-bound corpus, and the deposits agents remember into it"},
     {vsn, "0.1.0"},
-    {registered, [mcl_rag_sup]},
+    {registered, [mcl_rag_sup, mcl_rag_mesh_rpc, corpus_git_sync, refresh_corpus_scheduler]},
     {mod, {mcl_rag_app, []}},
     {applications, [
         kernel,
         stdlib,
         crypto,
+        inets,
+        ssl,
+        cowboy,
         %% Mesh SDK, realm identity, capabilities, health.
-        mcl_om
+        mcl_om,
+        barrel,
+        %% The slices, started before this app.
+        rag,
+        embed_corpus,
+        refresh_corpus,
+        serve_retrieval,
+        query_chunks,
+        query_sources
     ]},
-    {env, []},
+    {env, [
+        %% The local HTTP API. Loopback: it has writes and no authentication.
+        {http_port, 8451},
+        {http_ip, "127.0.0.1"}
+    ]},
     {modules, []},
     {licenses, ["Apache-2.0"]},
     {links, [{"GitHub", "https://github.com/macula-services/mcl-rag"}]}

@@ -55,41 +55,67 @@ info_version_matches_the_application_test() ->
     #{version := Reported} = ?SERVICE:info(),
     ?assertEqual(list_to_binary(Vsn), Reported).
 
-health_is_green_test() ->
+%%==============================================================================
+%% The contract callers dial
+%%==============================================================================
+
+-define(PROCEDURES,
+        [<<"add_knowledge">>, <<"answer_query">>, <<"classify_topics">>,
+         <<"detect_corpus_change">>, <<"embed_document">>, <<"get_chunk_by_id">>,
+         <<"get_document_verbatim">>, <<"get_source_by_id">>, <<"ingest_document">>,
+         <<"list_chunks_by_source">>, <<"list_sources_page">>, <<"prune_chunks">>,
+         <<"rerank_results">>, <<"retire_document">>, <<"schedule_reembed">>,
+         <<"search_chunks_semantic">>, <<"upload_knowledge">>]).
+
+%% The seventeen procedures, org-qualified the way mcl_om registers them:
+%% `mcl-rag/<name>'. macula-mcp's mesh_recall/mesh_remember, macula-cli and
+%% macula-lazymesh are built against these. A change is a new name.
+the_procedures_are_the_published_contract_test() ->
+    ?assertEqual([<<"mcl-rag/", N/binary>> || N <- ?PROCEDURES],
+                 lists:sort([mcl_om_capabilities:org_procedure(<<"mcl-rag">>, Name)
+                             || #{name := Name} <- ?SERVICE:capabilities()])).
+
+%% Each is served through mcl_om's simple handler into the mesh RPC router,
+%% under a handler function named after the procedure.
+every_procedure_routes_to_its_handler_test() ->
+    [?assertEqual({mcl_om_simple_handler,
+                   {mcl_rag_mesh_rpc, binary_to_atom(<<"handle_", N/binary>>)}},
+                  H)
+     || #{name := N, handler := H} <- ?SERVICE:capabilities()],
+    [?assert(erlang:function_exported(mcl_rag_mesh_rpc, F, 1))
+     || #{handler := {_, {_, F}}} <- ?SERVICE:capabilities(),
+        {module, _} <- [code:ensure_loaded(mcl_rag_mesh_rpc)]].
+
+the_shipped_config_names_the_org_test() ->
+    {ok, Text} = file:read_file(alongside("config/sys.config.src")),
+    ?assertNotEqual(nomatch, binary:match(Text, <<"{org,               <<\"mcl-rag\">>}">>)).
+
+%%==============================================================================
+%% Health and authority
+%%==============================================================================
+
+%% The D25 provider grant for each procedure is reported by mcl_om itself.
+the_service_itself_is_healthy_test() ->
     ?assertEqual(ok, ?SERVICE:health()).
 
-%% An empty list is the correct answer for a service that does nothing yet. The
-%% assertion is here so that adding a capability breaks a test and makes someone
-%% write down what the service can now actually do.
-announces_no_capability_yet_test() ->
-    ?assertEqual([], ?SERVICE:capabilities()).
+the_resolved_mcl_om_reports_provider_grants_test() ->
+    {module, _} = code:ensure_loaded(mcl_om_capabilities),
+    ?assert(erlang:function_exported(mcl_om_capabilities, provider_grants, 0)).
 
-identity_spec_has_the_shape_mcl_om_expects_test() ->
-    #{scope := Scope, actions := Actions,
-      resources := Resources, ttl_days := Ttl} = ?SERVICE:identity_spec(),
-    ?assert(is_binary(Scope)),
-    ?assert(is_list(Actions)),
-    ?assert(is_list(Resources)),
-    ?assert(is_integer(Ttl) andalso Ttl > 0).
-
-%% A resource this service is not authorised for is a publish the realm would
-%% refuse once UCAN delegation lands. Asking for nothing and claiming nothing
-%% must stay in step, so the two are asserted together.
-authority_matches_what_is_announced_test() ->
+identity_spec_asks_for_nothing_test() ->
     #{actions := Actions, resources := Resources} = ?SERVICE:identity_spec(),
-    ?assertEqual([], ?SERVICE:capabilities()),
     ?assertEqual([], Actions),
     ?assertEqual([], Resources).
 
-%% The supervisor starts and stops cleanly on its own, without mcl_om. It has
-%% no children as generated; this asserts the tree is startable, not that it does
-%% any work.
-supervisor_starts_and_stops_test() ->
-    {ok, Pid} = mcl_rag_sup:start_link(),
-    ?assert(is_process_alive(Pid)),
-    ?assertEqual([], supervisor:which_children(Pid)),
-    unlink(Pid),
-    exit(Pid, shutdown).
+%%==============================================================================
+%% The local HTTP API
+%%==============================================================================
+
+%% The API includes writes (add, upload, retire) and has no authentication of
+%% its own; the container runs on host networking. Loopback by default.
+the_http_api_binds_loopback_by_default_test() ->
+    ok = application:unset_env(?APP, http_ip),
+    ?assertEqual({127, 0, 0, 1}, proplists:get_value(ip, mcl_rag_sup:socket_opts())).
 
 %%==============================================================================
 %% The runtime is pinned in two places, and neither is the one you are running

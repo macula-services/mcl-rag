@@ -1,0 +1,16 @@
+{application, query_chunks, [
+    {description, "Chunk read model (chunk text + vector ref + metadata) (QRY)"},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {mod, {query_chunks_app, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        crypto,
+        cowboy,
+        rag
+    ]},
+    {env, []},
+    {modules, []},
+    {licenses, ["Apache-2.0"]}
+]}.

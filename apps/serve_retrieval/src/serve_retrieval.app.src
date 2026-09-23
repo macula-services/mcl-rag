@@ -1,0 +1,19 @@
+{application, serve_retrieval, [
+    {description, "Answer retrieval queries from the index (CMD)"},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {mod, {serve_retrieval_app, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        crypto,
+        cowboy,
+        reckon_db,
+        evoq,
+        reckon_evoq,
+        rag
+    ]},
+    {env, []},
+    {modules, []},
+    {licenses, ["Apache-2.0"]}
+]}.

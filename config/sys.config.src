@@ -3,6 +3,34 @@
 %% half-configured realm announces itself where nobody can attribute it, which
 %% looks exactly like a healthy node.
 [
+    {mcl_rag, [
+        %% The local HTTP API (loopback: it has writes and no authentication).
+        {http_port,      ${MCL_RAG_HTTP_PORT}},
+        {http_ip,        "${MCL_RAG_HTTP_IP}"},
+        %% ⚠ THE SHARED MEMORY LIVES HERE: one barrel database, `rag_chunks'
+        %% (docs, attachments, vectors/), plus the corpus checkout. Mount it on
+        %% a persistent volume; the directory hecate-rag used opens as it is.
+        {data_dir,       "${MCL_DATA_DIR}"},
+        %% Vectors come from mcl-embedder over the mesh, raw text, 384 dims:
+        %% the dimension every stored vector has. Changing either needs the
+        %% whole store re-embedded.
+        {embed_provider, mcl_embedder},
+        {embed_dim,      384},
+        %% Topic classification, LLM-backed and optional. The keys come from the
+        %% secrets env, never the image.
+        {topic_classifier, #{
+            enabled  => true,
+            api_key  => <<"${MCL_RAG_TOPIC_API_KEY}">>,
+            endpoint => <<"https://api.groq.com/openai/v1/chat/completions">>,
+            model    => <<"openai/gpt-oss-20b">>,
+            timeout  => 30000,
+            fallback => #{
+                api_key  => <<"${MCL_RAG_TOPIC_FALLBACK_API_KEY}">>,
+                endpoint => <<"https://api.deepseek.com/v1/chat/completions">>,
+                model    => <<"deepseek-chat">>
+            }
+        }}
+    ]},
     {mcl_om, [
         %% Without this, mcl_om_identity:load_node_key/0 returns `undefined'
         %% forever and identity_key/0 stays {error, no_identity_key} -- a
@@ -15,6 +43,11 @@
         {identity_key_path, "/etc/mcl/secrets/identity.key"},
         {health_port,       ${MCL_HEALTH_PORT}},
         {capability_topic,  <<"_mesh.cap.">>},
+        %% The org the seventeen procedures are served under: `mcl-rag/<name>'.
+        %% The realm must have granted THIS node a provider authorization for
+        %% each (D25), or nothing is advertised and /health says so.
+        {org,               <<"mcl-rag">>},
+        {service_name,      <<"mcl-rag">>},
         %% THE REALM IS AN APPLICATION ENV, NOT A SHELL VARIABLE, and this file
         %% is the only place the two meet. mcl_om_identity:realm() reads
         %% application:get_env(mcl_om, realm); exporting MCL_REALM in the

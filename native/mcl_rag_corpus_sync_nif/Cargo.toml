@@ -1,0 +1,25 @@
+[package]
+name    = "mcl_rag_corpus_sync_nif"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Rustler NIF: fetch + fast-forward mcl-rag's corpus git checkout (vendored libgit2, no OS git dependency)"
+
+[lib]
+name       = "mcl_rag_corpus_sync_nif"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.34"
+
+# `default-features = false` alone drops both `ssh` and `https` --
+# `vendored-libgit2` only controls whether libgit2's C sources are
+# vendored, not which transports get compiled in. No local test caught
+# this: every Rust test here clones/fetches over a plain file path
+# (a local bare repo), never HTTPS, so the missing TLS backend only
+# showed up live in production ("there is no TLS stream available")
+# once the two earlier ownership/timeout bugs stopped masking it.
+# `ssh` deliberately omitted -- HTTPS only, per this crate's own module
+# doc. `vendored-openssl` alongside `vendored-libgit2` keeps the "no
+# OS dependency" goal intact on Alpine/musl (no system OpenSSL needed).
+git2 = { version = "0.19", default-features = false, features = ["vendored-libgit2", "https", "vendored-openssl"] }
