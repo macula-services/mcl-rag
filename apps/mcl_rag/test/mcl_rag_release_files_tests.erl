@@ -57,7 +57,20 @@ the_health_check_waits_out_the_store_open_test() ->
                              [{capture, all_but_first, binary}]),
     ?assert(binary_to_integer(Secs) >= 900).
 
+%% relx puts in the release only what an `applications' list reaches, while
+%% the test code path holds every rebar dep. An app called directly but not
+%% listed passes every suite and is `undef' in production: macula_rag was
+%% (join_federation), and dialyzer, not a test, noticed.
+every_directly_called_app_is_listed_test() ->
+    [?assert(lists:member(Dep, applications(App)))
+     || {App, Dep} <- [{mcl_rag, macula_rag}, {mcl_rag, ranch}, {rag, barrel_embed}]].
+
 %%==============================================================================
+
+applications(App) ->
+    _ = application:load(App),
+    {ok, Apps} = application:get_key(App, applications),
+    Apps.
 
 corpus_repos_config_default() ->
     {ok, Text} = file:read_file(src("sync_corpus/corpus_repos_config.erl")),

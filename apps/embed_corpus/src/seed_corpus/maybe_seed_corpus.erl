@@ -32,28 +32,44 @@
 %%% Public entry — synchronous
 
 -spec seed(seed_corpus_v1:t() | map()) -> {ok, stats()} | {error, term()}.
-seed(Cmd) when is_tuple(Cmd) ->
-    case seed_corpus_v1:validate(Cmd) of
-        ok ->
-            RootDir = seed_corpus_v1:get_root_dir(Cmd),
-            Glob    = seed_corpus_v1:get_glob(Cmd),
-            Exclude = seed_corpus_v1:get_exclude_globs(Cmd),
-            do_seed(RootDir, Glob, Exclude);
-        {error, _} = E -> E
-    end;
-seed(Params) when is_map(Params) ->
-    case seed_corpus_v1:from_map(Params) of
-        {ok, Cmd}      -> seed(Cmd);
-        {error, _} = E -> E
-    end.
+seed(Request) ->
+    seed_valid(valid(Request)).
+
+seed_valid({ok, Cmd}) ->
+    do_seed(seed_corpus_v1:get_root_dir(Cmd),
+            seed_corpus_v1:get_glob(Cmd),
+            seed_corpus_v1:get_exclude_globs(Cmd));
+seed_valid({error, _} = Refused) ->
+    Refused.
 
 %%% Public entry — async (fire-and-forget worker process)
 
+%% The request is validated HERE, before the worker exists: an invalid one
+%% is refused to the caller rather than accepted and failed where nobody
+%% reads the result.
 -spec seed_async(seed_corpus_v1:t() | map()) -> {ok, #{job_pid := pid()}} | {error, term()}.
-seed_async(Params) ->
+seed_async(Request) ->
+    spawn_valid(valid(Request)).
+
+spawn_valid({ok, Cmd}) ->
     Owner = self(),
-    Pid = spawn(fun() -> Owner ! {seed_done, self(), seed(Params)} end),
-    {ok, #{job_pid => Pid}}.
+    Pid = spawn(fun() -> Owner ! {seed_done, self(), seed_valid({ok, Cmd})} end),
+    {ok, #{job_pid => Pid}};
+spawn_valid({error, _} = Refused) ->
+    Refused.
+
+%% A map is decoded first; a command (opaque, so no guard on it) is only
+%% validated.
+valid(Params) when is_map(Params) ->
+    decoded(seed_corpus_v1:from_map(Params));
+valid(Cmd) ->
+    validated(seed_corpus_v1:validate(Cmd), Cmd).
+
+decoded({ok, Cmd})             -> valid(Cmd);
+decoded({error, _} = Refused)  -> Refused.
+
+validated(ok, Cmd)                  -> {ok, Cmd};
+validated({error, _} = Refused, _)  -> Refused.
 
 %%% Internals
 
@@ -156,9 +172,7 @@ bump(Key, Acc) when is_atom(Key) ->
     maps:update_with(Key, fun(V) -> V + 1 end, Acc).
 
 to_str(undefined)              -> "**/*.md";
-to_str(B) when is_binary(B)    -> binary_to_list(B);
-to_str(L) when is_list(L)      -> L.
+to_str(B) when is_binary(B)    -> binary_to_list(B).
 
 to_strs(undefined)             -> [];
-to_strs(L) when is_list(L)     ->
-    [case X of B when is_binary(B) -> binary_to_list(B); S -> S end || X <- L].
+to_strs(L) when is_list(L)     -> [binary_to_list(B) || B <- L].

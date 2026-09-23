@@ -95,6 +95,13 @@
 
 %%% API
 
+%% Every call but status/0 is refused this way while the store opens (see
+%% with_db/2). It belongs in each spec: leaving it out told dialyzer the
+%% callers' refusal clauses were dead, and they are what answers a caller
+%% during the minutes an open takes.
+-type refused() :: {error, store_opening}.
+-export_type([refused/0]).
+
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
@@ -149,11 +156,11 @@ search_vector(Vector, TopK)
   when is_list(Vector), is_integer(TopK), TopK > 0 ->
     gen_server:call(?MODULE, {search_vector, Vector, TopK}, ?CALL_TIMEOUT).
 
--spec get(binary()) -> {ok, map()} | {error, not_found}.
+-spec get(binary()) -> {ok, map()} | {error, not_found} | refused().
 get(ChunkId) when is_binary(ChunkId) ->
     gen_server:call(?MODULE, {get, ChunkId}, ?CALL_TIMEOUT).
 
--spec size() -> non_neg_integer() | {error, store_opening}.
+-spec size() -> non_neg_integer() | refused().
 size() ->
     gen_server:call(?MODULE, size, ?CALL_TIMEOUT).
 
@@ -181,22 +188,22 @@ forget_source(DocumentId) when is_binary(DocumentId) ->
 %% @doc The public source row: id/path/type, no `raw_bytes' (kept out of
 %% the default shape the same way `chunk_meta/1' hides `_embedding' —
 %% derived/bulky fields are opt-in, not default).
--spec get_source(binary()) -> {ok, map()} | {error, not_found}.
+-spec get_source(binary()) -> {ok, map()} | {error, not_found} | refused().
 get_source(DocumentId) when is_binary(DocumentId) ->
     gen_server:call(?MODULE, {get_source, DocumentId}, ?CALL_TIMEOUT).
 
 %% @doc Internal use (`embed_document'): the source's `source_path' and
 %% `raw_bytes', to chunk. Not part of the public query surface.
--spec get_source_content(binary()) -> {ok, map()} | {error, not_found}.
+-spec get_source_content(binary()) -> {ok, map()} | {error, not_found} | refused().
 get_source_content(DocumentId) when is_binary(DocumentId) ->
     gen_server:call(?MODULE, {get_source_content, DocumentId}, ?CALL_TIMEOUT).
 
--spec list_sources(non_neg_integer(), pos_integer()) -> {ok, [map()]}.
+-spec list_sources(non_neg_integer(), pos_integer()) -> {ok, [map()]} | refused().
 list_sources(Offset, Limit)
   when is_integer(Offset), Offset >= 0, is_integer(Limit), Limit > 0 ->
     gen_server:call(?MODULE, {list_sources, Offset, Limit}, ?CALL_TIMEOUT).
 
--spec list_chunks_by_source(binary(), pos_integer()) -> {ok, [map()]}.
+-spec list_chunks_by_source(binary(), pos_integer()) -> {ok, [map()]} | refused().
 list_chunks_by_source(SourcePath, Limit)
   when is_binary(SourcePath), is_integer(Limit), Limit > 0 ->
     gen_server:call(?MODULE, {list_chunks_by_source, SourcePath, Limit}, ?CALL_TIMEOUT).
@@ -210,14 +217,15 @@ list_chunks_by_source(SourcePath, Limit)
 %% nothing enforces this at write time -- a caller ingesting the same
 %% path under two different ids is a caller error this doesn't try to
 %% detect).
--spec find_source_by_path(binary()) -> {ok, map()} | {error, not_found}.
+-spec find_source_by_path(binary()) -> {ok, map()} | {error, not_found} | refused().
 find_source_by_path(SourcePath) when is_binary(SourcePath) ->
     gen_server:call(?MODULE, {find_source_by_path, SourcePath}, ?CALL_TIMEOUT).
 
 %% @doc The last-recorded `diff_hash' for one `(corpus_id, source_path)'
 %% pair -- what `detect_corpus_change' compares a freshly-computed hash
 %% against to decide whether anything actually changed.
--spec get_watermark(binary(), binary()) -> {ok, #{diff_hash := binary()}} | {error, not_found}.
+-spec get_watermark(binary(), binary()) ->
+    {ok, #{diff_hash := binary()}} | {error, not_found} | refused().
 get_watermark(CorpusId, SourcePath) when is_binary(CorpusId), is_binary(SourcePath) ->
     gen_server:call(?MODULE, {get_watermark, CorpusId, SourcePath}, ?CALL_TIMEOUT).
 

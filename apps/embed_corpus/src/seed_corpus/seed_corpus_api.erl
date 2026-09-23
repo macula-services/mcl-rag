@@ -52,6 +52,5 @@ run(_False, Params, Req) ->
             mcl_rag_http:bad_request(reason_to_bin(Reason), Req)
     end.
 
-reason_to_bin(R) when is_atom(R)   -> atom_to_binary(R, utf8);
-reason_to_bin(R) when is_binary(R) -> R;
-reason_to_bin(R)                   -> iolist_to_binary(io_lib:format("~p", [R])).
+reason_to_bin(R) when is_atom(R) -> atom_to_binary(R, utf8);
+reason_to_bin(R)                 -> iolist_to_binary(io_lib:format("~p", [R])).

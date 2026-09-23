@@ -10,8 +10,13 @@
         inets,
         ssl,
         cowboy,
+        %% mcl_rag_sup builds the HTTP listener's child spec itself.
+        ranch,
         %% Mesh SDK, realm identity, capabilities, health.
         mcl_om,
+        %% The org's federated retrieval (join_federation). Unlisted, relx
+        %% leaves it out of the release and joining is `undef'.
+        macula_rag,
         barrel,
         %% The slices, started before this app.
         rag,

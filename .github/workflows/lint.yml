@@ -19,12 +19,10 @@ jobs:
   check:
     runs-on: ubuntu-latest
     container:
-      # ⚠ MUST MATCH THE `Containerfile' beside it: OTP 28.4.3, pinned by tag
-      # and digest. `erlang:28' floats, and a floating lint image tests a
-      # release nobody ships. hexpm's Debian trixie build, whose OpenSSL 3.5
-      # has the ML-DSA every PQ node key needs; the step below refuses
-      # anything else.
-      image: docker.io/hexpm/erlang:28.4.3-debian-trixie-20260918@sha256:956e41bfb44cf505bb526265d594ff91a3cc9945a5d32e1e8a8fbf1521d6707f
+      # ⚠ THE SAME PINNED CI IMAGE THE LOCAL GATE RUNS IN: OTP 28.4.3 with the
+      # Rust toolchain, by digest. The Containerfile's builder is the same
+      # release; the step below refuses anything else.
+      image: ghcr.io/macula-io/macula-ci-otp:20260923-1347@sha256:b2260d084a3d3c5e0b74932c4ee052a0cadfddddb6587d5d2214873e6bb06330
     steps:
       - uses: actions/checkout@v4
       - name: Verify the toolchain is the one we think it is
@@ -57,11 +55,14 @@ jobs:
       # again in a sibling service, the first scaffolded one to actually
       # exercise read_model_id/0 in CI -- install all four, not just
       # whichever one happened to be exercised first.
-      - run: apt-get update && apt-get install -y --no-install-recommends cmake build-essential libsnappy-dev liblz4-dev libzstd-dev libbz2-dev curl
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-            | sh -s -- -y --default-toolchain stable --profile minimal
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - run: apt-get update && apt-get install -y --no-install-recommends cmake build-essential libsnappy-dev liblz4-dev libzstd-dev libbz2-dev zlib1g-dev curl
+      # The corpus-sync NIF: the suites load it, and nothing else builds it.
+      - run: bash scripts/build-corpus-sync-nif.sh
       - run: rebar3 lint
       - run: rebar3 eunit
+      # Each suite starts the real application; the store opens in the
+      # background and the helpers wait for it.
+      - run: rebar3 ct
+      # It found macula_rag missing from the release and seven store specs
+      # that hid the store_opening refusal. Keep it gating.
+      - run: rebar3 dialyzer

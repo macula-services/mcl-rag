@@ -9,7 +9,9 @@
         crypto,
         cowboy,
         jsx,
-        barrel
+        barrel,
+        %% rag_embed_mcl_embedder implements its barrel_embed_provider.
+        barrel_embed
     ]},
     {env, []},
     {modules, []},

@@ -25,6 +25,5 @@ handle(Req0, _State) ->
 reply({ok, Result}, Req1)    -> mcl_rag_http:ok_json(Result, Req1);
 reply({error, Reason}, Req1) -> mcl_rag_http:bad_request(reason_to_bin(Reason), Req1).
 
-reason_to_bin(R) when is_atom(R)   -> atom_to_binary(R, utf8);
-reason_to_bin(R) when is_binary(R) -> R;
-reason_to_bin(R)                   -> iolist_to_binary(io_lib:format("~p", [R])).
+%% Every refusal the desk returns here is an atom.
+reason_to_bin(R) when is_atom(R) -> atom_to_binary(R, utf8).
