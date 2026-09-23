@@ -1,0 +1,17 @@
+{application, mcl_rag, [
+    {description, "The mesh shared memory: retrieval over a realm-bound corpus, and the deposits agents remember into it"},
+    {vsn, "0.1.0"},
+    {registered, [mcl_rag_sup]},
+    {mod, {mcl_rag_app, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        crypto,
+        %% Mesh SDK, realm identity, capabilities, health.
+        mcl_om
+    ]},
+    {env, []},
+    {modules, []},
+    {licenses, ["Apache-2.0"]},
+    {links, [{"GitHub", "https://github.com/macula-services/mcl-rag"}]}
+]}.

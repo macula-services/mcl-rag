@@ -1,0 +1,9 @@
+_build/
+rebar.lock
+*.beam
+erl_crash.dump
+_checkouts/
+rebar3.crashdump
+data/
+priv/lib/
+native/*/target/
