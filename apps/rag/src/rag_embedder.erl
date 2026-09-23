@@ -13,7 +13,7 @@
 %%% for fleet (over the mesh), `ollama' for dev (local HTTP).
 -module(rag_embedder).
 
--export([embed/1, embed_batch/1, dimension/0, provider/0]).
+-export([embed/1, embed_batch/1, dimension/0, embedding/0, provider/0]).
 
 -spec embed(binary()) -> {ok, [float()]} | {error, term()}.
 embed(Text) when is_binary(Text) ->
@@ -28,6 +28,19 @@ embed_batch(Texts) when is_list(Texts) ->
 -spec dimension() -> pos_integer().
 dimension() ->
     application:get_env(mcl_rag, embed_dim, 384).
+
+%% @doc The embedding the stored vectors were made with: the model's id
+%% (`embed_model') and the dimension. Federated retrieval compares scores only
+%% between shards that name the same one, so this must name what built the
+%% store, not what would be nice. There is no default: an unnamed model is
+%% refused where it is used.
+-spec embedding() -> #{model := binary() | undefined, dim := pos_integer()}.
+embedding() ->
+    #{model => model(application:get_env(mcl_rag, embed_model, undefined)),
+      dim   => dimension()}.
+
+model(undefined) -> undefined;
+model(Model)     -> to_bin(Model).
 
 %% @doc The barrel_embed_provider module and its config, from `embed_provider':
 %% `mcl_embedder' (the mesh procedure; production), `ollama' (a laptop), or

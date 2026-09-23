@@ -106,18 +106,40 @@ health_is_degraded_while_the_store_opens_test() ->
         ?assertEqual({degraded, store_opening}, ?SERVICE:health())
     end).
 
+%% Once the store serves, the verdict is whether the org can reach this shard
+%% (join_federation:health/0, macula_rag's own grant): its procedure is not one
+%% of mcl_om's seventeen, so mcl_om's provider_grants never lists it.
+health_names_a_shard_the_org_cannot_reach_test() ->
+    Unreachable = {degraded, #{federation => {waiting, no_client}}},
+    with_store_status(open, Unreachable, fun() ->
+        ?assertEqual(Unreachable, ?SERVICE:health())
+    end).
+
+%% The store's own verdict comes first: a shard whose store is opening cannot
+%% answer whatever its grant says.
+the_store_opening_wins_over_federation_test() ->
+    with_store_status(opening, {degraded, #{federation => {waiting, no_client}}}, fun() ->
+        ?assertEqual({degraded, store_opening}, ?SERVICE:health())
+    end).
+
 %% A store that is not running is down, not a crash of /health.
 health_is_down_without_a_store_test() ->
     ?assertEqual(undefined, whereis(rag_store)),
     ?assertEqual({down, store_not_running}, ?SERVICE:health()).
 
-%% A registered stand-in for the store process, answering `Status'.
+%% A registered stand-in for the store process, answering `Status', and a
+%% federation verdict.
 with_store_status(Status, Test) ->
+    with_store_status(Status, ok, Test).
+
+with_store_status(Status, Federation, Test) ->
     Stand = spawn(fun() -> receive stop -> ok end end),
     true = register(rag_store, Stand),
     ok = meck:new(rag_store, [passthrough, no_link]),
     ok = meck:expect(rag_store, status, fun() -> Status end),
-    try Test() after meck:unload(rag_store), Stand ! stop end.
+    ok = meck:new(join_federation, [passthrough, no_link]),
+    ok = meck:expect(join_federation, health, fun() -> Federation end),
+    try Test() after meck:unload([rag_store, join_federation]), Stand ! stop end.
 
 the_resolved_mcl_om_reports_provider_grants_test() ->
     {module, _} = code:ensure_loaded(mcl_om_capabilities),

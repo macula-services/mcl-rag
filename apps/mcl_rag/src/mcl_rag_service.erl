@@ -29,18 +29,21 @@ operators_checked({error, Reason})  -> error({invalid_rag_operators, Reason}).
 
 stop(_State) -> ok.
 
-%% The service's own verdict is its store. Opening it rebuilds the vector
-%% index, minutes on the production corpus, and every call is refused with
-%% `{error, store_opening}' meanwhile, so /health says so. Whether callers can
-%% REACH each procedure (its realm-issued D25 provider grant) is reported by
-%% mcl_om's /health itself, combined with this verdict.
+%% The service's own verdict: its store first, then whether the org can reach
+%% this shard. Opening the store rebuilds the vector index, minutes on the
+%% production corpus, and every call is refused with `{error, store_opening}'
+%% meanwhile. The federated procedure is macula_rag's, not one of the
+%% seventeen, so mcl_om's provider_grants never lists it: join_federation
+%% reports its grant here. Whether callers can REACH each of the seventeen
+%% (its D25 provider grant) is reported by mcl_om's /health itself, combined
+%% with this verdict.
 health() ->
     store_health(whereis(rag_store)).
 
 store_health(undefined) -> {down, store_not_running};
 store_health(_Pid)      -> opened(rag_store:status()).
 
-opened(open)    -> ok;
+opened(open)    -> join_federation:health();
 opened(opening) -> {degraded, store_opening}.
 
 %% The seventeen procedures, registered by mcl_om as `mcl-rag/<name>' (the org

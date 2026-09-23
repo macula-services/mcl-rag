@@ -22,6 +22,15 @@
         {operators,      "${MCL_RAG_OPERATORS}"},
         {embed_provider, mcl_embedder},
         {embed_dim,      384},
+        %% The model every stored vector was made with (hecate-embedder, then
+        %% mcl-embedder, both load it). Federated retrieval only merges scores
+        %% between shards naming the same model and dimension.
+        {embed_model,    <<"intfloat/multilingual-e5-small">>},
+        %% This node as one shard of the org's federated retrieval (macula_rag,
+        %% procedure `mcl-rag/rag.query_shard_v1'). The realm NAME must be the
+        %% one whose SHA-256 is MCL_REALM, or joining is refused and /health is
+        %% down. The shard id defaults to the node name.
+        {federation, #{realm_name => <<"${MCL_REALM_NAME}">>}},
         %% Topic classification, LLM-backed and optional. The keys come from the
         %% secrets env, never the image.
         {topic_classifier, #{
