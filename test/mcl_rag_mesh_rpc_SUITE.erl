@@ -38,13 +38,13 @@ ingest_embed_search_answer_prune_over_mesh_rpc(_Config) ->
     %% own moduledoc says why) -- so a bare-binary match here would be
     %% asserting the HTTP shape against the mesh route.
     {ok, #{document_id := {text, DocId}}} =
-        mcl_rag_mesh_rpc:dispatch(<<"mcl-rag.ingest_document">>, #{
+        rag_test_helpers:operator_dispatch(<<"mcl-rag.ingest_document">>, #{
             <<"document_id">> => DocId, <<"source_path">> => SourcePath,
             <<"source_type">> => <<"text/markdown">>, <<"raw_bytes">> => Content
         }),
 
     {ok, #{chunks := N}} =
-        mcl_rag_mesh_rpc:dispatch(<<"mcl-rag.embed_document">>,
+        rag_test_helpers:operator_dispatch(<<"mcl-rag.embed_document">>,
                                       #{<<"document_id">> => DocId}),
     ?assert(N > 0),
 
@@ -61,7 +61,7 @@ ingest_embed_search_answer_prune_over_mesh_rpc(_Config) ->
                                       #{<<"query_text">> => <<"largest rodent">>, <<"top_k">> => 5}),
     ?assert(hit_from_source(AnswerHits, SourcePath)),
 
-    {ok, _} = mcl_rag_mesh_rpc:dispatch(<<"mcl-rag.prune_chunks">>,
+    {ok, _} = rag_test_helpers:operator_dispatch(<<"mcl-rag.prune_chunks">>,
                                             #{<<"document_id">> => DocId}),
     {ok, GoneHits} = mcl_rag_mesh_rpc:dispatch(<<"mcl-rag.search_chunks_semantic">>,
                                                    #{<<"query_text">> => <<"largest rodent">>,

@@ -28,8 +28,9 @@ capabilities_advertised(_Config) ->
     Caps = mcl_rag_service:capabilities(),
     ?assert(length(Caps) >= 10),
     Names = [maps:get(name, C) || C <- Caps],
-    ?assert(lists:member(<<"mcl-rag.answer_query">>, Names)),
-    ?assert(lists:member(<<"mcl-rag.ingest_document">>, Names)).
+    %% Bare names: mcl_om registers them under the org, as mcl-rag/<name>.
+    ?assert(lists:member(<<"answer_query">>, Names)),
+    ?assert(lists:member(<<"ingest_document">>, Names)).
 
 identity_spec_shape(_Config) ->
     Spec = mcl_rag_service:identity_spec(),
@@ -50,7 +51,9 @@ corpus_repos_config_reads_multiple_repos(Config) ->
         #{id => <<"repo-a">>, url => <<"https://example.com/a.git">>, branch => <<"main">>},
         #{id => <<"repo-b">>, url => <<"https://example.com/b.git">>}
     ]),
+    PrevReposConfig = application:get_env(mcl_rag, corpus_repos_config),
     ok = application:set_env(mcl_rag, corpus_repos_config, ConfigPath),
+    PrevDataDir = application:get_env(mcl_rag, data_dir),
     ok = application:set_env(mcl_rag, data_dir, DataDir),
 
     {ok, [RepoA, RepoB]} = corpus_repos_config:read(),
@@ -61,8 +64,8 @@ corpus_repos_config_reads_multiple_repos(Config) ->
     ?assertEqual(<<"repo-b">>, maps:get(id, RepoB)),
     ?assertEqual(<<>>, maps:get(branch, RepoB)),
 
-    ok = application:unset_env(mcl_rag, corpus_repos_config),
-    ok = application:unset_env(mcl_rag, data_dir).
+    ok = rag_test_helpers:restore_env(corpus_repos_config, PrevReposConfig),
+    ok = rag_test_helpers:restore_env(data_dir, PrevDataDir).
 
 %% End-to-end proof that the embedded Rust NIF actually loads and works
 %% inside a real running mcl_rag application, not just in the crate's
@@ -87,7 +90,9 @@ corpus_git_sync_clones_then_fast_forwards(Config) ->
     ok = git_clone(RemoteDir, OriginDir),
     ok = git_commit_and_push(OriginDir, "corpus.md", "# v1\n", "initial"),
     ok = rag_test_helpers:write_repos_config(ConfigPath, [#{id => RepoId, url => list_to_binary(RemoteDir)}]),
+    PrevReposConfig = application:get_env(mcl_rag, corpus_repos_config),
     ok = application:set_env(mcl_rag, corpus_repos_config, ConfigPath),
+    PrevDataDir = application:get_env(mcl_rag, data_dir),
     ok = application:set_env(mcl_rag, data_dir, DataDir),
 
     %% Local path doesn't exist yet -- clones itself, no manual pre-clone step.
@@ -103,8 +108,8 @@ corpus_git_sync_clones_then_fast_forwards(Config) ->
     {ok, V2Content} = file:read_file(filename:join(LocalDir, "corpus.md")),
     ?assertEqual(<<"# v2\n">>, V2Content),
 
-    ok = application:unset_env(mcl_rag, corpus_repos_config),
-    ok = application:unset_env(mcl_rag, data_dir).
+    ok = rag_test_helpers:restore_env(corpus_repos_config, PrevReposConfig),
+    ok = rag_test_helpers:restore_env(data_dir, PrevDataDir).
 
 %%% git fixture helpers -- shell out to the real git CLI, test-only.
 

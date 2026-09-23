@@ -193,92 +193,84 @@ store_tag_chunk_preserves_content(_Config) ->
 %%% correctly reads chunks, calls the classifier, and tags chunks.
 
 handler_document_mode_tags_all_chunks(_Config) ->
-    %% Set up: ingest + embed a document (needs ollama for embedding)
-    %% Skip if ollama isn't running — this is an integration test.
-    case ollama_available() of
-        false -> {skip, "Ollama not running, skipping integration test"};
-        true ->
-            DocId = fresh_id(<<"doc-mode">>),
-            SourcePath = <<"doc-mode-", DocId/binary, ".md">>,
-            Content = <<"# Event Sourcing\n\nThe aggregate replays events "
-                        "to derive state. Each event is a business fact.\n">>,
-            {ok, _} = ingest(DocId, SourcePath, Content),
-            {ok, #{chunks := N}} = embed(DocId),
-            ?assert(N > 0),
+    %% Set up: ingest + embed a document (the deterministic test embedder,
+    %% rag_embed_stub, so this runs everywhere).
+    DocId = fresh_id(<<"doc-mode">>),
+    SourcePath = <<"doc-mode-", DocId/binary, ".md">>,
+    Content = <<"# Event Sourcing\n\nThe aggregate replays events "
+                "to derive state. Each event is a business fact.\n">>,
+    {ok, _} = ingest(DocId, SourcePath, Content),
+    {ok, #{chunks := N}} = embed(DocId),
+    ?assert(N > 0),
 
-            %% Mock the classifier — we're testing the handler, not NVIDIA
-            meck:new(rag_topic_classifier, [passthrough]),
-            meck:expect(rag_topic_classifier, classify, fun(_Text, _Max) ->
-                {ok, [<<"event sourcing">>, <<"aggregate">>, <<"ddd">>]}
-            end),
+    %% Mock the classifier — we're testing the handler, not NVIDIA
+    meck:new(rag_topic_classifier, [passthrough]),
+    meck:expect(rag_topic_classifier, classify, fun(_Text, _Max) ->
+        {ok, [<<"event sourcing">>, <<"aggregate">>, <<"ddd">>]}
+    end),
 
-            Result = maybe_classify_topics:classify(#{
-                <<"document_id">> => DocId,
-                <<"mode">> => <<"document">>
-            }),
+    Result = maybe_classify_topics:classify(#{
+        <<"document_id">> => DocId,
+        <<"mode">> => <<"document">>
+    }),
 
-            meck:unload(rag_topic_classifier),
+    meck:unload(rag_topic_classifier),
 
-            {ok, #{topics := Topics, tagged := Tagged}} = Result,
-            ?assertEqual([<<"event sourcing">>, <<"aggregate">>, <<"ddd">>], Topics),
-            ?assertEqual(N, Tagged),
+    {ok, #{topics := Topics, tagged := Tagged}} = Result,
+    ?assertEqual([<<"event sourcing">>, <<"aggregate">>, <<"ddd">>], Topics),
+    ?assertEqual(N, Tagged),
 
-            %% Verify topics were actually written to store
-            {ok, Chunks} = rag_store:list_chunks_by_source(SourcePath, 100),
-            lists:foreach(fun(Chunk) ->
-                Meta = maps:get(meta, Chunk, #{}),
-                ?assertEqual([<<"event sourcing">>, <<"aggregate">>, <<"ddd">>],
-                             maps:get(<<"topics">>, Meta, []))
-            end, Chunks)
-    end.
+    %% Verify topics were actually written to store
+    {ok, Chunks} = rag_store:list_chunks_by_source(SourcePath, 100),
+    lists:foreach(fun(Chunk) ->
+        Meta = maps:get(meta, Chunk, #{}),
+        ?assertEqual([<<"event sourcing">>, <<"aggregate">>, <<"ddd">>],
+                     maps:get(<<"topics">>, Meta, []))
+    end, Chunks).
 
 handler_per_chunk_mode_tags_individually(_Config) ->
-    case ollama_available() of
-        false -> {skip, "Ollama not running, skipping integration test"};
-        true ->
-            DocId = fresh_id(<<"per-chunk">>),
-            SourcePath = <<"per-chunk-", DocId/binary, ".md">>,
-            Content = <<"# Architecture\n\nVertical slicing groups code by "
-                        "business capability. Each feature owns all its "
-                        "infrastructure: commands, events, handlers, and "
-                        "projections co-located in one directory.\n\n"
-                        "## Rules\n\nNo horizontal layers are allowed. "
-                        "There is no central supervisor for all listeners. "
-                        "Each domain owns its infrastructure. Directory names "
-                        "must scream business intent. One capability per "
-                        "module. Co-locate related code.\n\n"
-                        "## Anti-patterns\n\nServices folders, utils "
-                        "directories, and helper modules are all forbidden. "
-                        "These are generic technical layers that do not map "
-                        "to business capabilities.\n">>,
-            {ok, _} = ingest(DocId, SourcePath, Content),
-            {ok, #{chunks := N}} = embed(DocId),
-            ?assert(N > 0),
+    DocId = fresh_id(<<"per-chunk">>),
+    SourcePath = <<"per-chunk-", DocId/binary, ".md">>,
+    Content = <<"# Architecture\n\nVertical slicing groups code by "
+                "business capability. Each feature owns all its "
+                "infrastructure: commands, events, handlers, and "
+                "projections co-located in one directory.\n\n"
+                "## Rules\n\nNo horizontal layers are allowed. "
+                "There is no central supervisor for all listeners. "
+                "Each domain owns its infrastructure. Directory names "
+                "must scream business intent. One capability per "
+                "module. Co-locate related code.\n\n"
+                "## Anti-patterns\n\nServices folders, utils "
+                "directories, and helper modules are all forbidden. "
+                "These are generic technical layers that do not map "
+                "to business capabilities.\n">>,
+    {ok, _} = ingest(DocId, SourcePath, Content),
+    {ok, #{chunks := N}} = embed(DocId),
+    ?assert(N > 0),
 
-            %% Mock: each call returns a single topic to verify per-chunk
-            %% mode makes N separate calls and tags each chunk individually
-            meck:new(rag_topic_classifier, [passthrough]),
-            meck:expect(rag_topic_classifier, classify,
-                fun(_Text, _Max) -> {ok, [<<"vertical-slicing">>]} end),
+    %% Mock: each call returns a single topic to verify per-chunk
+    %% mode makes N separate calls and tags each chunk individually
+    meck:new(rag_topic_classifier, [passthrough]),
+    meck:expect(rag_topic_classifier, classify,
+        fun(_Text, _Max) -> {ok, [<<"vertical-slicing">>]} end),
 
-            Result = maybe_classify_topics:classify(#{
-                <<"document_id">> => DocId,
-                <<"mode">> => <<"per_chunk">>
-            }),
+    Result = maybe_classify_topics:classify(#{
+        <<"document_id">> => DocId,
+        <<"mode">> => <<"per_chunk">>
+    }),
 
-            meck:unload(rag_topic_classifier),
+    meck:unload(rag_topic_classifier),
 
-            {ok, #{tagged := Tagged}} = Result,
-            ?assertEqual(N, Tagged),
+    {ok, #{tagged := Tagged}} = Result,
+    ?assertEqual(N, Tagged),
 
-            %% Verify each chunk has topics in the store
-            {ok, Chunks} = rag_store:list_chunks_by_source(SourcePath, 100),
-            lists:foreach(fun(Chunk) ->
-                Meta = maps:get(meta, Chunk, #{}),
-                ?assertEqual([<<"vertical-slicing">>],
-                             maps:get(<<"topics">>, Meta, []))
-            end, Chunks)
-    end.
+    %% Verify each chunk has topics in the store
+    {ok, Chunks} = rag_store:list_chunks_by_source(SourcePath, 100),
+    lists:foreach(fun(Chunk) ->
+        Meta = maps:get(meta, Chunk, #{}),
+        ?assertEqual([<<"vertical-slicing">>],
+                     maps:get(<<"topics">>, Meta, []))
+    end, Chunks).
 
 handler_not_ingested(_Config) ->
     Result = maybe_classify_topics:classify(#{
@@ -295,79 +287,67 @@ handler_not_embedded(_Config) ->
 %%% ===== search_chunks_semantic with topic filter =====
 
 search_with_topic_filter(_Config) ->
-    case ollama_available() of
-        false -> {skip, "Ollama not running, skipping integration test"};
-        true ->
-            %% Ingest two documents with different content
-            DocId1 = fresh_id(<<"filter-1">>),
-            DocId2 = fresh_id(<<"filter-2">>),
-            Path1 = <<"filter-aaa-", DocId1/binary, ".md">>,
-            Path2 = <<"filter-bbb-", DocId2/binary, ".md">>,
-            {ok, _} = ingest(DocId1, Path1,
-                             <<"# Quokkas\n\nSmall marsupials on Rottnest Island.\n">>),
-            {ok, _} = embed(DocId1),
-            {ok, _} = ingest(DocId2, Path2,
-                             <<"# Capybaras\n\nLarge rodents from South America.\n">>),
-            {ok, _} = embed(DocId2),
+    %% Ingest two documents with different content
+    DocId1 = fresh_id(<<"filter-1">>),
+    DocId2 = fresh_id(<<"filter-2">>),
+    Path1 = <<"filter-aaa-", DocId1/binary, ".md">>,
+    Path2 = <<"filter-bbb-", DocId2/binary, ".md">>,
+    {ok, _} = ingest(DocId1, Path1,
+                     <<"# Quokkas\n\nSmall marsupials on Rottnest Island.\n">>),
+    {ok, _} = embed(DocId1),
+    {ok, _} = ingest(DocId2, Path2,
+                     <<"# Capybaras\n\nLarge rodents from South America.\n">>),
+    {ok, _} = embed(DocId2),
 
-            %% Tag only the first document's chunks
-            {ok, Chunks1} = rag_store:list_chunks_by_source(Path1, 100),
-            lists:foreach(fun(C) ->
-                ok = rag_store:tag_chunk(maps:get(chunk_id, C), [<<"marsupials">>])
-            end, Chunks1),
+    %% Tag only the first document's chunks
+    {ok, Chunks1} = rag_store:list_chunks_by_source(Path1, 100),
+    lists:foreach(fun(C) ->
+        ok = rag_store:tag_chunk(maps:get(chunk_id, C), [<<"marsupials">>])
+    end, Chunks1),
 
-            %% Search with topic filter — should only return marsupial-tagged chunks
-            {ok, FilteredHits} = search_chunks_semantic:handle(#{
-                <<"query_text">> => <<"small animals">>,
-                <<"topics">>     => [<<"marsupials">>],
-                <<"top_k">>      => 10
-            }),
+    %% Search with topic filter — should only return marsupial-tagged chunks
+    {ok, FilteredHits} = search_chunks_semantic:handle(#{
+        <<"query_text">> => <<"small animals">>,
+        <<"topics">>     => [<<"marsupials">>],
+        <<"top_k">>      => 10
+    }),
 
-            %% Every hit must have the marsupials topic
-            lists:foreach(fun(Hit) ->
-                Meta = maps:get(meta, Hit, #{}),
-                Topics = maps:get(<<"topics">>, Meta, []),
-                ?assert(lists:member(<<"marsupials">>, Topics))
-            end, FilteredHits),
+    %% Every hit must have the marsupials topic
+    lists:foreach(fun(Hit) ->
+        Meta = maps:get(meta, Hit, #{}),
+        Topics = maps:get(<<"topics">>, Meta, []),
+        ?assert(lists:member(<<"marsupials">>, Topics))
+    end, FilteredHits),
 
-            %% Verify the filter actually excluded something: search
-            %% without filter returns more hits than with filter
-            {ok, AllHits} = search_chunks_semantic:handle(#{
-                <<"query_text">> => <<"small animals">>,
-                <<"top_k">>      => 10
-            }),
-            ?assert(length(FilteredHits) =< length(AllHits))
-    end.
+    %% Verify the filter actually excluded something: search
+    %% without filter returns more hits than with filter
+    {ok, AllHits} = search_chunks_semantic:handle(#{
+        <<"query_text">> => <<"small animals">>,
+        <<"top_k">>      => 10
+    }),
+    ?assert(length(FilteredHits) =< length(AllHits)).
 
 search_without_topic_filter_unchanged(_Config) ->
-    case ollama_available() of
-        false -> {skip, "Ollama not running, skipping integration test"};
-        true ->
-            {ok, Hits} = search_chunks_semantic:handle(#{
-                <<"query_text">> => <<"test query">>,
-                <<"top_k">>       => 5
-            }),
-            ?assert(is_list(Hits))
-    end.
+    {ok, Hits} = search_chunks_semantic:handle(#{
+        <<"query_text">> => <<"test query">>,
+        <<"top_k">>       => 5
+    }),
+    ?assert(is_list(Hits)).
 
 search_topic_filter_no_matches(_Config) ->
-    case ollama_available() of
-        false -> {skip, "Ollama not running, skipping integration test"};
-        true ->
-            {ok, Hits} = search_chunks_semantic:handle(#{
-                <<"query_text">>  => <<"anything">>,
-                <<"topics">>      => [<<"nonexistent-topic-", (fresh_id(<<"nt">>))/binary>>],
-                <<"top_k">>       => 5
-            }),
-            ?assertEqual([], Hits)
-    end.
+    {ok, Hits} = search_chunks_semantic:handle(#{
+        <<"query_text">>  => <<"anything">>,
+        <<"topics">>      => [<<"nonexistent-topic-", (fresh_id(<<"nt">>))/binary>>],
+        <<"top_k">>       => 5
+    }),
+    ?assertEqual([], Hits).
 
 %%% ===== Mesh RPC route =====
 
 mesh_rpc_classify_topics_route(_Config) ->
     %% Verify the route exists and dispatches to the handler
     DocId = fresh_id(<<"rpc-route">>),
-    Result = mcl_rag_mesh_rpc:dispatch(<<"mcl-rag.classify_topics">>,
+    Result = rag_test_helpers:operator_dispatch(<<"mcl-rag.classify_topics">>,
                                           #{<<"document_id">> => DocId}),
     %% Document doesn't exist — should get not_ingested, not unknown_method
     ?assertEqual({error, not_ingested}, Result).
@@ -386,8 +366,3 @@ embed(DocId) ->
 fresh_id(Prefix) ->
     <<Prefix/binary, $-, (integer_to_binary(erlang:unique_integer([positive, monotonic])))/binary>>.
 
-ollama_available() ->
-    case hackney:request(get, <<"http://127.0.0.1:11434/api/tags">>, [], <<>>, [{recv_timeout, 2000}]) of
-        {ok, 200, _Headers, _Body} -> true;
-        _ -> false
-    end.

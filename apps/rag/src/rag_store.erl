@@ -332,7 +332,14 @@ reply_result(Result, State) -> {reply, Result, State}.
 %% application-layer: callers compute vectors via `rag_embedder' and
 %% pass them to `put_chunk_with_vector/4'. This keeps the gen_server
 %% fast (no outbound mesh calls inside handle_call).
+%%
+%% RocksDB creates its own directory but not a missing parent, so the data
+%% dir and the vectors dir are made first: a fresh volume, or a data dir
+%% nobody has created yet, otherwise fails every open with `enoent' (the
+%% pipeline suites did, the first time they ran instead of skipping).
 open_db() ->
+    ok = filelib:ensure_path(data_dir()),
+    ok = filelib:ensure_path(vector_data_dir()),
     barrel:open(?DB_NAME, #{
         docdb => #{data_dir => data_dir()},
         vectordb => #{db_path => vector_data_dir()},
@@ -361,18 +368,10 @@ configured_dim() ->
 %% deployment sets `embed_provider = mcl_embedder' (config/sys.config.src):
 %% the beam Celerons have no AVX2, so embedding runs on mcl-embedder,
 %% reached over the mesh, not locally -- see rag_embed_mcl_embedder.
+%% The provider is decided in one place, rag_embedder:provider/0, so the store
+%% and the query path can never embed with different models.
 embedder() ->
-    case application:get_env(mcl_rag, embed_provider, ollama) of
-        mcl_embedder ->
-            {rag_embed_mcl_embedder, #{dimension => configured_dim()}};
-        ollama ->
-            Url = application:get_env(mcl_rag, embed_url, <<"http://127.0.0.1:11434">>),
-            Model = application:get_env(mcl_rag, embed_model, <<"nomic-embed-text">>),
-            {ollama, #{url => to_bin(Url), model => to_bin(Model)}}
-    end.
-
-to_bin(B) when is_binary(B) -> B;
-to_bin(L) when is_list(L)   -> list_to_binary(L).
+    rag_embedder:provider().
 
 %%% Internals — chunks
 
@@ -525,12 +524,22 @@ put_source_doc(Db, #{document_id := Id} = Source) ->
         <<"id">>           => SourceDocId,
         <<"type">>         => <<"source">>,
         <<"document_id">>  => Id,
-        <<"source_path">>  => maps:get(source_path, Source, <<>>),
-        <<"source_type">>  => maps:get(source_type, Source, <<>>),
-        <<"raw_bytes">>    => maps:get(raw_bytes, Source, <<>>),
-        <<"deposited_by">> => maps:get(deposited_by, Source, <<>>)
+        <<"source_path">>  => field_or_empty(source_path, Source),
+        <<"source_type">>  => field_or_empty(source_type, Source),
+        <<"raw_bytes">>    => field_or_empty(raw_bytes, Source),
+        <<"deposited_by">> => field_or_empty(deposited_by, Source)
     },
     normalize_write(put_doc_upsert(Db, SourceDocId, Doc)).
+
+%% An unset field is stored as <<>>, whether its key is absent or present with
+%% `undefined': barrel's path index cannot encode the atom, and the whole write
+%% then crashes. upload_knowledge passes `deposited_by => undefined' whenever
+%% there is no caller, which is every call through the local HTTP API.
+field_or_empty(Key, Source) ->
+    empty_if_unset(maps:get(Key, Source, undefined)).
+
+empty_if_unset(undefined) -> <<>>;
+empty_if_unset(Value)     -> Value.
 
 source_from_doc({ok, #{<<"type">> := <<"source">>} = Doc}) ->
     {ok, source_row(Doc)};

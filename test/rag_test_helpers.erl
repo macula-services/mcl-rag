@@ -14,7 +14,8 @@
 %%% not from anything about the code under test.
 -module(rag_test_helpers).
 
--export([start_mcl_rag/0, stop_mcl_rag/0, write_repos_config/2]).
+-export([start_mcl_rag/0, stop_mcl_rag/0, write_repos_config/2, restore_env/2,
+         operator_dispatch/2]).
 
 %% `application:stop/1' returning is not proof the OS has released the
 %% ranch listener's TCP port yet -- give it a beat before the NEXT
@@ -47,3 +48,22 @@ repo_json(#{id := Id, url := Url} = R) ->
 
 add_branch(undefined, Base) -> Base;
 add_branch(Branch, Base)    -> Base#{<<"branch">> => Branch}.
+
+%% @doc Put an mcl_rag env key back the way a test found it. Unsetting is not
+%% that: an unset `data_dir' falls to the production default, which is not
+%% writable here, and every later suite then fails to open the store.
+-spec restore_env(atom(), {ok, term()} | undefined) -> ok.
+restore_env(Key, {ok, Value}) -> application:set_env(mcl_rag, Key, Value);
+restore_env(Key, undefined)   -> application:unset_env(mcl_rag, Key).
+
+%% The node id the suites act as when they call a destructive procedure.
+-define(TEST_OPERATOR, binary:copy(<<16#0F>>, 32)).
+
+%% @doc Dispatch `Method' as a configured operator: the operator list names the
+%% test node, and the payload carries it as the verified `caller' (the atom key
+%% macula writes). The gate stays in the path, as it is for a real mesh call;
+%% rag_operators_tests covers who is refused.
+-spec operator_dispatch(binary(), map()) -> {ok, term()} | {error, term()}.
+operator_dispatch(Method, Params) ->
+    ok = application:set_env(mcl_rag, operators, binary:encode_hex(?TEST_OPERATOR)),
+    mcl_rag_mesh_rpc:dispatch(Method, Params#{caller => ?TEST_OPERATOR}).

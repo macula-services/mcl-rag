@@ -62,21 +62,17 @@ end_per_suite(_Config) ->
 %%% ===== upload_knowledge =====
 
 upload_knowledge_full_pipeline(_Config) ->
-    case ollama_available() of
-        false -> {skip, "Ollama not running"};
-        true ->
-            DocId = fresh_id(<<"upload">>),
-            Content = <<"# Event Sourcing\n\nThe aggregate replays events "
-                        "to derive state. Each event is a business fact.\n">>,
-            Result = maybe_upload_knowledge:upload(#{
-                <<"document_id">> => DocId,
-                <<"source_path">> => <<"upload-test.md">>,
-                <<"source_type">> => <<"text/markdown">>,
-                <<"raw_bytes">> => Content
-            }),
-            {ok, #{document_id := DocId, chunks := N}} = Result,
-            ?assert(N > 0)
-    end.
+    DocId = fresh_id(<<"upload">>),
+    Content = <<"# Event Sourcing\n\nThe aggregate replays events "
+                "to derive state. Each event is a business fact.\n">>,
+    Result = maybe_upload_knowledge:upload(#{
+        <<"document_id">> => DocId,
+        <<"source_path">> => <<"upload-test.md">>,
+        <<"source_type">> => <<"text/markdown">>,
+        <<"raw_bytes">> => Content
+    }),
+    {ok, #{document_id := DocId, chunks := N}} = Result,
+    ?assert(N > 0).
 
 upload_knowledge_missing_id(_Config) ->
     ?assertEqual({error, missing_document_id},
@@ -90,123 +86,107 @@ upload_knowledge_empty_content(_Config) ->
                  })).
 
 upload_knowledge_chunks_are_searchable(_Config) ->
-    case ollama_available() of
-        false -> {skip, "Ollama not running"};
-        true ->
-            DocId = fresh_id(<<"upload-search">>),
-            SourcePath = <<"upload-search-", DocId/binary, ".md">>,
-            Content = <<"# Quokkas\n\nQuokkas are small marsupials found on "
-                        "Rottnest Island off Western Australia.\n">>,
-            {ok, _} = maybe_upload_knowledge:upload(#{
-                <<"document_id">> => DocId,
-                <<"source_path">> => SourcePath,
-                <<"source_type">> => <<"text/markdown">>,
-                <<"raw_bytes">> => Content
-            }),
-            {ok, Hits} = rag_store:search_text(<<"where do quokkas live">>, 5),
-            ?assert(hit_from_source(Hits, SourcePath))
-    end.
+    DocId = fresh_id(<<"upload-search">>),
+    SourcePath = <<"upload-search-", DocId/binary, ".md">>,
+    Content = <<"# Quokkas\n\nQuokkas are small marsupials found on "
+                "Rottnest Island off Western Australia.\n">>,
+    {ok, _} = maybe_upload_knowledge:upload(#{
+        <<"document_id">> => DocId,
+        <<"source_path">> => SourcePath,
+        <<"source_type">> => <<"text/markdown">>,
+        <<"raw_bytes">> => Content
+    }),
+    %% The chunk's own text, embedded by the same embedder, must find it. The
+    %% suites run a deterministic embedder (rag_embed_stub): it proves the
+    %% chunks are stored WITH vectors and searched through one embedder, not
+    %% semantic quality, which is mcl-embedder's to prove.
+    {ok, [#{content := Stored} | _]} = rag_store:list_chunks_by_source(SourcePath, 10),
+    {ok, Hits} = rag_store:search_text(Stored, 5),
+    ?assert(hit_from_source(Hits, SourcePath)).
 
 %%% ===== add_knowledge =====
 
 add_knowledge_text_snippet(_Config) ->
-    case ollama_available() of
-        false -> {skip, "Ollama not running"};
-        true ->
-            Result = maybe_add_knowledge:add(#{
-                <<"text">> => <<"Vertical slicing groups code by business capability, "
-                                "not by technical concern.">>,
-                <<"source_label">> => <<"conversational-test">>
-            }),
-            {ok, #{chunks := N}} = Result,
-            ?assert(N > 0)
-    end.
+    Result = maybe_add_knowledge:add(#{
+        <<"text">> => <<"Vertical slicing groups code by business capability, "
+                        "not by technical concern.">>,
+        <<"source_label">> => <<"conversational-test">>
+    }),
+    {ok, #{chunks := N}} = Result,
+    ?assert(N > 0).
 
 add_knowledge_with_topics(_Config) ->
-    case ollama_available() of
-        false -> {skip, "Ollama not running"};
-        true ->
-            Text = <<"The dossier principle means process over data. "
-                     "Each desk is a capability within a department.">>,
-            {ok, _} = maybe_add_knowledge:add(#{
-                <<"text">> => Text,
-                <<"source_label">> => <<"dossier-test">>,
-                <<"topics">> => [<<"ddd">>, <<"architecture">>]
-            }),
-            {ok, Hits} = rag_store:search_text(<<"dossier principle">>, 5),
-            TaggedHit = lists:any(fun(H) ->
-                Meta = maps:get(meta, H, #{}),
-                lists:member(<<"ddd">>, maps:get(<<"topics">>, Meta, []))
-            end, Hits),
-            ?assert(TaggedHit)
-    end.
+    Text = <<"The dossier principle means process over data. "
+             "Each desk is a capability within a department.">>,
+    {ok, _} = maybe_add_knowledge:add(#{
+        <<"text">> => Text,
+        <<"source_label">> => <<"dossier-test">>,
+        <<"topics">> => [<<"ddd">>, <<"architecture">>]
+    }),
+    %% A short snippet is stored as one chunk of exactly its text, so the same
+    %% text finds it through the deterministic test embedder (see
+    %% upload_knowledge_chunks_are_searchable).
+    {ok, Hits} = rag_store:search_text(Text, 5),
+    TaggedHit = lists:any(fun(H) ->
+        Meta = maps:get(meta, H, #{}),
+        lists:member(<<"ddd">>, maps:get(<<"topics">>, Meta, []))
+    end, Hits),
+    ?assert(TaggedHit).
 
 add_knowledge_missing_text(_Config) ->
     ?assertEqual({error, missing_text},
                  maybe_add_knowledge:add(#{<<"source_label">> => <<"test">>})).
 
 add_knowledge_is_searchable(_Config) ->
-    case ollama_available() of
-        false -> {skip, "Ollama not running"};
-        true ->
-            maybe_add_knowledge:add(#{
-                <<"text">> => <<"Capypbaras are the largest living rodents, "
-                                "native to South America.">>,
-                <<"source_label">> => <<"capybara-test">>
-            }),
-            {ok, Hits} = rag_store:search_text(<<"largest rodents">>, 5),
-            ?assert(length(Hits) > 0)
-    end.
+    maybe_add_knowledge:add(#{
+        <<"text">> => <<"Capypbaras are the largest living rodents, "
+                        "native to South America.">>,
+        <<"source_label">> => <<"capybara-test">>
+    }),
+    {ok, Hits} = rag_store:search_text(<<"largest rodents">>, 5),
+    ?assert(length(Hits) > 0).
 
 add_knowledge_long_text_chunks(_Config) ->
-    case ollama_available() of
-        false -> {skip, "Ollama not running"};
-        true ->
-            LongText = <<"# Architecture\n\nVertical slicing groups code by "
-                         "business capability. Each feature owns all its "
-                         "infrastructure: commands, events, handlers, and "
-                         "projections co-located in one directory.\n\n"
-                         "## Rules\n\nNo horizontal layers are allowed. "
-                         "There is no central supervisor for all listeners. "
-                         "Each domain owns its infrastructure. Directory names "
-                         "must scream business intent. One capability per "
-                         "module. Co-locate related code.\n\n"
-                         "## Anti-patterns\n\nServices folders, utils "
-                         "directories, and helper modules are all forbidden. "
-                         "These are generic technical layers that do not map "
-                         "to business capabilities.\n">>,
-            {ok, #{chunks := N}} = maybe_add_knowledge:add(#{
-                <<"text">> => LongText,
-                <<"source_label">> => <<"long-text-test">>
-            }),
-            ?assert(N > 1)
-    end.
+    LongText = <<"# Architecture\n\nVertical slicing groups code by "
+                 "business capability. Each feature owns all its "
+                 "infrastructure: commands, events, handlers, and "
+                 "projections co-located in one directory.\n\n"
+                 "## Rules\n\nNo horizontal layers are allowed. "
+                 "There is no central supervisor for all listeners. "
+                 "Each domain owns its infrastructure. Directory names "
+                 "must scream business intent. One capability per "
+                 "module. Co-locate related code.\n\n"
+                 "## Anti-patterns\n\nServices folders, utils "
+                 "directories, and helper modules are all forbidden. "
+                 "These are generic technical layers that do not map "
+                 "to business capabilities.\n">>,
+    {ok, #{chunks := N}} = maybe_add_knowledge:add(#{
+        <<"text">> => LongText,
+        <<"source_label">> => <<"long-text-test">>
+    }),
+    ?assert(N > 1).
 
 %%% ===== rag_store architectural fix =====
 
 store_stays_responsive_during_embed(_Config) ->
-    case ollama_available() of
-        false -> {skip, "Ollama not running"};
-        true ->
-            %% Start a long embedding in a separate process
-            Pid = spawn(fun() ->
-                rag_embedder:embed(<<"some text that takes a while to embed">>)
-            end),
-            %% While that's running, rag_store should still respond
-            {ok, _} = rag_store:list_sources(0, 10),
-            %% And size should return immediately
-            _ = rag_store:size(),
-            %% Clean up
-            exit(Pid, kill)
-    end.
+    %% Start a long embedding in a separate process
+    Pid = spawn(fun() ->
+        rag_embedder:embed(<<"some text that takes a while to embed">>)
+    end),
+    %% While that's running, rag_store should still respond
+    {ok, _} = rag_store:list_sources(0, 10),
+    %% And size should return immediately
+    _ = rag_store:size(),
+    %% Clean up
+    exit(Pid, kill).
 
 put_chunk_with_vector_round_trip(_Config) ->
     ChunkId = fresh_id(<<"pv-rt">>),
     Content = <<"Test content for vector round trip.">>,
     Meta = #{source_path => <<"vector-test.md">>, kind => prose,
              start_line => 1, end_line => 1},
-    %% Create a dummy 768-dim vector (matching dev config's embed_dim)
-    Vector = [0.1 || _ <- lists:seq(1, 768)],
+    %% A vector of the configured dimension (what the store's index expects)
+    Vector = [0.1 || _ <- lists:seq(1, rag_embedder:dimension())],
     ok = rag_store:put_chunk_with_vector(ChunkId, Content, Meta, Vector),
     {ok, #{content := RetrievedContent}} = rag_store:get(ChunkId),
     ?assertEqual(Content, RetrievedContent),
@@ -215,19 +195,15 @@ put_chunk_with_vector_round_trip(_Config) ->
     ?assert(lists:any(fun(#{chunk_id := Id}) -> Id =:= ChunkId end, Hits)).
 
 search_text_embeds_externally(_Config) ->
-    case ollama_available() of
-        false -> {skip, "Ollama not running"};
-        true ->
-            %% search_text should embed the query via rag_embedder
-            %% (in the caller's process) and then do a vector search
-            {ok, Hits} = rag_store:search_text(<<"test query">>, 5),
-            ?assert(is_list(Hits))
-    end.
+    %% search_text should embed the query via rag_embedder
+    %% (in the caller's process) and then do a vector search
+    {ok, Hits} = rag_store:search_text(<<"test query">>, 5),
+    ?assert(is_list(Hits)).
 
 %%% ===== Mesh RPC routes =====
 
 mesh_rpc_upload_knowledge_route(_Config) ->
-    Result = mcl_rag_mesh_rpc:dispatch(<<"mcl-rag.upload_knowledge">>,
+    Result = rag_test_helpers:operator_dispatch(<<"mcl-rag.upload_knowledge">>,
                                           #{<<"document_id">> => <<"missing">>,
                                             <<"raw_bytes">> => <<>>}),
     %% Should get empty_content error, not unknown_method
@@ -248,9 +224,3 @@ fresh_id(Prefix) ->
     <<Prefix/binary, $-,
       (integer_to_binary(erlang:unique_integer([positive, monotonic])))/binary>>.
 
-ollama_available() ->
-    case hackney:request(get, <<"http://127.0.0.1:11434/api/tags">>,
-                          [], <<>>, [{recv_timeout, 2000}]) of
-        {ok, 200, _Headers, _Body} -> true;
-        _ -> false
-    end.

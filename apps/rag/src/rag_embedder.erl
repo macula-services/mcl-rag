@@ -13,37 +13,40 @@
 %%% for fleet (over the mesh), `ollama' for dev (local HTTP).
 -module(rag_embedder).
 
--export([embed/1, embed_batch/1, dimension/0]).
+-export([embed/1, embed_batch/1, dimension/0, provider/0]).
 
 -spec embed(binary()) -> {ok, [float()]} | {error, term()}.
 embed(Text) when is_binary(Text) ->
-    case provider() of
-        {mcl_embedder, Config} -> rag_embed_mcl_embedder:embed(Text, Config);
-        {ollama, Config}          -> barrel_embed_ollama:embed(Text, Config)
-    end.
+    {Module, Config} = provider(),
+    Module:embed(Text, Config).
 
 -spec embed_batch([binary()]) -> {ok, [[float()]]} | {error, term()}.
 embed_batch(Texts) when is_list(Texts) ->
-    case provider() of
-        {mcl_embedder, Config} -> rag_embed_mcl_embedder:embed_batch(Texts, Config);
-        {ollama, Config}          -> barrel_embed_ollama:embed_batch(Texts, Config)
-    end.
+    {Module, Config} = provider(),
+    Module:embed_batch(Texts, Config).
 
 -spec dimension() -> pos_integer().
 dimension() ->
     application:get_env(mcl_rag, embed_dim, 384).
 
-%%% Internal
-
+%% @doc The barrel_embed_provider module and its config, from `embed_provider':
+%% `mcl_embedder' (the mesh procedure; production), `ollama' (a laptop), or
+%% `{Module, Config}' naming any provider module directly. The one place this
+%% is decided: rag_store opens barrel with the same answer, so the vectors a
+%% query is embedded with always come from the provider that made the stored
+%% ones.
+-spec provider() -> {module(), map()}.
 provider() ->
-    case application:get_env(mcl_rag, embed_provider, ollama) of
-        mcl_embedder ->
-            {mcl_embedder, #{dimension => dimension()}};
-        ollama ->
-            Url = application:get_env(mcl_rag, embed_url, <<"http://127.0.0.1:11434">>),
-            Model = application:get_env(mcl_rag, embed_model, <<"nomic-embed-text">>),
-            {ollama, #{url => to_bin(Url), model => to_bin(Model)}}
-    end.
+    chosen(application:get_env(mcl_rag, embed_provider, ollama)).
+
+chosen(mcl_embedder) ->
+    {rag_embed_mcl_embedder, #{dimension => dimension()}};
+chosen(ollama) ->
+    Url = application:get_env(mcl_rag, embed_url, <<"http://127.0.0.1:11434">>),
+    Model = application:get_env(mcl_rag, embed_model, <<"nomic-embed-text">>),
+    {barrel_embed_ollama, #{url => to_bin(Url), model => to_bin(Model)}};
+chosen({Module, Config}) when is_atom(Module), is_map(Config) ->
+    {Module, Config}.
 
 to_bin(B) when is_binary(B) -> B;
 to_bin(L) when is_list(L)   -> list_to_binary(L).

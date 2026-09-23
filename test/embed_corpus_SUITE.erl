@@ -223,7 +223,9 @@ refresh_scheduler_detects_and_refreshes_change(Config) ->
     NamespacedId = <<RepoId/binary, "/", RelPath/binary>>,
     ok = filelib:ensure_dir(filename:join(RepoDir, ".")),
     ok = rag_test_helpers:write_repos_config(ConfigPath, [#{id => RepoId, url => <<"unused">>}]),
+    PrevReposConfig = application:get_env(mcl_rag, corpus_repos_config),
     ok = application:set_env(mcl_rag, corpus_repos_config, ConfigPath),
+    PrevDataDir = application:get_env(mcl_rag, data_dir),
     ok = application:set_env(mcl_rag, data_dir, DataDir),
 
     AbsPath = filename:join(RepoDir, RelPath),
@@ -251,8 +253,8 @@ refresh_scheduler_detects_and_refreshes_change(Config) ->
     ?assertEqual({ok, #{source_path => NamespacedId, raw_bytes => Updated}},
                  rag_store:get_source_content(NamespacedId)),
 
-    ok = application:unset_env(mcl_rag, corpus_repos_config),
-    ok = application:unset_env(mcl_rag, data_dir).
+    ok = rag_test_helpers:restore_env(corpus_repos_config, PrevReposConfig),
+    ok = rag_test_helpers:restore_env(data_dir, PrevDataDir).
 
 %% The real reason document ids get repo-namespaced: two configured
 %% repos that both happen to have a same-named file must not collide
@@ -274,7 +276,9 @@ refresh_scheduler_namespaces_by_repo_to_avoid_collisions(Config) ->
         #{id => RepoA, url => <<"unused">>},
         #{id => RepoB, url => <<"unused">>}
     ]),
+    PrevReposConfig = application:get_env(mcl_rag, corpus_repos_config),
     ok = application:set_env(mcl_rag, corpus_repos_config, ConfigPath),
+    PrevDataDir = application:get_env(mcl_rag, data_dir),
     ok = application:set_env(mcl_rag, data_dir, DataDir),
 
     ok = file:write_file(filename:join(DirA, RelPath), <<"# From A\n">>),
@@ -288,8 +292,8 @@ refresh_scheduler_namespaces_by_repo_to_avoid_collisions(Config) ->
     ?assertEqual({ok, #{source_path => IdB, raw_bytes => <<"# From B\n">>}},
                  rag_store:get_source_content(IdB)),
 
-    ok = application:unset_env(mcl_rag, corpus_repos_config),
-    ok = application:unset_env(mcl_rag, data_dir).
+    ok = rag_test_helpers:restore_env(corpus_repos_config, PrevReposConfig),
+    ok = rag_test_helpers:restore_env(data_dir, PrevDataDir).
 
 %%% Internals
 
