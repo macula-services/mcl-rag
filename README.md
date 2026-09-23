@@ -76,7 +76,7 @@ corpus-sync NIF into `priv/lib/`, which is gitignored.
 | `MCL_RAG_TOPIC_API_KEY` | empty | Groq key for topic classification. It is a secret: supply it from the host, never commit it. |
 | `MCL_RAG_TOPIC_FALLBACK_API_KEY` | empty | DeepSeek key, used when Groq fails. |
 | `MCL_DATA_DIR` | `/var/lib/mcl-rag` | The store and the corpus checkouts. Mount it on a persistent volume (compose names it `mcl-rag-data`). |
-| `MCL_RAG_HTTP_PORT` | `8470` | The local HTTP API. |
+| `MCL_RAG_HTTP_PORT` | `8451` | The local HTTP API. Registered in macula-fleet `PORTS.md`, like the health port. |
 | `MCL_RAG_HTTP_IP` | `127.0.0.1` | Keep it on loopback: the API has writes and no authentication. |
 | `MCL_HEALTH_PORT` | `8450` | Health endpoint. Host networking makes a collision a silent bind failure, so check the host before changing.  |
 | `MCL_NODE_NAME` | `mcl_rag` | Erlang node name. |

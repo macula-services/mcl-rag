@@ -70,6 +70,9 @@ services:
       - MCL_COOKIE=mcl_rag
       # Host networking means a port already bound on this host fails SILENTLY.
       - MCL_HEALTH_PORT=8450
+      # The local HTTP API, loopback only (writes, no authentication). Its
+      # number is registered in macula-fleet PORTS.md like the health port.
+      - MCL_RAG_HTTP_PORT=8451
       # The node ids allowed to delete or rewrite the store (64 hex each,
       # comma-separated). Empty means nobody: the destructive procedures
       # refuse every caller, and queries and add_knowledge stay open.

@@ -30,6 +30,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- The ports are the registered ones (macula-fleet `PORTS.md`): health 8450,
+  the loopback HTTP API 8451. The image had said 8470, which is mcl-sentinel's,
+  and under host networking a collision is a silent bind failure.
 - The corpus-sync NIF is built in the image against musl. The port had
   committed a workstation build, which links glibc and would never have
   loaded on alpine. A root-anchored `.gitignore` rule had let it through.

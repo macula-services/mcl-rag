@@ -57,6 +57,23 @@ the_health_check_waits_out_the_store_open_test() ->
                              [{capture, all_but_first, binary}]),
     ?assert(binary_to_integer(Secs) >= 900).
 
+%% Host networking makes every port fleet-wide, so the registry
+%% (macula-fleet PORTS.md: health 8450, API 8451) is the only authority, and
+%% the image, compose and the app's own default must all say the same thing.
+%% The image once said 8470, which is mcl-sentinel's.
+the_ports_are_the_registered_ones_test() ->
+    %% The .app file's own default, read from the file: once loaded, the env
+    %% (get_env and get_key alike) carries test.sys.config's value.
+    {ok, [{application, mcl_rag, Spec}]} = file:consult(code:where_is_file("mcl_rag.app")),
+    Default = proplists:get_value(http_port, proplists:get_value(env, Spec)),
+    ?assertEqual({ok, [<<"8451">>]}, image_value(<<"MCL_RAG_HTTP_PORT">>)),
+    ?assertEqual(8451, Default),
+    ?assertEqual({ok, [<<"8450">>]}, image_value(<<"MCL_HEALTH_PORT">>)),
+    Compose = read("deploy/docker-compose.yml"),
+    ?assertMatch({match, _}, re:run(Compose, <<"- MCL_RAG_HTTP_PORT=8451\\n">>)),
+    ?assertMatch({match, _}, re:run(Compose, <<"- MCL_HEALTH_PORT=8450\\n">>)),
+    ?assertMatch({match, _}, re:run(read("Containerfile"), <<"EXPOSE 8450 8451\\n">>)).
+
 %% relx puts in the release only what an `applications' list reaches, while
 %% the test code path holds every rebar dep. An app called directly but not
 %% listed passes every suite and is `undef' in production: macula_rag was

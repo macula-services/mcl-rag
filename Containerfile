@@ -101,13 +101,14 @@ ENV MCL_COOKIE=mcl_rag
 ENV MCL_HEALTH_PORT=8450
 # The local HTTP API: loopback only, because it has writes and no
 # authentication. The mesh procedures are the public surface.
-ENV MCL_RAG_HTTP_PORT=8470
+ENV MCL_RAG_HTTP_PORT=8451
 ENV MCL_RAG_HTTP_IP=127.0.0.1
 ENV MCL_DATA_DIR=/var/lib/mcl-rag
 
 VOLUME ["/etc/mcl/secrets", "/var/lib/mcl-rag"]
 
-EXPOSE 8450
+# Health and the loopback API, as registered in macula-fleet PORTS.md.
+EXPOSE 8450 8451
 # THE START PERIOD OUTLASTS THE STORE OPEN. Opening rebuilds the vector index:
 # 190-227 s on the workstation for the production corpus, longer on a Celeron,
 # and /health is honestly `degraded, store_opening' throughout. A shorter start
