@@ -1,0 +1,16 @@
+{"repos": [
+  {"id": "faber-ecosystem", "url": "https://github.com/rgfaber/faber-ecosystem.git", "branch": "master"},
+  {"id": "hecate-corpus", "url": "https://github.com/hecate-social/hecate-corpus.git", "branch": "main"},
+  {"id": "hecate-ecosystem", "url": "https://github.com/hecate-social/hecate-ecosystem.git", "branch": "main"},
+  {"id": "macula", "url": "https://github.com/macula-io/macula.git", "branch": "main"},
+  {"id": "macula-cli", "url": "https://github.com/macula-io/macula-cli.git", "branch": "master"},
+  {"id": "macula-dotnet", "url": "https://github.com/macula-io/macula-dotnet.git", "branch": "main"},
+  {"id": "macula-ecosystem", "url": "https://github.com/macula-io/macula-ecosystem.git", "branch": "main"},
+  {"id": "macula-go", "url": "https://github.com/macula-io/macula-go.git", "branch": "master"},
+  {"id": "macula-mcp", "url": "https://github.com/macula-io/macula-mcp.git", "branch": "main"},
+  {"id": "macula-php", "url": "https://github.com/macula-io/macula-php.git", "branch": "main"},
+  {"id": "macula-py", "url": "https://github.com/macula-io/macula-py.git", "branch": "main"},
+  {"id": "macula-rust", "url": "https://github.com/macula-io/macula-rust.git", "branch": "master"},
+  {"id": "macula-ts", "url": "https://github.com/macula-io/macula-ts.git", "branch": "main"},
+  {"id": "reckon-ecosystem", "url": "https://github.com/reckon-db-org/reckon-ecosystem.git", "branch": "main"}
+]}

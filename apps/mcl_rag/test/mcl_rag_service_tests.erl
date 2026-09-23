@@ -90,6 +90,27 @@ the_shipped_config_names_the_org_test() ->
     {ok, Text} = file:read_file(alongside("config/sys.config.src")),
     ?assertNotEqual(nomatch, binary:match(Text, <<"{org,               <<\"mcl-rag\">>}">>)).
 
+%% The corpus the shared memory holds: which repos corpus_git_sync keeps
+%% checked out under <data_dir>/corpus/<id>. The ids are the checkout
+%% directories AND the namespace of every stored watermark, so a renamed id
+%% re-embeds that repo from scratch. The list lived only on beam03 and is
+%% rebuilt from the checkouts in the data copy; it must read back through the
+%% real reader.
+the_shipped_corpus_list_reads_back_test() ->
+    ok = application:set_env(mcl_rag, corpus_repos_config, alongside("deploy/corpus-repos.json")),
+    try
+        {ok, Repos} = corpus_repos_config:read(),
+        ?assertEqual([<<"faber-ecosystem">>, <<"hecate-corpus">>, <<"hecate-ecosystem">>,
+                      <<"macula">>, <<"macula-cli">>, <<"macula-dotnet">>, <<"macula-ecosystem">>,
+                      <<"macula-go">>, <<"macula-mcp">>, <<"macula-php">>, <<"macula-py">>,
+                      <<"macula-rust">>, <<"macula-ts">>, <<"reckon-ecosystem">>],
+                     lists:sort([Id || #{id := Id} <- Repos])),
+        [?assertMatch(#{url := <<"https://github.com/", _/binary>>, branch := <<_, _/binary>>}, R)
+         || R <- Repos]
+    after
+        application:unset_env(mcl_rag, corpus_repos_config)
+    end.
+
 %%==============================================================================
 %% Health and authority
 %%==============================================================================
