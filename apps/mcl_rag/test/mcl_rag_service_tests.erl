@@ -107,6 +107,14 @@ identity_spec_asks_for_nothing_test() ->
     ?assertEqual([], Actions),
     ?assertEqual([], Resources).
 
+%% A malformed operator list would otherwise surface on the first destructive
+%% call, as a crash in the gate. It is refused at start instead.
+start_refuses_a_malformed_operator_list_test() ->
+    ok = application:set_env(?APP, operators, "not-a-node-id"),
+    try ?assertError({invalid_rag_operators, {not_64_hex, _}}, ?SERVICE:start(#{}))
+    after application:unset_env(?APP, operators)
+    end.
+
 %%==============================================================================
 %% The local HTTP API
 %%==============================================================================

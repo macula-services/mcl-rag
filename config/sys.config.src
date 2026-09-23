@@ -14,6 +14,12 @@
         %% Vectors come from mcl-embedder over the mesh, raw text, 384 dims:
         %% the dimension every stored vector has. Changing either needs the
         %% whole store re-embedded.
+        %% The node ids (64 hex each, comma or space separated) allowed to delete
+        %% or rewrite the store: prune_chunks, retire_document, ingest_document,
+        %% upload_knowledge, embed_document, classify_topics, schedule_reembed,
+        %% detect_corpus_change. Anyone else is refused `not_an_operator'. Empty
+        %% means nobody. Queries and add_knowledge stay open.
+        {operators,      "${MCL_RAG_OPERATORS}"},
         {embed_provider, mcl_embedder},
         {embed_dim,      384},
         %% Topic classification, LLM-backed and optional. The keys come from the

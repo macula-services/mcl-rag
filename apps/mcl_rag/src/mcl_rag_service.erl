@@ -18,7 +18,14 @@ info() ->
       version => <<"0.1.0">>,
       description => <<"The mesh shared memory: retrieval over a realm-bound corpus, and the deposits agents remember into it">>}.
 
-start(_Opts) -> mcl_rag_sup:start_link().
+%% The operator list is checked before anything starts: a malformed one would
+%% otherwise surface on the first destructive call, as a crash in the gate.
+start(_Opts) ->
+    ok = operators_checked(rag_operators:parse(application:get_env(mcl_rag, operators, undefined))),
+    mcl_rag_sup:start_link().
+
+operators_checked({ok, _Operators}) -> ok;
+operators_checked({error, Reason})  -> error({invalid_rag_operators, Reason}).
 
 stop(_State) -> ok.
 

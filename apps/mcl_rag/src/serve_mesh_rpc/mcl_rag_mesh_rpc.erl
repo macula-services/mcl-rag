@@ -104,9 +104,19 @@ handle_schedule_reembed(P)       -> route(<<"mcl-rag.schedule_reembed">>, P).
 %% through their `*_api' modules, where jsx wants bare binaries.
 %% `get_document_verbatim' is the one exception and shapes itself: its
 %% `raw_bytes' really are bytes and must stay so.
-route(<<"mcl-rag.get_document_verbatim">> = Method, P) ->
-    desk(Method, P);
+%% Every procedure passes the operator gate first: open ones pass for anyone,
+%% the destructive ones only for a verified operator (rag_operators).
 route(Method, P) ->
+    guarded(rag_operators:authorized(procedure(Method), P), Method, P).
+
+guarded(ok, Method, P)             -> routed(Method, P);
+guarded({error, _} = Refused, _, _) -> Refused.
+
+procedure(<<"mcl-rag.", Name/binary>>) -> Name.
+
+routed(<<"mcl-rag.get_document_verbatim">> = Method, P) ->
+    desk(Method, P);
+routed(Method, P) ->
     as_wire(desk(Method, P)).
 
 as_wire({ok, Value}) -> {ok, text_wire(Value)};
