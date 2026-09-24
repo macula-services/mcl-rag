@@ -7,6 +7,15 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+
+- **mcl_om `~> 0.28` with macula `~> 12.2`, together.** Under macula 12.2 an
+  mcl_om older than 0.28 lets a failed publish announcement kill the
+  publishing process. The service answers `mcl-rag/info` with no code of its
+  own (which also makes it count as online on the realm's Providers desk), and
+  `mcl_rag_info_tests` round-trips it through macula's codec and fails unless
+  it reports mcl_om 0.28 with macula 12.2.
+
 ### Added
 
 - The port of `hecate-rag` onto `mcl_om` and macula 12: the same barrel store
