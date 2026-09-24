@@ -15,6 +15,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   own (which also makes it count as online on the realm's Providers desk), and
   `mcl_rag_info_tests` round-trips it through macula's codec and fails unless
   it reports mcl_om 0.28 with macula 12.2.
+- The image carries its own `org.opencontainers.image.revision` (build-push
+  passes the commit). Without it, it inherited its base image's label, which
+  named a macula-ci-images commit.
 
 ### Added
 
