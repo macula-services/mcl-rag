@@ -232,17 +232,73 @@ the_runtime_agrees_between_the_image_the_ci_and_this_vm_test() ->
 %% runtime image of the pair has. Their tags move daily, so only a digest
 %% says what builds. The OTP release the builder holds is asserted by its own
 %% RUN step, the line the guard above reads.
-images_are_the_digest_pinned_rocksdb_pair_test() ->
-    Digest = "@sha256:[0-9a-f]{64}",
+images_are_the_dated_and_digest_pinned_rocksdb_pair_test() ->
+    Pin = ":([0-9]{8}-[0-9]{4}@sha256:[0-9a-f]{64})",
+    Builder = pinned("Containerfile", "^FROM ghcr\\.io/macula-io/macula-ci-otp-rocksdb" ++ Pin ++ " AS builder$"),
+    Runtime = pinned("Containerfile", "^FROM ghcr\\.io/macula-io/macula-pq-runtime-rocksdb" ++ Pin ++ "$"),
+    Ci = pinned(".github/workflows/lint.yml", "^\\s+image: ghcr\\.io/macula-io/macula-ci-otp-rocksdb" ++ Pin ++ "$"),
+    ?assertEqual(Builder, Ci),
+    ?assertEqual(tag(Builder), tag(Runtime)).
+
+tag(Pin) -> hd(binary:split(Pin, <<"@">>)).
+
+%% The service is nothing without the mesh: mcl_om 0.33.1's {mesh, required}
+%% stops a boot missing MCL_REALM, MCL_REALM_KEY or the pinned stations and
+%% names each one. It must sit in the mcl_om block, the one mcl_om reads.
+the_service_requires_the_mesh_test() ->
+    ?assertEqual(<<"required">>,
+                 pinned("config/sys.config.src",
+                        "(?s)^\\s+\\{mcl_om, \\[(?:(?!^\\s+\\]\\},?$).)*?^\\s+\\{mesh,\\s+(required)\\},?$")).
+
+%% SIGNED BY DIGEST: build-push hands the pushed digest to macula-ci-images'
+%% attest-image.yml, pinned by full commit (the signing identity).
+the_image_is_signed_by_the_pinned_attest_workflow_test() ->
     ?assertMatch(<<_/binary>>,
-                 pinned("Containerfile",
-                        "^FROM (ghcr\\.io/macula-io/macula-ci-otp-rocksdb)" ++ Digest ++ " AS builder$")),
-    ?assertMatch(<<_/binary>>,
-                 pinned("Containerfile",
-                        "^FROM (ghcr\\.io/macula-io/macula-pq-runtime-rocksdb)" ++ Digest ++ "$")),
-    ?assertMatch(<<_/binary>>,
-                 pinned(".github/workflows/lint.yml",
-                        "^\\s+image: (ghcr\\.io/macula-io/macula-ci-otp-rocksdb)" ++ Digest ++ "$")).
+                 pinned(".github/workflows/build-push.yml",
+                        "^\\s+uses: macula-io/macula-ci-images/\\.github/workflows/attest-image\\.yml@([0-9a-f]{40})$")),
+    ?assertEqual(<<"ghcr.io/macula-services/mcl-rag">>,
+                 pinned(".github/workflows/build-push.yml", "^\\s+image: (ghcr\\.io/macula-services/mcl-rag)$")),
+    ?assertEqual(<<"needs.build-and-push.outputs.digest">>,
+                 pinned(".github/workflows/build-push.yml",
+                        "^\\s+digest: \\$\\{\\{ (needs\\.build-and-push\\.outputs\\.digest) \\}\\}$")).
+
+%% Every action a workflow runs is pinned by full commit: a tag moves.
+every_action_is_pinned_by_commit_test() ->
+    Unpinned = [{W, U} || W <- [".github/workflows/build-push.yml", ".github/workflows/lint.yml"],
+                          U <- uses(W), nomatch =:= re:run(U, <<"@[0-9a-f]{40}$">>)],
+    ?assertEqual([], Unpinned).
+
+uses(Workflow) ->
+    {ok, Text} = file:read_file(alongside(Workflow)),
+    case re:run(Text, <<"^\\s+(?:-\\s+)?uses:\\s+(\\S+)">>, [multiline, global, {capture, all_but_first, binary}]) of
+        {match, Found} -> [U || [U] <- Found];
+        nomatch -> []
+    end.
+
+%% Only main publishes :latest; any other ref ends in exit 1.
+only_main_publishes_latest_test() ->
+    ?assertEqual(<<"exit 1">>,
+                 pinned(".github/workflows/build-push.yml",
+                        "^\\s+elif \\[\\[ \"\\$\\{GITHUB_REF\\}\" == refs/heads/main \\]\\]; then\\n"
+                        "\\s+echo \"tags=[^\\n]*:latest\" >> \"\\$GITHUB_OUTPUT\"\\n"
+                        "\\s+else\\n(?:\\s+#[^\\n]*\\n)*\\s+echo [^\\n]*>&2\\n\\s+(exit 1)\\n\\s+fi$")).
+
+%% Raf, 2026-09-29: embeddings from msi00's ollama, the e5 model built there
+%% from intfloat's weights (384 dims); the topic classifier on the same local
+%% ollama (its OpenAI-compatible endpoint). No hosted LLM and no API key.
+the_models_are_local_ollama_and_no_key_is_read_test() ->
+    {ok, Config} = file:read_file(alongside("config/sys.config.src")),
+    ?assertEqual(<<"ollama">>, pinned("config/sys.config.src", "^\\s+\\{embed_provider,\\s+(ollama)\\},$")),
+    ?assertEqual(<<"macula/multilingual-e5-small:f16">>,
+                 pinned("config/sys.config.src", "^\\s+\\{embed_model,\\s+<<\"([^\"]+)\">>\\},$")),
+    ?assertEqual(<<"384">>, pinned("config/sys.config.src", "^\\s+\\{embed_dim,\\s+([0-9]+)\\},$")),
+    ?assertEqual(<<"http://127.0.0.1:11434/v1/chat/completions">>,
+                 pinned("config/sys.config.src", "^\\s+endpoint\\s+=> <<\"([^\"]+)\">>,$")),
+    ?assertEqual(<<"qwen2.5:7b-instruct-q4_K_M">>,
+                 pinned("config/sys.config.src", "^\\s+model\\s+=> <<\"([^\"]+)\">>,$")),
+    Outside = [W || W <- [<<"groq">>, <<"deepseek">>, <<"API_KEY">>, <<"api_key">>, <<"fallback">>],
+                    re:run(Config, W, [caseless]) =/= nomatch],
+    ?assertEqual([], Outside).
 
 %% The full release, 28.4.3 and not 28: `otp_release' names only the major.
 running_otp() ->

@@ -61,6 +61,18 @@ the_health_check_waits_out_the_store_open_test() ->
 %% (macula-fleet PORTS.md: health 8450, API 8451) is the only authority, and
 %% the image, compose and the app's own default must all say the same thing.
 %% The image once said 8470, which is mcl-sentinel's.
+%% The example runs an image by DIGEST, in the shape the fleet's compose files
+%% use: the repository fixed here, the digest from MCL_RAG_IMAGE_DIGEST, no tag
+%% to drift and no watchtower; and it reads no API key (the models are local).
+the_example_runs_an_image_by_digest_and_reads_no_key_test() ->
+    {ok, Text} = file:read_file(alongside("deploy/docker-compose.yml")),
+    ?assertMatch({match, _},
+                 re:run(Text, <<"^\\s+image: ghcr\\.io/macula-services/mcl-rag@\\$\\{MCL_RAG_IMAGE_DIGEST:\\?[^}]+\\}$">>,
+                        [multiline])),
+    ?assertEqual(nomatch, re:run(Text, <<":latest">>)),
+    ?assertEqual(nomatch, re:run(Text, <<"watchtower">>)),
+    ?assertEqual(nomatch, re:run(Text, <<"API_KEY">>)).
+
 the_ports_are_the_registered_ones_test() ->
     %% The .app file's own default, read from the file: once loaded, the env
     %% (get_env and get_key alike) carries test.sys.config's value.

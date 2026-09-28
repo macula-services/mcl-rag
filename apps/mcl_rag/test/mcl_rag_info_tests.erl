@@ -29,8 +29,8 @@ info_round_trip_test_() ->
           %% Floors, not exact minors: the pairing that matters is mcl_om 0.28 or
           %% later WITH macula 12.2 or later; a later compatible release (macula
           %% 12.3.0 arrived the same day) must not fail this.
-          ?_assert(at_least(maps:get(mcl_om_version, Reply), [0, 28])),
-          ?_assert(at_least(maps:get(macula_version, Reply), [12, 2]))]
+          ?_assert(at_least(maps:get(mcl_om_version, Reply), [0, 33, 1])),
+          ?_assert(at_least(maps:get(macula_version, Reply), [13, 0, 1]))]
      end}.
 
 %% The service must leave `info' to mcl_om: declaring its own refuses boot.
@@ -50,10 +50,11 @@ facts() ->
       uptime_s => 1, status => ok,
       capabilities => [<<(?ORG)/binary, "/", N/binary>> || #{name := N} <- Caps]}.
 
-%% Whether a `{text, <<"X.Y.Z">>}' version is at least [Major, Minor].
-at_least({text, Vsn}, Floor) ->
-    [Major, Minor | _] = [binary_to_integer(P) || P <- binary:split(Vsn, <<".">>, [global])],
-    [Major, Minor] >= Floor.
+%% Whether a `{text, <<"X.Y.Z">>}' version is at least [Major, Minor, Patch],
+%% within the same major.
+at_least({text, Vsn}, [Major | _] = Floor) ->
+    [Ma | _] = Parts = [binary_to_integer(P) || P <- binary:split(Vsn, <<".">>, [global])],
+    Ma =:= Major andalso lists:sublist(Parts, 3) >= Floor.
 
 vsn(App) ->
     _ = application:load(App),
