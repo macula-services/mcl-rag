@@ -1,0 +1,122 @@
+[
+ {
+  "id": "q01",
+  "lang": "en",
+  "text": "What error comes back when a mail call has no verified sender?",
+  "relevant": "p00"
+ },
+ {
+  "id": "q02",
+  "lang": "en",
+  "text": "Can one citizen read another citizen's mailbox?",
+  "relevant": "p01"
+ },
+ {
+  "id": "q03",
+  "lang": "en",
+  "text": "How is a mailbox stored as events, one stream per person?",
+  "relevant": "p02"
+ },
+ {
+  "id": "q04",
+  "lang": "en",
+  "text": "Which public facts does a service report about itself, like its version and uptime?",
+  "relevant": "p03"
+ },
+ {
+  "id": "q05",
+  "lang": "en",
+  "text": "Why does a container pull fail with a bare unauthorized error?",
+  "relevant": "p06"
+ },
+ {
+  "id": "q06",
+  "lang": "en",
+  "text": "Where does the letter read model live and which department owns it?",
+  "relevant": "p09"
+ },
+ {
+  "id": "q07",
+  "lang": "en",
+  "text": "What does a search result from a shard need to contain at minimum?",
+  "relevant": "p11"
+ },
+ {
+  "id": "q08",
+  "lang": "en",
+  "text": "What must an operator do when the procedure delegation is not found?",
+  "relevant": "p12"
+ },
+ {
+  "id": "q09",
+  "lang": "en",
+  "text": "What does the TypeScript SDK offer: keys, station links, calls and subscriptions?",
+  "relevant": "p16"
+ },
+ {
+  "id": "q10",
+  "lang": "en",
+  "text": "Which transport and ALPN does the mesh protocol use instead of HTTP/3?",
+  "relevant": "p17"
+ },
+ {
+  "id": "q11",
+  "lang": "en",
+  "text": "How is a node's identity derived from a post-quantum signing key?",
+  "relevant": "p21"
+ },
+ {
+  "id": "q12",
+  "lang": "en",
+  "text": "Which port does the echo service answer health checks on?",
+  "relevant": "p24"
+ },
+ {
+  "id": "q13",
+  "lang": "en",
+  "text": "Why should several callers each take their own station route?",
+  "relevant": "p29"
+ },
+ {
+  "id": "q14",
+  "lang": "en",
+  "text": "How does the deterministic CBOR differ from the RFC canonical form?",
+  "relevant": "p42"
+ },
+ {
+  "id": "q15",
+  "lang": "en",
+  "text": "Can the Go node test suite run without any network access?",
+  "relevant": "p43"
+ },
+ {
+  "id": "q16",
+  "lang": "nl",
+  "text": "Wat gebeurt er als de realm van de adverteerder en de aanroeper niet overeenkomen?",
+  "relevant": "p28"
+ },
+ {
+  "id": "q17",
+  "lang": "nl",
+  "text": "Welke identiteit draagt een aanroep: die van het station of die van de provider?",
+  "relevant": "p33"
+ },
+ {
+  "id": "q18",
+  "lang": "nl",
+  "text": "Hoe publiceer ik een nieuwe versie van de bibliotheek naar hex?",
+  "relevant": "p13"
+ },
+ {
+  "id": "q19",
+  "lang": "nl",
+  "text": "Wat is een Go-node en wat doet hij op het mesh zonder zelf station te zijn?",
+  "relevant": "p36"
+ },
+ {
+  "id": "q20",
+  "lang": "nl",
+  "text": "Welk sleuteluitwisselingsalgoritme gebruikt de QUIC-verbinding?",
+  "relevant": "p37"
+ }
+]

@@ -1,0 +1,177 @@
+[
+ {
+  "id": "p00",
+  "src": "mcl-mail",
+  "text": "A refusal comes back as the call's error with a short reason: `no_caller`, `invalid_to_citizen_did`, `not_initiated`, `already_initiated`, `already_open`, `archived`, `mailbox_not_opened`, `mailbox_closed`, `mailbox_archived`, `letter_not_found`, `letter_archived`, `missing_letter_id`, `not_found`, `replied_but_not_delivered`."
+ },
+ {
+  "id": "p01",
+  "src": "mcl-mail",
+  "text": "**Every procedure acts as the CALL's caller.** macula 12 puts `caller` on each inbound CALL: the node id of the identity key that signed the request, verified by every station on the path and again by this provider, and written over any `caller` the payload sends. A citizen's DID is that same node id. So a citizen can only open, read, reply from and archive in their own mailbox, and a letter's `from_did` is whoever signed the deposit, never something they typed. No separate ownership proof is needed, and none is accepted."
+ },
+ {
+  "id": "p02",
+  "src": "mcl-mail",
+  "text": "- `guide_mailbox_lifecycle` (CMD): the mailbox aggregate, one event-sourced stream per citizen (`mailbox-<128-bit digest of the DID>`), in the reckon-db store `mcl_mail_store`. Nine desks: initiate, open, close, archive and unarchive a mailbox; deposit, mark read, reply to and archive a letter. Status is bit flags (`mailbox_status.hrl`). The five CMD responders live beside their desks. - `project_mailboxes` (PRJ): `letter_lifecycle_to_mailboxes` projects the four letter events into a barrel_docdb read model, one document per letter. - `query_mailboxes` (QRY): `get_mailbox` and `get_letter`, read from that model. - `mcl_mail`: the `mcl_om_service` contract."
+ },
+ {
+  "id": "p03",
+  "src": "mcl-mail",
+  "text": "Like every mcl service, it also answers `mcl-mail/info`, which mcl_om adds: its name, version and description, its org and claim labels, node id, the macula and mcl_om versions, uptime, the health word and the procedures it advertises. Open to any mesh caller, public facts only."
+ },
+ {
+  "id": "p04",
+  "src": "mcl-mail",
+  "text": "`deploy/docker-compose.yml` runs it, and carries what the service knows about itself. If you deploy through something else, let that carry **placement**: which host, which station, which realm, which secret store. Keeping the two apart is what stops a config table in a README and the real environment drifting."
+ },
+ {
+  "id": "p05",
+  "src": "mcl-mail",
+  "text": "The image has two channels. A push to `main` publishes `ghcr.io/macula-services/mcl-mail:latest`, the deploy channel: a host that follows `:latest` deploys every merge. A `v*` tag publishes its own version and nothing else, the rollback archive: pin a host to one to roll back. A push that changes only documentation builds no image (`scripts/is_image_push.sh`)."
+ },
+ {
+  "id": "p06",
+  "src": "mcl-mail",
+  "text": "1. The registry package may be created **private**, and the pull then fails on the host with a bare `unauthorized` that names nothing. Check it after the first build. On ghcr the `org.opencontainers.image.source` label in the Containerfile is what links the package to the repository. 2. The host needs `MCL_REALM` and the pinned station pair supplied from somewhere they are not committed."
+ },
+ {
+  "id": "p07",
+  "src": "mcl-mail",
+  "text": "Six callbacks in `mcl_mail_service`, all required, all resolved **by name** by `mcl_om` at startup on a live node. The `-behaviour(mcl_om_service)` attribute turns a missing one into a compile error rather than an `undef` where nobody is watching, and the eunit suite guards the attribute itself."
+ },
+ {
+  "id": "p08",
+  "src": "mcl-mail",
+  "text": "The service owns a `reckon-db` store, `mcl_mail_store`: it exports `store_id/0` and `data_dir/0`, so `mcl_om:boot/1` opens the store and its evoq subscription before `start/1` fires, and `config/sys.config.src` carries the `evoq` adapter block that boot requires."
+ },
+ {
+  "id": "p09",
+  "src": "mcl-mail",
+  "text": "The letter read model is barrel_docdb's database `mcl_mail`, and it belongs to the PRJ department: `project_mailboxes` opens it when it starts, before its projection runs, because mcl_om replays the store into the projection at boot. barrel_docdb's own system database, which records where each database lives, is pinned to the data volume in `config/sys.config.src`; its default is `/tmp/barrel_data`, inside the container."
+ },
+ {
+  "id": "p10",
+  "src": "macula-rag",
+  "text": "- The summary carries a **bloom** filter, and `shards/0` lists it, but a query does not use it to choose shards: every trusted shard with a matching embedding is asked. Bloom-based selection is a later optimisation. - Trust is the org's delegation list. There is no further per-shard trust setting."
+ },
+ {
+  "id": "p11",
+  "src": "macula-rag",
+  "text": "A **hit** needs at least a binary `id` and a numeric `score`; the rest of the map is yours and is carried as it is. Hits and queries arrive with binary keys, as every received payload does, and a merged hit also carries `node_id` and `shard_id`, the shard it came from."
+ },
+ {
+  "id": "p12",
+  "src": "macula-rag",
+  "text": "`{procedure_delegation, not_found}` means an operator has to delegate this node for the org. The grant is asked for again every `grant_retry_ms` (30 s), so a delegation made later is picked up without a restart, and advertised once. A link that drops and comes back needs nothing: macula replays the advertisement on it."
+ },
+ {
+  "id": "p13",
+  "src": "macula-rag",
+  "text": "A pushed `vX.Y.Z` tag publishes to hex (`.github/workflows/publish-hex.yml`). Before publishing, the workflow refuses anything but the clean, pushed tag whose version is in `src/macula_rag.app.src` and has a CHANGELOG section, dry-runs the publish, and checks that hex.pm accepts the key. After publishing it checks that hex serves the tagged files."
+ },
+ {
+  "id": "p15",
+  "src": "macula-ts",
+  "text": "> **Status, 2026-09-26:** on the **macula 12** wire (post-quantum: ML-DSA-87 > identities, as the ML-DSA-87 + RSA-PSS-4096 composite in `pq_hybrid`, the > fleet's profile; ML-KEM hybrid key exchange; signed requests), over macula-go's > pool. Calls and streams by direct dial, serving (under an org or in a node's > own namespace), publish/subscribe, the DHT and node-served content are > tested against in-process macula 12 stations on every `npm test`. > UCAN-gated calls are not here yet; see [Not yet > implemented](#not-yet-implemented). Releases before 0.18.0 speak the retired > 10.x wire and cannot reach the current fleet."
+ },
+ {
+  "id": "p16",
+  "src": "macula-ts",
+  "text": "A TypeScript SDK for the Macula mesh: a node's key, a pool of links to stations it pins by node_id, calls and streams that reach a provider by direct dial, serving procedures, publish/subscribe and the DHT, from Node.js. Built as an FFI binding over [macula-go](https://github.com/macula-io/macula-go) rather than a native reimplementation; see below for why."
+ },
+ {
+  "id": "p17",
+  "src": "macula-ts",
+  "text": "Macula's mesh protocol runs over raw QUIC with a custom ALPN string (`\"macula\"`, not `\"h3\"`) and its own length-prefixed, deterministic-CBOR frame format — not HTTP/3. Node.js has no mature first-party QUIC stack that's actually usable for this today:"
+ },
+ {
+  "id": "p18",
+  "src": "macula-ts",
+  "text": "macula-go, macula-rust, macula-dotnet, and macula-php have all already proven this protocol works and are actively maintained. Rather than reimplement QUIC, TLS 1.3 with a hybrid post-quantum key exchange, deterministic CBOR and signed frames a fifth time in a language with no mature QUIC story of its own, macula-ts reuses macula-go's already-proven implementation through macula-go's shared C ABI ([`cabi/macula.h`](https://github.com/macula-io/macula-go/blob/master/cabi/macula.h), contract in `cabi/CONTRACT.md`), the one C ABI every non-Go SDK binds."
+ },
+ {
+  "id": "p21",
+  "src": "macula-ts",
+  "text": "- **New identities.** A macula 12 node_id derives from an ML-DSA-87 key (or the LAMPS composite in `pq_hybrid`), so no Ed25519 identity carries over. `NodeKey.loadOrCreate(path)` makes a new key file; your old seed files are left untouched. **Re-join your realms and re-trust your agents**: anything that named your old node_id (trust lists, petnames, realm memberships) must be redone with the new one. - `Identity` is now `NodeKey`; `Session` and `Pool` are one `Pool`, whose seeds carry the station's `nodeId` and whose `realmTrust` pins realm keys; `callDirect` is simply `call`; `resolveDirect` is `providers`. - Serving an org procedure needs the realm's org directory and the org's delegation to your node in the DHT: a realm admits orgs through a human."
+ },
+ {
+  "id": "p22",
+  "src": "macula-ts",
+  "text": "`npm test` runs `src/pool.test.ts` against macula-go's own `teststation/cmd/teststation` at the pinned release, a helper that runs two in-process macula 12 stations sharing a DHT, with a test realm that admits the test's provider nodes. It exercises keys, calls by direct dial and their errors, providers, server and client streams (and that no stream is left unreleased), pubsub and the DHT, through the real addon. No network is needed."
+ },
+ {
+  "id": "p23",
+  "src": "macula-ts",
+  "text": "`src/lamps.test.ts` holds pq_hybrid, the LAMPS composite id-MLDSA87-RSA4096-PSS-SHA512, to `draft-ietf-lamps-pq-composite-sigs`' own vector (the one macula and macula-go check), and to composites that crossed both ways with macula 12.x. `scripts/cross-verify-macula.sh` renews those: this SDK signs, macula (from hex, in the image macula's own CI runs in) verifies and signs its own, and this SDK verifies it."
+ },
+ {
+  "id": "p24",
+  "src": "mcl-echo",
+  "text": "The service boots, joins the mesh, answers `/health` on 8461, and advertises the echo capability through the standard `mcl_om_capabilities` path (`mcl_echo_service:capabilities/0`). The 11.x wire refuses a procedure without an org namespace, so the wire name is `Org/echo`: the org is **deploy config, not code**."
+ },
+ {
+  "id": "p25",
+  "src": "mcl-echo",
+  "text": "One org per service, named after the repo (`PLAN_PROVIDER_AUTHORIZATION_FLOW.md`, macula-realm). This fleet deploys org `mcl-echo` under the **io.macula** realm, so the wire procedure is `mcl-echo/echo`. The org and the realm are independent: every `mcl-*` service carries its own org and they all sit in the io.macula realm. The realm issues this node's D25 delegation after admission."
+ },
+ {
+  "id": "p26",
+  "src": "mcl-echo",
+  "text": "`mcl_om_capabilities` registers the org-qualified procedure and nothing else. The bare `io.macula.echo` literal every 10.x quickstart hardcodes is **not** advertised here, and nothing on the fleet answers it any more: callers use the org-qualified `mcl-echo/echo`."
+ },
+ {
+  "id": "p27",
+  "src": "mcl-echo",
+  "text": "Before advertising, `mcl_echo_service:capabilities/0` asserts that both values are configured and well formed: the realm tag is a 32-byte binary, and the org is a valid wire segment (`^[a-z0-9][a-z0-9._-]*$`) and not the `_` placeholder `mcl_om_identity` returns when nothing set it. It does **not** check that the realm is a hash of the org. That coupling belonged to the old realm-name-org convention and is gone; the org is bound to the node at admission, on the realm side."
+ },
+ {
+  "id": "p28",
+  "src": "mcl-echo",
+  "text": "Both checks crash the node at boot rather than letting it drift. A realm mismatch between advertiser and caller is silent on the wire (`unknown_next_peer`, indistinguishable from nobody listening), and an org drift silently renames the wire procedure to a name no caller uses. Crashing is the loud version of the exact bug this service exists to stop."
+ },
+ {
+  "id": "p29",
+  "src": "mcl-echo",
+  "text": "The station is the caller's route into the mesh, and **several callers at once should each take their own**. Pinned to one station, six sessions all enter through the same box and a fan-out measures a single route six times. `mcl_echo_stations` holds the six pins, host and node id together, taken from macula-demo's `topologies/eu/stations.csv`: `helsinki`, `falkenstein`, `frankfurt`, `nuremberg`, `paris`, `amsterdam`. The script prints the station it dialled before calling, so a session reports the route it took rather than the one it meant to take."
+ },
+ {
+  "id": "p30",
+  "src": "mcl-echo",
+  "text": "`falkenstein`, `helsinki` and `frankfurt` are mcl-echo's own seeds; the other three are stations it never dials. The split is three seed and three non-seed deliberately, because a result that holds on both halves says something a result from the seeds alone does not."
+ },
+ {
+  "id": "p32",
+  "src": "mcl-echo",
+  "text": "Between `result` and `links after` the run prints a `route` block: every DHT lookup and every station call the SDK actually made, in order. That comes from `macula_direct_dial`'s own `dial_io` seam, not from a label this script writes about its own input. `macula:call/5` never names the station it resolved to, so a harness that logs its argument logs nothing; `call/6` is handed a `find_records` (advertisement lookup), a `find_record` (station endpoint lookup) and a `call_station`."
+ },
+ {
+  "id": "p33",
+  "src": "mcl-echo",
+  "text": "⚠ **A call carries two identities and they are different things:** it dials the serving **station**'s endpoint and addresses the request to the **provider**. In `macula:call_station(Pool, Station, Target, ...)` the Target is the provider, and the station's pin rides in `Opts`. The route block records all three by name, `station_url`, `station_pin` and `provider`, because recording only the Target and calling it \"the station\" reports an id that names nothing on the fleet. `station_pin` is what D16 enforces at the handshake, so that is the station. A step that never appears says as much as one that does: no `find_record` line means resolution never reached the station endpoint lookup, and no `call_station_to` line means it never reached a provider at all."
+ },
+ {
+  "id": "p35",
+  "src": "macula-go",
+  "text": "> **Status, 2026-09-26:** master speaks the **macula 12** wire and nothing > older. Handshake, calls, streaming RPC, publish/subscribe, the DHT, serving > procedures (under an org or in a node's own namespace) and node-served > content work against live macula stations, including calls and streams by > direct dial from one node to another's provider. Content is shared and > fetched both ways with macula 12.6.0's Erlang sharer and fetcher. Manifests > and MCIDs are macula 12's, byte for byte."
+ },
+ {
+  "id": "p36",
+  "src": "macula-go",
+  "text": "A Go implementation of a Macula **node**: anything that joins the mesh without being a station itself. It speaks the same protocol as [`macula-io/macula`](https://github.com/macula-io/macula), the Erlang/OTP reference SDK, version 12. Macula is a federated mesh for sovereign application networks: a **station** routes and holds the DHT, a **realm** admits orgs, and an org's providers serve procedures that any node in the realm can call. Any node can also serve procedures in its own namespace, `~<node_id>/<name>`, with no org or realm to vouch for it."
+ },
+ {
+  "id": "p37",
+  "src": "macula-go",
+  "text": "- **Transport:** QUIC with the ALPN `macula`, key exchange on macula-pqc's hybrid ML-KEM groups only (SecP384r1MLKEM1024, SecP256r1MLKEM768). - **Identity:** an ML-DSA-87 key (`pq_pure`) or the LAMPS composite ML-DSA-87 + RSA-4096-PSS (`pq_hybrid`), whose node_id solves the admission puzzle. - **Frames:** requests, replies, publications and records are signed objects; in `pq_hybrid` every control frame is also neighbour-signed."
+ },
+ {
+  "id": "p42",
+  "src": "macula-go",
+  "text": "This protocol's deterministic CBOR **deliberately diverges** from RFC 8949's own canonical-form guidance in two ways: floats always encode as binary64 (never the shortest width that round-trips), and map keys sort by the bytewise order of their own *encoded* bytes, not their unencoded representation. A generic \"canonical CBOR\" library that follows the RFC produces bytes whose signatures don't verify against a real station. `cbor/` has zero external dependencies as a result, and its decoding rule is checked against macula's own vectors (`cbor/testdata/decoding_rule_v1.json`)."
+ },
+ {
+  "id": "p43",
+  "src": "macula-go",
+  "text": "The suite needs no network. The pool is tested against [`teststation`](teststation), an in-process macula 12 station that routes calls between connections, delivers events and holds a DHT. It is public, so the SDKs built on macula-go (such as @macula-io/ts) test against the same station."
+ }
+]
