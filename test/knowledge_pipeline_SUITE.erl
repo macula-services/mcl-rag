@@ -171,7 +171,7 @@ add_knowledge_long_text_chunks(_Config) ->
 store_stays_responsive_during_embed(_Config) ->
     %% Start a long embedding in a separate process
     Pid = spawn(fun() ->
-        rag_embedder:embed(<<"some text that takes a while to embed">>)
+        rag_embedder:embed(passage, <<"some text that takes a while to embed">>)
     end),
     %% While that's running, rag_store should still respond
     {ok, _} = rag_store:list_sources(0, 10),

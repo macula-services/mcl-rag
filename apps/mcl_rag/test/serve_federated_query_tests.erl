@@ -34,7 +34,7 @@ the_resolved_macula_rag_is_0_2_test() ->
 a_query_is_embedded_here_and_searched_here_test() ->
     with_store(fun() ->
         {ok, [Hit]} = answer_federated_query:answer(#{<<"text">> => <<"federated">>}, #{top_k => 3}),
-        ?assertEqual(1, meck:num_calls(rag_embedder, embed, [<<"federated">>])),
+        ?assertEqual(1, meck:num_calls(rag_embedder, embed, [query, <<"federated">>])),
         ?assertEqual(1, meck:num_calls(rag_store, search_vector, [?VECTOR, 3])),
         ?assertEqual(#{id => <<"c1">>, score => 0.9, content => <<"body">>,
                        source_path => <<"a.md">>}, Hit)
@@ -59,7 +59,7 @@ a_refusal_is_the_answer_test() ->
         ok = meck:expect(rag_store, search_vector, fun(_, _) -> {error, store_opening} end),
         ?assertEqual({error, store_opening},
                      answer_federated_query:answer(#{<<"text">> => <<"q">>}, #{top_k => 3})),
-        ok = meck:expect(rag_embedder, embed, fun(_) -> {error, timeout} end),
+        ok = meck:expect(rag_embedder, embed, fun(_, _) -> {error, timeout} end),
         ?assertEqual({error, timeout},
                      answer_federated_query:answer(#{<<"text">> => <<"q">>}, #{top_k => 3}))
     end).
@@ -138,7 +138,7 @@ federation_health(Joined, Responder) ->
 with_store(Test) ->
     ok = meck:new(rag_embedder, [passthrough, no_link]),
     ok = meck:new(rag_store, [no_link]),
-    ok = meck:expect(rag_embedder, embed, fun(_) -> {ok, ?VECTOR} end),
+    ok = meck:expect(rag_embedder, embed, fun(_, _) -> {ok, ?VECTOR} end),
     ok = meck:expect(rag_store, search_vector, fun(_, _) ->
         {ok, [#{chunk_id => <<"c1">>, score => 0.9, content => <<"body">>,
                 source_path => <<"a.md">>, meta => #{<<"kind">> => <<"prose">>}}]}
@@ -155,7 +155,7 @@ with_federation(Test) ->
     ok = meck:expect(macula_rag, advertise, fun(_, _) -> ok end),
     ok = application:set_env(mcl_rag, federation, #{realm_name => ?REALM_NAME}),
     ok = application:set_env(mcl_om, org, <<"mcl-rag">>),
-    ok = application:set_env(mcl_rag, embed_model, <<"intfloat/multilingual-e5-small">>),
+    ok = application:set_env(mcl_rag, embed_model, <<"macula/multilingual-e5-small:f16">>),
     ok = application:set_env(mcl_rag, embed_dim, 384),
     try
         {ok, Pid} = join_federation:start_link(#{retry_ms => 20}),

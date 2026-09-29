@@ -309,6 +309,26 @@ the_models_are_local_ollama_and_no_key_is_read_test() ->
                     re:run(Config, W, [caseless]) =/= nomatch],
     ?assertEqual([], Outside).
 
+%% The model msi00 runs embeds with e5's prefixes (measure/e5_prefixes decided
+%% it), so the configured id must be one rag_embedder knows as e5.
+the_configured_model_embeds_with_e5_prefixes_test() ->
+    Model = pinned("config/sys.config.src", "^\\s+\\{embed_model,\\s+<<\"([^\"]+)\">>\\},$"),
+    Stub = {rag_embed_stub, #{dimension => 384}},
+    Was = [{K, application:get_env(mcl_rag, K)} || K <- [embed_provider, embed_model]],
+    ok = application:set_env(mcl_rag, embed_provider, Stub),
+    ok = application:set_env(mcl_rag, embed_model, Model),
+    try
+        ?assertEqual(rag_embed_stub:embed(<<"passage: x">>, #{dimension => 384}),
+                     rag_embedder:embed(passage, <<"x">>)),
+        ?assertEqual(rag_embed_stub:embed(<<"query: x">>, #{dimension => 384}),
+                     rag_embedder:embed(query, <<"x">>))
+    after
+        [restore_env(K, V) || {K, V} <- Was]
+    end.
+
+restore_env(K, undefined) -> application:unset_env(mcl_rag, K);
+restore_env(K, {ok, V})   -> application:set_env(mcl_rag, K, V).
+
 %% The full release, 28.4.3 and not 28: `otp_release' names only the major.
 running_otp() ->
     {ok, Version} = file:read_file(filename:join([code:root_dir(), "releases",
