@@ -55,6 +55,28 @@ the_vector_store_is_supervised_by_barrel_test() ->
 a_failed_open_stops_the_store_test() ->
     ?assertEqual({store_open_failed, boom}, stop_reason(scratch_dir(), {error, boom})).
 
+%% An embed model mcl-rag has no prefix scheme for stops the store at its open,
+%% loudly, before anything is embedded one way or the other.
+an_unknown_embed_model_stops_the_store_test() ->
+    Was = [{K, application:get_env(mcl_rag, K)} || K <- [embed_provider, embed_model, data_dir]],
+    Dir = scratch_dir(),
+    ok = application:set_env(mcl_rag, data_dir, Dir),
+    ok = application:set_env(mcl_rag, embed_provider, ?PROVIDER),
+    ok = application:set_env(mcl_rag, embed_model, <<"someone/other-model">>),
+    process_flag(trap_exit, true),
+    try
+        {ok, Pid} = rag_store:start_link(),
+        Reason = receive {'EXIT', Pid, R} -> R after 5000 -> still_running end,
+        ?assertMatch({{unknown_embed_model, <<"someone/other-model">>, _}, _}, Reason)
+    after
+        process_flag(trap_exit, false),
+        [restore(K, V) || {K, V} <- Was],
+        file:del_dir_r(Dir)
+    end.
+
+restore(K, undefined) -> application:unset_env(mcl_rag, K);
+restore(K, {ok, V})   -> application:set_env(mcl_rag, K, V).
+
 %% A data dir that cannot be made is named, with the path, in the stop reason.
 an_unusable_data_dir_is_named_test() ->
     File = scratch_dir(),

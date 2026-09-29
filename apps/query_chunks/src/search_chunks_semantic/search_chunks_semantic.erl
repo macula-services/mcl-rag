@@ -6,11 +6,12 @@
 %%% Two call shapes accepted:
 %%%
 %%%   #{<<"query_text">> := Text, <<"top_k">> := N}
-%%%       barrel embeds the query itself (record-mode database, see
-%%%       rag_store) — no separate embed call needed here.
+%%%       embedded as a query (rag_store:search_text, rag_embedder)
 %%%
 %%%   #{<<"query_vector">> := [Float], <<"top_k">> := N}
-%%%       use the provided vector directly (caller already embedded)
+%%%       used as given. It must be the query embedding on the store's
+%%%       model (e5: `query: ' plus the text, 384 dims); the service cannot
+%%%       set the role of a vector it did not make.
 %%%
 %%% Both forms accept an optional `top_k` field, default 10.
 %%%

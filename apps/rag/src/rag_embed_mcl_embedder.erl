@@ -12,11 +12,10 @@
 %%% }.
 %%% '''
 %%%
-%%% `kind' is fixed to `raw' (no query/passage prefix), for continuity: every
-%%% vector already in the store was made from raw text, and a query embedded
-%%% with the model's `query:' prefix would not be comparable with them.
-%%% Switching to the asymmetric prefixes would improve retrieval, but only
-%%% together with re-embedding the whole store; it is a separate decision.
+%%% `kind' is fixed to `raw': rag_embedder has already put the model's role
+%%% prefix (`query: ' or `passage: ') on the text before any provider sees
+%%% it, and mcl-embedder adds its own prefix for `query'/`passage', so passing
+%%% the role on as `kind' would prefix twice.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(rag_embed_mcl_embedder).

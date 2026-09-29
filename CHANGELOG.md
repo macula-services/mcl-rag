@@ -10,12 +10,20 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 
 - Text is embedded in a role, with the prefix e5 is trained on: `passage: `
-  for everything stored (add, upload, ingest, embed, seed, the corpus
+  for everything stored (add, upload, embed, seed, the corpus
   refresh) and `query: ` for every search (`answer_query`,
   `search_chunks_semantic`, the federated shard answer). The pre-registered
   measurement in `measure/e5_prefixes` kept them (recall@5 tied at 1.0,
   MRR@10 0.9167 against 0.9083 raw: one query's rank). 0.1.0 was never
-  deployed, so no vector was stored without them.
+  deployed, so mcl-rag stored no vector without them. A store carried over
+  from `hecate-rag` (0.1.0's "opens as it is") holds raw-text vectors: it
+  still opens, but every search would compare a `query: ` vector with them.
+  Such a store must be re-embedded: start on an empty data volume and the
+  node re-embeds the corpus (deposits made in it are lost).
+- A supplied `query_vector` (`search_chunks_semantic`, `answer_query`) must
+  be the query embedding on the store's model: `query: ` plus the text,
+  through `macula/multilingual-e5-small:f16`, 384 dims. The service cannot
+  set the role of a vector it did not make.
 - The prefix scheme is keyed to the embed model id in `rag_embedder`, not a
   setting: macula_rag merges scores between shards naming the same model and
   dimension, so the model id decides how text becomes a vector. A model

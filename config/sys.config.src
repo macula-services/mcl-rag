@@ -12,7 +12,8 @@
         %% a persistent volume (the image's MCL_DATA_DIR, /var/lib/mcl-rag).
         {data_dir,       "${MCL_DATA_DIR}"},
         %% Vectors come from this node's own ollama on loopback (Raf,
-        %% 2026-09-29), raw text, 384 dims: the dimension every stored vector
+        %% 2026-09-29), from text prefixed by role (rag_embedder: e5's
+        %% `passage: ' and `query: '), 384 dims: the dimension every stored vector
         %% has. Changing the model or the dimension needs the whole store
         %% re-embedded.
         %% The node ids (64 hex each, comma or space separated) allowed to delete
