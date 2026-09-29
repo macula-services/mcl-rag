@@ -29,7 +29,10 @@ info_round_trip_test_() ->
           %% Floors, not exact minors: the pairing that matters is mcl_om 0.28 or
           %% later WITH macula 12.2 or later; a later compatible release (macula
           %% 12.3.0 arrived the same day) must not fail this.
-          ?_assert(at_least(maps:get(mcl_om_version, Reply), [0, 33, 1])),
+          %% 0.33.3: register/1 replies at once and advertises after; under
+          %% 0.33.2 registering seventeen procedures outran the 5 s call and
+          %% mcl-rag 0.1.1 never started on msi00.
+          ?_assert(at_least(maps:get(mcl_om_version, Reply), [0, 33, 3])),
           ?_assert(at_least(maps:get(macula_version, Reply), [13, 0, 1]))]
      end}.
 
