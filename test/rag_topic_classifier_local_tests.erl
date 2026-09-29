@@ -67,15 +67,21 @@ disabled_it_is_not_configured() ->
 %%% Fixture
 
 answer(Endpoint, Reply) ->
-    put(answers, [{binary_to_list(Endpoint), Reply} | case get(answers) of undefined -> []; L -> L end]).
+    put(answers, [{binary_to_list(Endpoint), Reply} | stored(answers)]).
 
 asked() ->
-    lists:reverse(case get(asked) of undefined -> []; L -> L end).
+    lists:reverse(stored(asked)).
+
+stored(Key) ->
+    case get(Key) of
+        undefined -> [];
+        Values -> Values
+    end.
 
 mock_request(post, {Url, Headers, _ContentType, Body}, _HttpOpts, _Opts) ->
     Model = maps:get(<<"model">>, jsx:decode(iolist_to_binary(Body), [return_maps])),
-    put(asked, [{list_to_binary(Url), Model, Headers} | case get(asked) of undefined -> []; L -> L end]),
-    reply(proplists:get_value(Url, case get(answers) of undefined -> []; L -> L end, {error, no_such_endpoint})).
+    put(asked, [{list_to_binary(Url), Model, Headers} | stored(asked)]),
+    reply(proplists:get_value(Url, stored(answers), {error, no_such_endpoint})).
 
 reply(ok) ->
     Content = jsx:encode(#{<<"choices">> => [#{<<"message">> => #{
