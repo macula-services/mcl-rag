@@ -117,7 +117,7 @@ the_shipped_corpus_list_reads_back_test() ->
 
 %% The D25 provider grant for each procedure is reported by mcl_om itself;
 %% the service's own verdict is its store. Opening rebuilds the vector index,
-%% minutes on the production corpus, and every call is refused meanwhile, so
+%% minutes on the full corpus, and every call is refused meanwhile, so
 %% /health says so rather than reporting a service that answers nothing.
 the_service_is_healthy_once_its_store_is_open_test() ->
     with_store_status(open, fun() -> ?assertEqual(ok, ?SERVICE:health()) end).
@@ -260,7 +260,16 @@ the_image_is_signed_by_the_pinned_attest_workflow_test() ->
                  pinned(".github/workflows/build-push.yml", "^\\s+image: (ghcr\\.io/macula-services/mcl-rag)$")),
     ?assertEqual(<<"needs.build-and-push.outputs.digest">>,
                  pinned(".github/workflows/build-push.yml",
-                        "^\\s+digest: \\$\\{\\{ (needs\\.build-and-push\\.outputs\\.digest) \\}\\}$")).
+                        "^\\s+digest: \\$\\{\\{ (needs\\.build-and-push\\.outputs\\.digest) \\}\\}$")),
+    %% The chain that makes the digest reach the attest job: the build step's
+    %% id and the job's output. Without either, the digest is empty and the
+    %% attest job is skipped: a green run with an unsigned image.
+    ?assertEqual(<<"steps.push.outputs.digest">>,
+                 pinned(".github/workflows/build-push.yml",
+                        "^\\s+digest: \\$\\{\\{ (steps\\.push\\.outputs\\.digest) \\}\\}$")),
+    ?assertEqual(<<"push">>,
+                 pinned(".github/workflows/build-push.yml",
+                        "^\\s+id: (push)\\n\\s+uses: docker/build-push-action@")).
 
 %% Every action a workflow runs is pinned by full commit: a tag moves.
 every_action_is_pinned_by_commit_test() ->
