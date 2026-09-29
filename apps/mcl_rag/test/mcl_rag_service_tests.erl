@@ -105,7 +105,8 @@ the_shipped_corpus_list_reads_back_test() ->
                       <<"macula-go">>, <<"macula-mcp">>, <<"macula-php">>, <<"macula-py">>,
                       <<"macula-rust">>, <<"macula-ts">>, <<"reckon-ecosystem">>],
                      lists:sort([Id || #{id := Id} <- Repos])),
-        [?assertMatch(#{url := <<"https://github.com/", _/binary>>, branch := <<_, _/binary>>}, R)
+        [?assertMatch(#{url := <<"https://github.com/", _/binary>>, branch := <<_, _/binary>>,
+                        commit := <<_:40/binary>>}, R)
          || R <- Repos]
     after
         application:unset_env(mcl_rag, corpus_repos_config)

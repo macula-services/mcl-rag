@@ -289,109 +289,119 @@ mod tests {
         (remote_dir, origin_dir, local_dir)
     }
 
-    fn push_new_commit(origin_dir: &TempDir, contents: &str) {
+    fn push_new_commit(origin_dir: &TempDir, contents: &str) -> String {
         let origin_repo = Repository::open(origin_dir.path()).unwrap();
-        commit_file(&origin_repo, "corpus.md", contents, "update");
+        let oid = commit_file(&origin_repo, "corpus.md", contents, "update");
         let mut remote = origin_repo.find_remote("origin").unwrap();
         remote.push(&["refs/heads/master:refs/heads/master"], None).unwrap();
+        oid.to_string()
     }
 
-    // Every other test here clones/fetches over a plain file path (a local
-    // bare repo) -- none of them exercise the actual HTTPS transport, which
-    // is exactly what let a real bug (`default-features = false` on the
-    // `git2` dep silently dropping the `https` feature, and with it the TLS
-    // backend) ship all the way to the fleet undetected: "there is no TLS
-    // stream available" only surfaced live, against a real
-    // `https://github.com/...` URL, once the two earlier bugs (ownership
-    // check, gen_server timeout) stopped masking it. `octocat/Hello-World`
-    // is GitHub's own long-stable smoke-test repo, chosen so this doesn't
-    // depend on any URL this project itself controls staying up.
+    fn head_of(origin_dir: &TempDir) -> String {
+        let repo = Repository::open(origin_dir.path()).unwrap();
+        let id = repo.head().unwrap().peel_to_commit().unwrap().id().to_string();
+        id
+    }
+
+    fn read(dir: &TempDir) -> String {
+        fs::read_to_string(dir.path().join("corpus.md")).unwrap()
+    }
+
+    // The HTTPS transport, against GitHub's own long-stable smoke-test repo at
+    // its long-stable commit: `default-features = false' on git2 once dropped
+    // the TLS backend and only a real https URL showed it.
     #[test]
-    fn clones_a_real_repo_over_https() {
+    fn clones_a_real_repo_over_https_at_its_pinned_commit() {
         let local_dir = TempDir::new("https-clone-target");
         fs::remove_dir(local_dir.path()).unwrap();
         let path = local_dir.path().to_str().unwrap().to_string();
-
-        match clone_or_sync("https://github.com/octocat/Hello-World.git", &path, "") {
-            Ok(Status::Cloned) => {}
-            Ok(_) => panic!("expected a fresh clone"),
+        let pin = "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d";
+        match sync_to_commit("https://github.com/octocat/Hello-World.git", &path, "master", pin) {
+            Ok(Status::Moved { to, .. }) => assert_eq!(to, pin),
+            Ok(Status::UpToDate) => panic!("expected a fresh checkout"),
             Err(SyncError::Git(msg)) => panic!("HTTPS clone failed: {msg}"),
-            Err(SyncError::NotFastForward) => panic!("unexpected NotFastForward on a fresh clone"),
-        }
-        assert!(local_dir.path().join(".git").is_dir());
-    }
-
-    #[test]
-    fn clones_when_local_path_does_not_exist() {
-        let (remote, _origin) = setup_remote_with_content();
-        let local_dir = TempDir::new("fresh-clone-target");
-        fs::remove_dir(local_dir.path()).unwrap(); // clone_or_sync must create it itself
-
-        let url = remote.path().to_str().unwrap().to_string();
-        let path = local_dir.path().to_str().unwrap().to_string();
-        match clone_or_sync(&url, &path, "") {
-            Ok(Status::Cloned) => {}
-            _ => panic!("expected a fresh clone"),
-        }
-
-        let content = fs::read_to_string(local_dir.path().join("corpus.md")).unwrap();
-        assert_eq!(content, "# v1\n");
-    }
-
-    #[test]
-    fn up_to_date_when_nothing_changed() {
-        let (remote, _origin, local) = setup();
-        let url = remote.path().to_str().unwrap().to_string();
-        let path = local.path().to_str().unwrap().to_string();
-        match clone_or_sync(&url, &path, "") {
-            Ok(Status::UpToDate) => {}
-            Ok(_) => panic!("expected UpToDate"),
-            Err(_) => panic!("expected UpToDate, got an error"),
+            Err(SyncError::CommitNotOnBranch) => panic!("the pin is on master"),
         }
     }
 
     #[test]
-    fn fast_forwards_and_updates_the_working_tree() {
-        let (remote, origin, local) = setup();
+    fn a_fresh_clone_is_checked_out_at_the_pinned_commit() {
+        let (remote, origin) = setup_remote_with_content();
+        let pin = head_of(&origin);
         push_new_commit(&origin, "# v2\n");
-
+        let local = TempDir::new("fresh-clone-target");
+        fs::remove_dir(local.path()).unwrap();
         let url = remote.path().to_str().unwrap().to_string();
         let path = local.path().to_str().unwrap().to_string();
-        match clone_or_sync(&url, &path, "") {
-            Ok(Status::FastForwarded { from, to }) => assert_ne!(from, to),
-            _ => panic!("expected a fast-forward"),
+        match sync_to_commit(&url, &path, "master", &pin) {
+            Ok(Status::Moved { to, .. }) => assert_eq!(to, pin),
+            _ => panic!("expected the checkout to move to the pin"),
         }
+        assert_eq!(read(&local), "# v1\n");
+    }
 
-        let content = fs::read_to_string(local.path().join("corpus.md")).unwrap();
-        assert_eq!(content, "# v2\n");
+    // THE POINT OF THE PIN: a push to the branch is not ingested.
+    #[test]
+    fn a_moved_branch_head_is_not_followed() {
+        let (remote, origin, local) = setup();
+        let pin = head_of(&origin);
+        let url = remote.path().to_str().unwrap().to_string();
+        let path = local.path().to_str().unwrap().to_string();
+        push_new_commit(&origin, "# pushed, not reviewed\n");
+        match sync_to_commit(&url, &path, "master", &pin) {
+            Ok(Status::UpToDate) => {}
+            _ => panic!("expected the checkout to stay on the pin"),
+        }
+        assert_eq!(read(&local), "# v1\n");
+    }
 
-        // Idempotent: a second sync with nothing new is up-to-date, not an error.
-        match clone_or_sync(&url, &path, "") {
+    #[test]
+    fn a_new_pin_moves_the_checkout() {
+        let (remote, origin, local) = setup();
+        let old = head_of(&origin);
+        let new = push_new_commit(&origin, "# v2\n");
+        let url = remote.path().to_str().unwrap().to_string();
+        let path = local.path().to_str().unwrap().to_string();
+        match sync_to_commit(&url, &path, "master", &new) {
+            Ok(Status::Moved { from, to }) => {
+                assert_eq!(from, old);
+                assert_eq!(to, new);
+            }
+            _ => panic!("expected the checkout to move to the new pin"),
+        }
+        assert_eq!(read(&local), "# v2\n");
+        match sync_to_commit(&url, &path, "master", &new) {
             Ok(Status::UpToDate) => {}
             _ => panic!("expected UpToDate on the second sync"),
         }
     }
 
+    // A commit the branch does not contain (another branch, a fork, a typo
+    // of a real sha) is refused, and the checkout stays where it was.
     #[test]
-    fn diverged_history_is_left_untouched() {
+    fn a_commit_not_on_the_branch_is_refused() {
         let (remote, origin, local) = setup();
-
-        // Diverge: a local commit never pushed anywhere...
-        let local_repo = Repository::open(local.path()).unwrap();
-        commit_file(&local_repo, "corpus.md", "# local-only change\n", "local edit");
-
-        // ...while origin moves forward independently.
-        push_new_commit(&origin, "# v2-from-origin\n");
-
         let url = remote.path().to_str().unwrap().to_string();
         let path = local.path().to_str().unwrap().to_string();
-        match clone_or_sync(&url, &path, "") {
-            Err(SyncError::NotFastForward) => {}
-            _ => panic!("expected NotFastForward on diverged history"),
+        let stray = "0123456789abcdef0123456789abcdef01234567";
+        let _ = origin;
+        match sync_to_commit(&url, &path, "master", stray) {
+            Err(SyncError::CommitNotOnBranch) => {}
+            _ => panic!("expected CommitNotOnBranch"),
         }
+        assert_eq!(read(&local), "# v1\n");
+    }
 
-        // Untouched: the local-only content is still there, not overwritten.
-        let content = fs::read_to_string(local.path().join("corpus.md")).unwrap();
-        assert_eq!(content, "# local-only change\n");
+    // A local edit in the checkout (it is ours, not a working copy) is
+    // replaced by the pinned commit's content.
+    #[test]
+    fn a_local_edit_is_replaced_by_the_pinned_content() {
+        let (remote, origin, local) = setup();
+        let pin = head_of(&origin);
+        fs::write(local.path().join("corpus.md"), "# edited in place\n").unwrap();
+        let url = remote.path().to_str().unwrap().to_string();
+        let path = local.path().to_str().unwrap().to_string();
+        let _ = sync_to_commit(&url, &path, "master", &pin);
+        assert_eq!(read(&local), "# v1\n");
     }
 }
