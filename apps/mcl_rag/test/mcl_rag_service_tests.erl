@@ -226,11 +226,11 @@ the_runtime_agrees_between_the_image_the_ci_and_this_vm_test() ->
     %% the first pair that happened to be compared.
     ?assertEqual([Image], lists:usort([Image, CiCheck, Tools, running_otp()])).
 
-%% The build and runtime images are the team's rocksdb pair, named by digest:
-%% the build image carries librocksdb 11.1.2 for the rocksdb override, and a
-%% release built there needs librocksdb.so.11 at run time, which only the
-%% runtime image of the pair has. Their tags move daily, so only a digest
-%% says what builds. The OTP release the builder holds is asserted by its own
+%% The build and runtime images are the team's rocksdb pair, named by their
+%% shared dated tag and digest: the build image carries librocksdb 11.1.2 for
+%% the rocksdb override, and a release built there needs librocksdb.so.11 at
+%% run time, which only the runtime image of the pair has. Builder and runtime
+%% come from one publication, and CI builds in exactly the builder. The OTP release the builder holds is asserted by its own
 %% RUN step, the line the guard above reads.
 images_are_the_dated_and_digest_pinned_rocksdb_pair_test() ->
     Pin = ":([0-9]{8}-[0-9]{4}@sha256:[0-9a-f]{64})",

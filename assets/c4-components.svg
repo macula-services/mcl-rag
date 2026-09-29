@@ -1,0 +1,227 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 1420" role="img" aria-label="mcl-rag components">
+<title>mcl-rag components</title>
+<style>
+.t-name { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 700; }
+.t-desc { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 12.5px; }
+.t-rel { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 11.5px; paint-order: stroke; stroke-width: 4px; stroke-linejoin: round; }
+.t-code { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; }
+.t-small { font-size: 12px; }
+.t-type { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; }
+.t-bound { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; }
+.edge { fill: none; stroke-width: 1.25; }
+.edge-later { fill: none; stroke-width: 1.25; stroke-dasharray: 5 4; }
+.bg { fill: #FFFFFF; }
+.b-sys { fill: #F5E9CC; stroke: #A56F0A; stroke-width: 2; }
+.b-ext { fill: #ECEFED; stroke: #8A9791; stroke-width: 1.25; }
+.b-per { fill: #E3EBF2; stroke: #3B5B7A; stroke-width: 1.25; }
+.b-cmp { fill: #FFFFFF; stroke: #8A9791; stroke-width: 1.25; }
+.b-later { fill: none; stroke: #8A9791; stroke-width: 1.25; stroke-dasharray: 5 4; }
+.bound { fill: none; stroke: #66736E; stroke-width: 1.25; stroke-dasharray: 7 5; }
+.bound-in { fill: none; stroke: #D9DFDC; stroke-width: 1.5; stroke-dasharray: 4 4; }
+.head { fill: #3B5B7A; }
+.t-name { fill: #16201D; }
+.t-code { fill: #16201D; }
+.t-type { fill: #66736E; }
+.t-desc { fill: #34413C; }
+.t-bound { fill: #66736E; }
+.t-rel { fill: #66736E; stroke: #FFFFFF; }
+.edge, .edge-later { stroke: #8A9791; }
+.arrowhead { fill: #8A9791; }
+@media (prefers-color-scheme: dark) {
+.bg { fill: #171F1C; }
+.b-sys { fill: #3A2E13; stroke: #E3AA3C; stroke-width: 2; }
+.b-ext { fill: #1C2421; stroke: #7D8B85; stroke-width: 1.25; }
+.b-per { fill: #1D2A36; stroke: #8EB4D8; stroke-width: 1.25; }
+.b-cmp { fill: #171F1C; stroke: #7D8B85; stroke-width: 1.25; }
+.b-later { fill: none; stroke: #7D8B85; stroke-width: 1.25; stroke-dasharray: 5 4; }
+.bound { fill: none; stroke: #93A09A; stroke-width: 1.25; stroke-dasharray: 7 5; }
+.bound-in { fill: none; stroke: #2A3431; stroke-width: 1.5; stroke-dasharray: 4 4; }
+.head { fill: #8EB4D8; }
+.t-name { fill: #E6ECE9; }
+.t-code { fill: #E6ECE9; }
+.t-type { fill: #93A09A; }
+.t-desc { fill: #C3CDC8; }
+.t-bound { fill: #93A09A; }
+.t-rel { fill: #93A09A; stroke: #171F1C; }
+.edge, .edge-later { stroke: #7D8B85; }
+.arrowhead { fill: #7D8B85; }
+}
+</style>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0 0L10 5L0 10z"/></marker></defs>
+<rect class="bg" x="0" y="0" width="1240" height="1420"/>
+
+<rect class="bound" x="16" y="40" width="960" height="1264" rx="12"/>
+<text class="t-bound" x="32" y="62">mcl-rag service [Container]</text>
+<rect class="b-sys" x="32" y="76" width="928" height="84" rx="8"/>
+<text class="t-code" x="46" y="100">apps/mcl_rag: mcl_rag_service</text>
+<text class="t-type" x="948" y="100" text-anchor="end">[mcl_om_service behaviour]</text>
+<text class="t-desc" x="46" y="122">Six callbacks. capabilities/0: the seventeen procedures, each mcl-rag/&lt;name&gt; v1 through mcl_om_simple_handler.</text>
+<text class="t-desc" x="46" y="138">identity_spec/0: scope mcl-rag, no actions or resources, 30 days. No store_id/0 or data_dir/0: storeless.</text>
+<rect class="bound-in" x="32" y="180" width="928" height="112" rx="10"/>
+<text class="t-bound" x="48" y="202">mcl_om 0.33.1 [library: what every mcl-om service gets]</text>
+<rect class="b-cmp" x="48" y="208" width="168" height="68" rx="8"/>
+<text class="t-code t-small" x="60" y="228">identity key</text>
+<text class="t-desc" x="60" y="248">/etc/mcl/secrets; the node</text>
+<text class="t-desc" x="60" y="264">id survives a recreate</text>
+<rect class="b-cmp" x="228" y="208" width="168" height="68" rx="8"/>
+<text class="t-code t-small" x="240" y="228">station dial</text>
+<text class="t-desc" x="240" y="248">pinned seed + node id;</text>
+<text class="t-desc" x="240" y="264">{mesh, required} at boot</text>
+<rect class="b-cmp" x="408" y="208" width="168" height="68" rx="8"/>
+<text class="t-code t-small" x="420" y="228">realm claim</text>
+<text class="t-desc" x="420" y="248">boot claim; a D25 grant</text>
+<text class="t-desc" x="420" y="264">per procedure</text>
+<rect class="b-cmp" x="588" y="208" width="168" height="68" rx="8"/>
+<text class="t-code t-small" x="600" y="228">info, /health</text>
+<text class="t-desc" x="600" y="248">mcl-rag/info; /health on</text>
+<text class="t-desc" x="600" y="264">8450 with grants, liveness</text>
+<rect class="b-later" x="768" y="208" width="168" height="68" rx="8"/>
+<text class="t-code t-small" x="780" y="228">event store</text>
+<text class="t-desc" x="780" y="248">reckon-db via store_id/0:</text>
+<text class="t-desc" x="780" y="264">not used by mcl-rag</text>
+<rect class="bound-in" x="32" y="312" width="928" height="236" rx="10"/>
+<text class="t-bound" x="48" y="334">apps/mcl_rag [the service's processes, under mcl_rag_sup]</text>
+<rect class="b-cmp" x="48" y="344" width="440" height="88" rx="8"/>
+<text class="t-code" x="62" y="368">refresh_corpus_scheduler</text>
+<text class="t-type" x="476" y="368" text-anchor="end">[every 120 s]</text>
+<text class="t-desc" x="62" y="390">Hashes **/*.md in each checkout. On a change: detect,</text>
+<text class="t-desc" x="62" y="406">schedule_reembed, upsert_source, embed_document</text>
+<rect class="b-cmp" x="504" y="344" width="440" height="88" rx="8"/>
+<text class="t-code" x="518" y="368">corpus_git_sync</text>
+<text class="t-type" x="932" y="368" text-anchor="end">[every 120 s]</text>
+<text class="t-desc" x="518" y="390">Rust NIF, vendored libgit2, HTTPS only: clones or</text>
+<text class="t-desc" x="518" y="406">fast-forwards each repo; a diverged one is left alone</text>
+<rect class="b-cmp" x="48" y="448" width="290" height="88" rx="8"/>
+<text class="t-code" x="62" y="472">mcl_rag_mesh_rpc</text>
+<text class="t-type" x="326" y="472" text-anchor="end">[Router]</text>
+<text class="t-desc" x="62" y="494">The 17 handlers. rag_operators gate:</text>
+<text class="t-desc" x="62" y="510">8 procedures need a verified operator</text>
+<rect class="b-cmp" x="354" y="448" width="290" height="88" rx="8"/>
+<text class="t-code" x="368" y="472">HTTP API</text>
+<text class="t-type" x="632" y="472" text-anchor="end">[cowboy, 8451]</text>
+<text class="t-desc" x="368" y="494">Loopback by default; routes from the</text>
+<text class="t-desc" x="368" y="510">slices' *_api modules; no operator gate</text>
+<rect class="b-cmp" x="660" y="448" width="284" height="88" rx="8"/>
+<text class="t-code" x="674" y="472">join_federation</text>
+<text class="t-type" x="932" y="472" text-anchor="end">[macula_rag]</text>
+<text class="t-desc" x="674" y="494">answer_federated_query embeds the</text>
+<text class="t-desc" x="674" y="510">text locally, searches rag_store</text>
+<rect class="bound-in" x="32" y="568" width="456" height="376" rx="10"/>
+<text class="t-bound" x="48" y="590">apps/embed_corpus [write desks]</text>
+<rect class="b-cmp" x="48" y="600" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="60" y="622">add_knowledge</text>
+<text class="t-desc" x="460" y="622" text-anchor="end">chunk, embed, store a snippet</text>
+<rect class="b-cmp" x="48" y="642" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="60" y="664">upload_knowledge *</text>
+<text class="t-desc" x="460" y="664" text-anchor="end">upsert a document by id</text>
+<rect class="b-cmp" x="48" y="684" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="60" y="706">ingest_document *</text>
+<text class="t-desc" x="460" y="706" text-anchor="end">upsert a source record</text>
+<rect class="b-cmp" x="48" y="726" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="60" y="748">embed_document *</text>
+<text class="t-desc" x="460" y="748" text-anchor="end">re-chunk, re-embed a document</text>
+<rect class="b-cmp" x="48" y="768" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="60" y="790">classify_topics *</text>
+<text class="t-desc" x="460" y="790" text-anchor="end">topics from local qwen2.5</text>
+<rect class="b-cmp" x="48" y="810" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="60" y="832">prune_chunks *</text>
+<text class="t-desc" x="460" y="832" text-anchor="end">delete chunks</text>
+<rect class="b-cmp" x="48" y="852" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="60" y="874">retire_document *</text>
+<text class="t-desc" x="460" y="874" text-anchor="end">a document and its chunks</text>
+<rect class="b-cmp" x="48" y="894" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="60" y="916">seed_corpus</text>
+<text class="t-desc" x="460" y="916" text-anchor="end">HTTP only: ingest a tree</text>
+<rect class="bound-in" x="32" y="960" width="456" height="166" rx="10"/>
+<text class="t-bound" x="48" y="982">apps/query_sources [read desks]</text>
+<rect class="b-cmp" x="48" y="992" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="60" y="1014">get_source_by_id</text>
+<text class="t-desc" x="460" y="1014" text-anchor="end">one source record</text>
+<rect class="b-cmp" x="48" y="1034" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="60" y="1056">list_sources_page</text>
+<text class="t-desc" x="460" y="1056" text-anchor="end">sources, paged</text>
+<rect class="b-cmp" x="48" y="1076" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="60" y="1098">get_document_verbatim</text>
+<text class="t-desc" x="460" y="1098" text-anchor="end">raw bytes, mesh only</text>
+<rect class="bound-in" x="504" y="568" width="456" height="124" rx="10"/>
+<text class="t-bound" x="520" y="590">apps/refresh_corpus [write desks]</text>
+<rect class="b-cmp" x="520" y="600" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="532" y="622">detect_corpus_change *</text>
+<text class="t-desc" x="932" y="622" text-anchor="end">compare, write watermark</text>
+<rect class="b-cmp" x="520" y="642" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="532" y="664">schedule_reembed *</text>
+<text class="t-desc" x="932" y="664" text-anchor="end">record a re-embed request</text>
+<rect class="bound-in" x="504" y="708" width="456" height="124" rx="10"/>
+<text class="t-bound" x="520" y="730">apps/serve_retrieval [read desks]</text>
+<rect class="b-cmp" x="520" y="740" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="532" y="762">answer_query</text>
+<text class="t-desc" x="932" y="762" text-anchor="end">embed + search; no LLM answer</text>
+<rect class="b-cmp" x="520" y="782" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="532" y="804">rerank_results</text>
+<text class="t-desc" x="932" y="804" text-anchor="end">0.65 semantic + lexical</text>
+<rect class="bound-in" x="504" y="848" width="456" height="166" rx="10"/>
+<text class="t-bound" x="520" y="870">apps/query_chunks [read desks]</text>
+<rect class="b-cmp" x="520" y="880" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="532" y="902">search_chunks_semantic</text>
+<text class="t-desc" x="932" y="902" text-anchor="end">text or vector, top_k</text>
+<rect class="b-cmp" x="520" y="922" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="532" y="944">get_chunk_by_id</text>
+<text class="t-desc" x="932" y="944" text-anchor="end">one chunk</text>
+<rect class="b-cmp" x="520" y="964" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="532" y="986">list_chunks_by_source</text>
+<text class="t-desc" x="932" y="986" text-anchor="end">a document's chunks</text>
+<rect class="b-cmp" x="504" y="1030" width="456" height="96" rx="8"/>
+<text class="t-desc" x="518" y="1062">* operator-only: refused with not_an_operator unless the</text>
+<text class="t-desc" x="518" y="1078">caller macula verified is in MCL_RAG_OPERATORS. No desk</text>
+<text class="t-desc" x="518" y="1094">emits events; each reads or writes rag_store directly.</text>
+<rect class="bound-in" x="32" y="1156" width="928" height="132" rx="10"/>
+<text class="t-bound" x="48" y="1178">apps/rag [shared store and embedder]</text>
+<rect class="b-cmp" x="48" y="1188" width="440" height="84" rx="8"/>
+<text class="t-code" x="62" y="1212">rag_store</text>
+<text class="t-type" x="476" y="1212" text-anchor="end">[gen_server, barrel]</text>
+<text class="t-desc" x="62" y="1234">One database, rag_chunks: documents, vectors, sources,</text>
+<text class="t-desc" x="62" y="1250">watermarks, re-embed requests. Refuses every call</text>
+<text class="t-desc" x="62" y="1266">with store_opening while the index rebuilds.</text>
+<rect class="b-cmp" x="504" y="1188" width="212" height="84" rx="8"/>
+<text class="t-code t-small" x="518" y="1212">rag_chunk_embedder</text>
+<text class="t-type" x="518" y="1230">[Component]</text>
+<text class="t-desc" x="518" y="1250">embeds in the caller's</text>
+<text class="t-desc" x="518" y="1266">process, then writes</text>
+<rect class="b-cmp" x="732" y="1188" width="212" height="84" rx="8"/>
+<text class="t-code t-small" x="746" y="1212">rag_embedder</text>
+<text class="t-type" x="746" y="1230">[provider choice]</text>
+<text class="t-desc" x="746" y="1250">ollama; mcl_embedder</text>
+<text class="t-desc" x="746" y="1266">exists, unused here</text>
+<rect class="b-ext" x="1000" y="336" width="224" height="104" rx="10"/>
+<text class="t-name" x="1016" y="364">Corpus repos</text>
+<text class="t-type" x="1016" y="382">[GitHub, HTTPS]</text>
+<text class="t-desc" x="1016" y="406">deploy/corpus-repos.json,</text>
+<text class="t-desc" x="1016" y="422">cloned under corpus/&lt;id&gt;</text>
+<rect class="b-ext" x="1000" y="448" width="224" height="104" rx="10"/>
+<text class="t-name" x="1016" y="476">macula-station</text>
+<text class="t-type" x="1016" y="494">[pinned]</text>
+<text class="t-desc" x="1016" y="518">carries the 17 procedures</text>
+<text class="t-desc" x="1016" y="534">and rag.query_shard_v1</text>
+<rect class="b-ext" x="1000" y="1176" width="224" height="108" rx="10"/>
+<text class="t-name" x="1016" y="1204">ollama</text>
+<text class="t-type" x="1016" y="1222">[127.0.0.1:11434]</text>
+<text class="t-desc" x="1016" y="1246">e5-small f16, 384 dims;</text>
+<text class="t-desc" x="1016" y="1262">qwen2.5 chat for topics</text>
+<rect class="b-ext" x="48" y="1336" width="440" height="64" rx="10"/>
+<text class="t-name" x="64" y="1364">Data volume</text>
+<text class="t-type" x="64" y="1382">[/var/lib/mcl-rag, mcl-rag-data]</text>
+<path class="edge" d="M944 388H1000" marker-end="url(#a)"/>
+<text class="t-rel" x="972" y="380" text-anchor="middle">syncs</text>
+<path class="edge" d="M944 492H1000" marker-end="url(#a)"/>
+<text class="t-rel" x="972" y="484" text-anchor="middle">joins</text>
+<path class="edge" d="M193 536V568" marker-end="url(#a)"/>
+<text class="t-rel" x="201" y="556">routes, after the gate</text>
+<path class="edge" d="M420 536V568" marker-end="url(#a)"/>
+<text class="t-rel" x="428" y="556">same desks, no gate</text>
+<path class="edge" d="M260 1126V1156" marker-end="url(#a)"/>
+<text class="t-rel" x="268" y="1145">every desk reads or writes rag_store</text>
+<path class="edge" d="M944 1230H1000" marker-end="url(#a)"/>
+<text class="t-rel" x="972" y="1222" text-anchor="middle">embeds</text>
+<path class="edge" d="M268 1272V1336" marker-end="url(#a)"/>
+<text class="t-rel" x="276" y="1320">rag_chunks and _barrel_system</text>
+</svg>

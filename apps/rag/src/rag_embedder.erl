@@ -9,8 +9,9 @@
 %%% `rag_store:search_vector/2' — the gen_server only does fast writes
 %%% and vector lookups, never an outbound call.
 %%%
-%%% Provider selection mirrors `rag_store:embedder()': `mcl_embedder'
-%%% for fleet (over the mesh), `ollama' for dev (local HTTP).
+%%% Provider selection mirrors `rag_store:embedder()': `ollama' (the
+%%% node's own, on loopback; msi00's since 2026-09-29) or `mcl_embedder'
+%%% (over the mesh, for a node that cannot embed locally).
 -module(rag_embedder).
 
 -export([embed/1, embed_batch/1, dimension/0, embedding/0, provider/0]).
@@ -43,7 +44,8 @@ model(undefined) -> undefined;
 model(Model)     -> to_bin(Model).
 
 %% @doc The barrel_embed_provider module and its config, from `embed_provider':
-%% `mcl_embedder' (the mesh procedure; production), `ollama' (a laptop), or
+%% `ollama' (the node's own, on loopback), `mcl_embedder' (the mesh
+%% procedure, for a node that cannot embed locally), or
 %% `{Module, Config}' naming any provider module directly. The one place this
 %% is decided: rag_store opens barrel with the same answer, so the vectors a
 %% query is embedded with always come from the provider that made the stored

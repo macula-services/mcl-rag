@@ -1,6 +1,6 @@
 %%% @doc Handler for `prune_chunks': removes a document's chunks from
-%%% `rag_store' (SQLite... no — barrel now: the doc and its vector both go,
-%%% atomically, via `rag_store:forget_chunk/1').
+%%% `rag_store' (barrel: the doc and its vector both go, atomically, via
+%%% `rag_store:forget_chunk/1').
 %%%
 %%% `chunk_ids' on the command is an optional allowlist. Given, only ids
 %%% that are BOTH requested AND actually known to belong to this document's

@@ -2,11 +2,13 @@
 
 **The mesh shared memory: retrieval over a realm-bound corpus, and the deposits agents remember into it**
 
+Architecture: the C4 model (context, containers, components) is in [architecture/README.md](architecture/README.md).
+
 ## What it does
 
 It holds the mesh's shared memory: documents from a set of git repos plus the
 knowledge agents deposit, chunked and embedded (384 dims,
-`intfloat/multilingual-e5-small`, vectors from `mcl-embedder` over the mesh),
+`intfloat/multilingual-e5-small`, from the node's own ollama on loopback),
 and answers retrieval over it. It also serves as one shard of the org's
 federated retrieval (`macula_rag`, procedure `mcl-rag/rag.query_shard_v1`).
 
@@ -40,7 +42,7 @@ Known callers: `macula-mcp` (`mesh_recall`, `mesh_remember`), `macula-cli` and
 
 `/health` on `MCL_HEALTH_PORT` returns `ok` once the store is open and the org
 can reach this shard. Opening the store rebuilds the vector index, which takes
-over three minutes on the production corpus (longer on a Celeron). While it
+over three minutes on the full corpus (longer on a Celeron). While it
 runs, `/health` reports `degraded, store_opening` and every call is refused with
 `{error, store_opening}`. That is by design. The image's health check has a
 900 s start period to cover the open.
@@ -72,13 +74,12 @@ copied in; locally, `scripts/build-corpus-sync-nif.sh` builds it into
 |----------|---------|---------|
 | `MCL_REALM` | required | 64-hex realm tag, the `sha256` of the realm's name. No default: a service that guesses its realm announces itself where nobody can attribute it. |
 | `MCL_REALM_KEY` | required | The realm's public signing key, hex encoded: the **trust anchor**, not an identifier. Every org-namespaced advertisement is verified against it, so without it nothing resolves, the boot claim never reaches the realm, and the service stays green while unreachable. Public material, not a secret. |
-| `MACULA_STATION_SEEDS` | required | Station hosts to dial, `host[:port]`, comma-separated. No default: naming a realm costs nothing, dialling a production station from every dev clone does. |
+| `MACULA_STATION_SEEDS` | required | Station hosts to dial, `host[:port]`, comma-separated. No default: naming a realm costs nothing, dialling a fleet station from every dev clone does. |
 | `MACULA_STATION_NODE_IDS` | required | The matching 64-hex station node ids, comma-separated, index-paired with the seeds. The 11.x dial is pinned (D5): mcl_om refuses to boot a pool with an unpinned seed. |
 | `MCL_REALM_NAME` | required | The realm's name. Its `sha256` must be `MCL_REALM`, or joining the federation is refused and `/health` reports down. |
 | `MCL_RAG_OPERATORS` | empty | Node ids (64 hex, comma-separated) allowed to call the operator-only procedures. Empty means nobody. |
-| `MCL_RAG_TOPIC_API_KEY` | empty | Groq key for topic classification. It is a secret: supply it from the host, never commit it. |
-| `MCL_RAG_TOPIC_FALLBACK_API_KEY` | empty | DeepSeek key, used when Groq fails. |
 | `MCL_DATA_DIR` | `/var/lib/mcl-rag` | The store and the corpus checkouts. Mount it on a persistent volume (compose names it `mcl-rag-data`). |
+| `MCL_RAG_IMAGE_DIGEST` | required by the compose file | `sha256:<digest>` of the released image to run: the compose file runs the image by digest, never by tag. |
 | `MCL_RAG_HTTP_PORT` | `8451` | The local HTTP API. Registered in macula-fleet `PORTS.md`, like the health port. |
 | `MCL_RAG_HTTP_IP` | `127.0.0.1` | Keep it on loopback: the API has writes and no authentication. |
 | `MCL_SERVICE_NAME` | `mcl-rag` | Label on the boot claim the realm's operator sees on the Providers desk. |
@@ -95,10 +96,13 @@ what stops a config table in a README and the real environment drifting.
 
 ## Deployment
 
-CI builds on every push to `main` and on `v*` tags, and pushes
-`ghcr.io/macula-services/mcl-rag:latest` plus the semver tag. Fleet boxes run
-an image pinned in `macula-fleet`, never `:latest`, so a merge is not a deploy.
-To roll back, revert the pin.
+A `v*` tag publishes `ghcr.io/macula-services/mcl-rag:<version>` and nothing
+else, and the attest job signs that digest keylessly with its SBOM and
+provenance (macula-ci-images' `attest-image.yml`, pinned by commit); a box that
+enforces signatures refuses any other. A push to `main` publishes `:latest`, the
+tip of main to try; nothing on the fleet follows it. Fleet boxes run an image
+pinned by digest in `macula-fleet`, so a merge is not a deploy. To roll back,
+revert the pin.
 
 Three things CI cannot do for you:
 
@@ -106,9 +110,11 @@ Three things CI cannot do for you:
    the host with a bare `unauthorized` that names nothing. Check it after the
    first build. On ghcr the `org.opencontainers.image.source` label in the
    Containerfile is what links the package to the repository.
-2. The host needs `MCL_REALM`, `MCL_REALM_NAME`, `MCL_REALM_KEY` and the
-   pinned station pair supplied from somewhere they are not committed, and
-   the topic keys from its secrets.
+2. The host needs `MCL_REALM`, `MCL_REALM_NAME`, `MCL_REALM_KEY`, the pinned
+   station pair and `MCL_RAG_IMAGE_DIGEST` supplied from its deploy config,
+   and its own ollama on `127.0.0.1:11434` holding the embedding model
+   (`macula/multilingual-e5-small:f16`) and the classifier's
+   (`qwen2.5:7b-instruct-q4_K_M`). No API key: both models are local.
 3. The data volume is the memory. Recreating the container keeps it, but
    removing `mcl-rag-data` wipes it, and the node then re-embeds the whole
    corpus.

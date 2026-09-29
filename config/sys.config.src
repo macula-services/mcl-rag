@@ -11,39 +11,38 @@
         %% (docs, attachments, vectors/), plus the corpus checkout. Mount it on
         %% a persistent volume (the image's MCL_DATA_DIR, /var/lib/mcl-rag).
         {data_dir,       "${MCL_DATA_DIR}"},
-        %% Vectors come from mcl-embedder over the mesh, raw text, 384 dims:
-        %% the dimension every stored vector has. Changing either needs the
-        %% whole store re-embedded.
+        %% Vectors come from this node's own ollama on loopback (Raf,
+        %% 2026-09-29), raw text, 384 dims: the dimension every stored vector
+        %% has. Changing the model or the dimension needs the whole store
+        %% re-embedded.
         %% The node ids (64 hex each, comma or space separated) allowed to delete
         %% or rewrite the store: prune_chunks, retire_document, ingest_document,
         %% upload_knowledge, embed_document, classify_topics, schedule_reembed,
         %% detect_corpus_change. Anyone else is refused `not_an_operator'. Empty
         %% means nobody. Queries and add_knowledge stay open.
         {operators,      "${MCL_RAG_OPERATORS}"},
-        {embed_provider, mcl_embedder},
+        {embed_provider, ollama},
         {embed_dim,      384},
-        %% The model every stored vector was made with (mcl-embedder loads
-        %% it). Federated retrieval only merges scores
-        %% between shards naming the same model and dimension.
-        {embed_model,    <<"intfloat/multilingual-e5-small">>},
+        %% The model every stored vector was made with: intfloat's
+        %% multilingual-e5-small, built into msi00's ollama from intfloat's own
+        %% weights (macula-fleet declares it by manifest digest). Federated
+        %% retrieval only merges scores between shards naming the same model
+        %% and dimension.
+        {embed_model,    <<"macula/multilingual-e5-small:f16">>},
+        {embed_url,      <<"http://127.0.0.1:11434">>},
         %% This node as one shard of the org's federated retrieval (macula_rag,
         %% procedure `mcl-rag/rag.query_shard_v1'). The realm NAME must be the
         %% one whose SHA-256 is MCL_REALM, or joining is refused and /health is
         %% down. The shard id defaults to the node name.
         {federation, #{realm_name => <<"${MCL_REALM_NAME}">>}},
-        %% Topic classification, LLM-backed and optional. The keys come from the
-        %% secrets env, never the image.
+        %% Topic classification on the same local ollama, through its
+        %% OpenAI-compatible endpoint: no hosted LLM and no key (Raf,
+        %% 2026-09-29).
         {topic_classifier, #{
             enabled  => true,
-            api_key  => <<"${MCL_RAG_TOPIC_API_KEY}">>,
-            endpoint => <<"https://api.groq.com/openai/v1/chat/completions">>,
-            model    => <<"openai/gpt-oss-20b">>,
-            timeout  => 30000,
-            fallback => #{
-                api_key  => <<"${MCL_RAG_TOPIC_FALLBACK_API_KEY}">>,
-                endpoint => <<"https://api.deepseek.com/v1/chat/completions">>,
-                model    => <<"deepseek-chat">>
-            }
+            endpoint => <<"http://127.0.0.1:11434/v1/chat/completions">>,
+            model    => <<"qwen2.5:7b-instruct-q4_K_M">>,
+            timeout  => 30000
         }}
     ]},
     {mcl_om, [
@@ -90,7 +89,13 @@
         %% That is WRONG for this path and cost a deployment: `macula_direct_dial'
         %% never supplies the foundation form, so the pinned key is the only
         %% way an advertisement is ever trusted.
-        {realm_key,         <<"${MCL_REALM_KEY}">>}
+        {realm_key,         <<"${MCL_REALM_KEY}">>},
+        %% ⚠ THE SERVICE IS NOTHING WITHOUT THE MESH. With `required' (mcl_om
+        %% 0.33.1) a boot missing MCL_REALM, MCL_REALM_KEY,
+        %% MACULA_STATION_SEEDS or MACULA_STATION_NODE_IDS stops and names each
+        %% one. Under `optional' an unset seed list boots a green node that
+        %% answers /health and nothing else.
+        {mesh,              required}
     ]},
     %% ==========================================================================
     %% THE PQ CRYPTO PROFILE, WITHOUT WHICH THIS NODE DOES NOT PEER
@@ -114,8 +119,8 @@
         {crypto_profile, pq_hybrid}
     ]},
     %% barrel_docdb's system database (`_barrel_system') lives under this
-    %% data_dir, whose default is /tmp/barrel_data: inside the container, gone
-    %% on every recreate. It sits on the data volume beside rag_chunks.
+    %% data_dir, whose default is data/barrel_docdb relative to the working
+    %% directory: inside the container, gone on every recreate. It sits on the data volume beside rag_chunks.
     {barrel_docdb, [{data_dir, "${MCL_DATA_DIR}"}]},
     {kernel, [{logger_level, info}]}
 ].

@@ -19,13 +19,13 @@ jobs:
   check:
     runs-on: ubuntu-latest
     container:
-      # ⚠ THE SAME DIGEST-PINNED BUILD IMAGE AS THE Containerfile: OTP 28.4.3,
+      # ⚠ THE SAME BUILD IMAGE AS THE Containerfile, BY DATED TAG AND DIGEST: OTP 28.4.3,
       # Rust, cmake, the zlib headers and librocksdb 11.1.2 for the
       # system-rocksdb override. The toolchain step below refuses any other
       # release.
-      image: ghcr.io/macula-io/macula-ci-otp-rocksdb@sha256:da4ea316b91f4f29efc8036fa9d95a3b1f3efde8b85cb5997780f140e0f2f6d8
+      image: ghcr.io/macula-io/macula-ci-otp-rocksdb:20260928-1642@sha256:57e3929c45976fbc1d216bddfde831cad7b7e276d8197b099dfbac0cd731a8c9
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Verify the toolchain is the one we think it is
         run: |
           openssl version

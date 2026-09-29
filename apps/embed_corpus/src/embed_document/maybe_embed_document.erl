@@ -3,8 +3,8 @@
 %%% `rag_store', not from the command — `embed_document' carries no raw
 %%% content of its own, so a document can be re-embedded without
 %%% resubmitting it), embeds every chunk in THIS process via
-%%% `rag_chunk_embedder' (`rag_embedder' underneath: Ollama locally,
-%%% mcl-embedder over the mesh on the fleet) and writes content +
+%%% `rag_chunk_embedder' (`rag_embedder' underneath: the node's own
+%%% ollama, or mcl-embedder over the mesh) and writes content +
 %%% vector to `rag_store' in one put. `rag_store''s barrel policy has
 %%% `fields => []': barrel never embeds anything itself, so a chunk
 %%% written without a vector is stored but never a search hit. That is

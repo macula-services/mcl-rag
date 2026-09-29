@@ -403,11 +403,10 @@ vector_data_dir() ->
 configured_dim() ->
     application:get_env(mcl_rag, embed_dim, ?DEFAULT_DIM).
 
-%% Provider selection. Defaults to `ollama' (a laptop/dev convenience --
-%% see config/dev.config), so a local run needs nothing extra. Fleet
-%% deployment sets `embed_provider = mcl_embedder' (config/sys.config.src):
-%% the beam Celerons have no AVX2, so embedding runs on mcl-embedder,
-%% reached over the mesh, not locally -- see rag_embed_mcl_embedder.
+%% Provider selection. Defaults to `ollama', the node's own on loopback, which
+%% is what msi00 runs (config/sys.config.src, 2026-09-29). `mcl_embedder'
+%% embeds over the mesh instead, for a node that cannot embed locally (the
+%% beam Celerons have no AVX2) -- see rag_embed_mcl_embedder.
 %% The provider is decided in one place, rag_embedder:provider/0, so the store
 %% and the query path can never embed with different models.
 embedder() ->

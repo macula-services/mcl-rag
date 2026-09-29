@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700" role="img" aria-label="mcl-rag containers">
+<title>mcl-rag containers</title>
+<style>
+.t-name { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 700; }
+.t-desc { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 12.5px; }
+.t-rel { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 11.5px; paint-order: stroke; stroke-width: 4px; stroke-linejoin: round; }
+.t-code { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; }
+.t-small { font-size: 12px; }
+.t-type { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; }
+.t-bound { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; }
+.edge { fill: none; stroke-width: 1.25; }
+.edge-later { fill: none; stroke-width: 1.25; stroke-dasharray: 5 4; }
+.bg { fill: #FFFFFF; }
+.b-sys { fill: #F5E9CC; stroke: #A56F0A; stroke-width: 2; }
+.b-ext { fill: #ECEFED; stroke: #8A9791; stroke-width: 1.25; }
+.b-per { fill: #E3EBF2; stroke: #3B5B7A; stroke-width: 1.25; }
+.b-cmp { fill: #FFFFFF; stroke: #8A9791; stroke-width: 1.25; }
+.b-later { fill: none; stroke: #8A9791; stroke-width: 1.25; stroke-dasharray: 5 4; }
+.bound { fill: none; stroke: #66736E; stroke-width: 1.25; stroke-dasharray: 7 5; }
+.bound-in { fill: none; stroke: #D9DFDC; stroke-width: 1.5; stroke-dasharray: 4 4; }
+.head { fill: #3B5B7A; }
+.t-name { fill: #16201D; }
+.t-code { fill: #16201D; }
+.t-type { fill: #66736E; }
+.t-desc { fill: #34413C; }
+.t-bound { fill: #66736E; }
+.t-rel { fill: #66736E; stroke: #FFFFFF; }
+.edge, .edge-later { stroke: #8A9791; }
+.arrowhead { fill: #8A9791; }
+@media (prefers-color-scheme: dark) {
+.bg { fill: #171F1C; }
+.b-sys { fill: #3A2E13; stroke: #E3AA3C; stroke-width: 2; }
+.b-ext { fill: #1C2421; stroke: #7D8B85; stroke-width: 1.25; }
+.b-per { fill: #1D2A36; stroke: #8EB4D8; stroke-width: 1.25; }
+.b-cmp { fill: #171F1C; stroke: #7D8B85; stroke-width: 1.25; }
+.b-later { fill: none; stroke: #7D8B85; stroke-width: 1.25; stroke-dasharray: 5 4; }
+.bound { fill: none; stroke: #93A09A; stroke-width: 1.25; stroke-dasharray: 7 5; }
+.bound-in { fill: none; stroke: #2A3431; stroke-width: 1.5; stroke-dasharray: 4 4; }
+.head { fill: #8EB4D8; }
+.t-name { fill: #E6ECE9; }
+.t-code { fill: #E6ECE9; }
+.t-type { fill: #93A09A; }
+.t-desc { fill: #C3CDC8; }
+.t-bound { fill: #93A09A; }
+.t-rel { fill: #93A09A; stroke: #171F1C; }
+.edge, .edge-later { stroke: #7D8B85; }
+.arrowhead { fill: #7D8B85; }
+}
+</style>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0 0L10 5L0 10z"/></marker></defs>
+<rect class="bg" x="0" y="0" width="1000" height="700"/>
+
+<rect class="bound" x="220" y="40" width="560" height="624" rx="12"/>
+<text class="t-bound" x="236" y="62">msi00.lab [lab box, rootless podman, host networking]</text>
+<rect class="bound-in" x="236" y="72" width="528" height="476" rx="10"/>
+<text class="t-bound" x="252" y="94">mcl-rag [Software system, mcl-om service]</text>
+<path class="edge" d="M200 136H260" marker-end="url(#a)"/>
+<path class="edge" d="M200 226H260" marker-end="url(#a)"/>
+<path class="edge" d="M200 306H260" marker-end="url(#a)"/>
+<path class="edge" d="M740 134H810" marker-end="url(#a)"/>
+<path class="edge" d="M740 228H810" marker-end="url(#a)"/>
+<path class="edge" d="M740 270H795V395H810" marker-end="url(#a)"/>
+<path class="edge" d="M740 300H752V608H740" marker-end="url(#a)"/>
+<path class="edge" d="M335 320V350" marker-end="url(#a)"/>
+<path class="edge" d="M500 320V350" marker-end="url(#a)"/>
+<path class="edge" d="M665 320V350" marker-end="url(#a)"/>
+<rect class="b-sys" x="260" y="100" width="480" height="220" rx="10"/>
+<text class="t-name" x="276" y="128">mcl-rag service</text>
+<text class="t-type" x="276" y="146">[Container: OCI image, OTP 28 release, mcl_om 0.33.1]</text>
+<text class="t-desc" x="276" y="170">Seventeen procedures as mcl-rag/&lt;name&gt;, and rag.query_shard_v1</text>
+<text class="t-desc" x="276" y="186">through macula_rag 0.2 (macula 13.0.1). From mcl-om: node</text>
+<text class="t-desc" x="276" y="202">identity, pinned outbound station dial, realm identity claim,</text>
+<text class="t-desc" x="276" y="218">provider grants, mcl-rag/info, /health on 8450.</text>
+<text class="t-desc" x="276" y="234">Local HTTP API on 8451, loopback, no authentication.</text>
+<text class="t-desc" x="276" y="250">Git sync and re-embed loops, every 120 s each.</text>
+<text class="t-desc" x="276" y="266">Storeless for mcl-om: no reckon-db is started.</text>
+<rect class="b-cmp" x="260" y="350" width="150" height="120" rx="10"/>
+<text class="t-name" x="276" y="378">Data volume</text>
+<text class="t-type" x="276" y="396">[mcl-rag-data]</text>
+<text class="t-desc" x="276" y="420">/var/lib/mcl-rag:</text>
+<text class="t-desc" x="276" y="436">barrel rag_chunks,</text>
+<text class="t-desc" x="276" y="452">corpus/&lt;repo-id&gt;</text>
+<rect class="b-cmp" x="425" y="350" width="150" height="120" rx="10"/>
+<text class="t-name" x="441" y="378">Identity key</text>
+<text class="t-type" x="441" y="396">[mcl-rag-secrets]</text>
+<text class="t-desc" x="441" y="420">/etc/mcl/secrets:</text>
+<text class="t-desc" x="441" y="436">puzzle-hardened</text>
+<text class="t-desc" x="441" y="452">node key</text>
+<rect class="b-cmp" x="590" y="350" width="150" height="120" rx="10"/>
+<text class="t-name" x="606" y="378">Corpus list</text>
+<text class="t-type" x="606" y="396">[bind mount, ro]</text>
+<text class="t-desc" x="606" y="420">corpus-repos.json:</text>
+<text class="t-desc" x="606" y="436">repo ids, URLs,</text>
+<text class="t-desc" x="606" y="452">branches</text>
+<rect class="b-later" x="260" y="490" width="480" height="44" rx="10"/>
+<text class="t-desc" x="276" y="517">reckon-db event store: offered by mcl-om (store_id/0), not used here</text>
+<rect class="b-ext" x="260" y="568" width="480" height="80" rx="10"/>
+<text class="t-name" x="276" y="596">ollama</text>
+<text class="t-type" x="276" y="614">[Container: own Quadlet unit, 127.0.0.1:11434]</text>
+<text class="t-desc" x="276" y="638">macula/multilingual-e5-small:f16 (384 dims); qwen2.5:7b-instruct-q4_K_M</text>
+<rect class="b-ext" x="10" y="96" width="190" height="80" rx="10"/>
+<text class="t-name" x="26" y="124">macula-mcp</text>
+<text class="t-type" x="26" y="142">[MCP server]</text>
+<text class="t-desc" x="26" y="166">outside the fleet</text>
+<rect class="b-ext" x="10" y="190" width="190" height="72" rx="10"/>
+<text class="t-name" x="26" y="218">macula-cli, lazymesh</text>
+<text class="t-type" x="26" y="236">[mesh clients]</text>
+<rect class="b-ext" x="10" y="276" width="190" height="80" rx="10"/>
+<text class="t-name" x="26" y="304">Other shards</text>
+<text class="t-type" x="26" y="322">[mcl-rag, same org]</text>
+<text class="t-desc" x="26" y="346">federated retrieval</text>
+<rect class="b-ext" x="810" y="96" width="180" height="76" rx="10"/>
+<text class="t-name" x="826" y="124">macula-station</text>
+<text class="t-type" x="826" y="142">[pinned seed]</text>
+<rect class="b-ext" x="810" y="190" width="180" height="76" rx="10"/>
+<text class="t-name" x="826" y="218">macula-realm</text>
+<text class="t-type" x="826" y="236">[trust anchor]</text>
+<rect class="b-ext" x="810" y="350" width="180" height="90" rx="10"/>
+<text class="t-name" x="826" y="378">Corpus repos</text>
+<text class="t-type" x="826" y="396">[GitHub, HTTPS]</text>
+<text class="t-desc" x="826" y="420">no credentials</text>
+<rect class="b-later" x="810" y="568" width="180" height="80" rx="10"/>
+<text class="t-name" x="826" y="596">mcl-embedder</text>
+<text class="t-type" x="826" y="614">[unused on msi00]</text>
+<text class="t-desc" x="826" y="638">embedding over the mesh</text>
+<text class="t-rel" x="230" y="128" text-anchor="middle">calls</text>
+<text class="t-rel" x="230" y="218" text-anchor="middle">calls</text>
+<text class="t-rel" x="230" y="298" text-anchor="middle">asks</text>
+<text class="t-rel" x="30" y="380">all over the mesh, via the station</text>
+<text class="t-rel" x="775" y="126" text-anchor="middle">dials</text>
+<text class="t-rel" x="775" y="220" text-anchor="middle">claims</text>
+<text class="t-rel" x="768" y="262" text-anchor="middle">syncs</text>
+<text class="t-rel" x="752" y="460" text-anchor="middle" transform="rotate(90 752 460)">embeds, classifies</text>
+<text class="t-rel" x="343" y="340">barrel</text>
+<text class="t-rel" x="508" y="340">loads</text>
+<text class="t-rel" x="673" y="340">reads</text>
+</svg>

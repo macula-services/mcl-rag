@@ -31,7 +31,7 @@ stop(_State) -> ok.
 
 %% The service's own verdict: its store first, then whether the org can reach
 %% this shard. Opening the store rebuilds the vector index, minutes on the
-%% production corpus, and every call is refused with `{error, store_opening}'
+%% full corpus, and every call is refused with `{error, store_opening}'
 %% meanwhile. The federated procedure is macula_rag's, not one of the
 %% seventeen, so mcl_om's provider_grants never lists it: join_federation
 %% reports its grant here. Whether callers can REACH each of the seventeen

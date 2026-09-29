@@ -1,7 +1,7 @@
 %%% @doc The actual request-handling logic for every capability
 %%% `mcl_rag_service:capabilities/0` advertises.
 %%%
-%%% Production traffic to mcl-rag flows over the mesh. A plugin
+%%% Real traffic to mcl-rag flows over the mesh. A plugin
 %%% on a user laptop calls:
 %%%
 %%%   macula:call(LocalPool, Realm,

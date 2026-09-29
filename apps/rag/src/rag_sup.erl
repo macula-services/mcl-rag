@@ -1,8 +1,8 @@
 %%% @doc Root supervisor for the shared `rag` app.
 %%%
 %%% Hosts the cross-cutting infrastructure every slice depends on:
-%%%   - `rag_store' — the gen_server owning the vector index +
-%%%     SQLite handles
+%%%   - `rag_store': the gen_server owning the barrel database (documents
+%%%     and the vector index)
 -module(rag_sup).
 -behaviour(supervisor).
 

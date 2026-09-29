@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 660" role="img" aria-label="mcl-rag system context">
+<title>mcl-rag system context</title>
+<style>
+.t-name { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 700; }
+.t-desc { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 12.5px; }
+.t-rel { font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; font-size: 11.5px; paint-order: stroke; stroke-width: 4px; stroke-linejoin: round; }
+.t-code { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; }
+.t-small { font-size: 12px; }
+.t-type { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; }
+.t-bound { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; }
+.edge { fill: none; stroke-width: 1.25; }
+.edge-later { fill: none; stroke-width: 1.25; stroke-dasharray: 5 4; }
+.bg { fill: #FFFFFF; }
+.b-sys { fill: #F5E9CC; stroke: #A56F0A; stroke-width: 2; }
+.b-ext { fill: #ECEFED; stroke: #8A9791; stroke-width: 1.25; }
+.b-per { fill: #E3EBF2; stroke: #3B5B7A; stroke-width: 1.25; }
+.b-cmp { fill: #FFFFFF; stroke: #8A9791; stroke-width: 1.25; }
+.b-later { fill: none; stroke: #8A9791; stroke-width: 1.25; stroke-dasharray: 5 4; }
+.bound { fill: none; stroke: #66736E; stroke-width: 1.25; stroke-dasharray: 7 5; }
+.bound-in { fill: none; stroke: #D9DFDC; stroke-width: 1.5; stroke-dasharray: 4 4; }
+.head { fill: #3B5B7A; }
+.t-name { fill: #16201D; }
+.t-code { fill: #16201D; }
+.t-type { fill: #66736E; }
+.t-desc { fill: #34413C; }
+.t-bound { fill: #66736E; }
+.t-rel { fill: #66736E; stroke: #FFFFFF; }
+.edge, .edge-later { stroke: #8A9791; }
+.arrowhead { fill: #8A9791; }
+@media (prefers-color-scheme: dark) {
+.bg { fill: #171F1C; }
+.b-sys { fill: #3A2E13; stroke: #E3AA3C; stroke-width: 2; }
+.b-ext { fill: #1C2421; stroke: #7D8B85; stroke-width: 1.25; }
+.b-per { fill: #1D2A36; stroke: #8EB4D8; stroke-width: 1.25; }
+.b-cmp { fill: #171F1C; stroke: #7D8B85; stroke-width: 1.25; }
+.b-later { fill: none; stroke: #7D8B85; stroke-width: 1.25; stroke-dasharray: 5 4; }
+.bound { fill: none; stroke: #93A09A; stroke-width: 1.25; stroke-dasharray: 7 5; }
+.bound-in { fill: none; stroke: #2A3431; stroke-width: 1.5; stroke-dasharray: 4 4; }
+.head { fill: #8EB4D8; }
+.t-name { fill: #E6ECE9; }
+.t-code { fill: #E6ECE9; }
+.t-type { fill: #93A09A; }
+.t-desc { fill: #C3CDC8; }
+.t-bound { fill: #93A09A; }
+.t-rel { fill: #93A09A; stroke: #171F1C; }
+.edge, .edge-later { stroke: #7D8B85; }
+.arrowhead { fill: #7D8B85; }
+}
+</style>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0 0L10 5L0 10z"/></marker></defs>
+<rect class="bg" x="0" y="0" width="1000" height="660"/>
+
+<path class="edge" d="M135 130V200" marker-end="url(#a)"/>
+<path class="edge" d="M865 130V200" marker-end="url(#a)"/>
+<path class="edge" d="M750 108H622V200" marker-end="url(#a)"/>
+<path class="edge" d="M250 262H370" marker-end="url(#a)"/>
+<path class="edge" d="M750 262H630" marker-end="url(#a)"/>
+<path class="edge" d="M500 200V130" marker-end="url(#a)"/>
+<path class="edge" d="M135 440V385H400V340" marker-end="url(#a)"/>
+<path class="edge" d="M440 340V440" marker-end="url(#a)"/>
+<path class="edge" d="M580 340V440" marker-end="url(#a)"/>
+<path class="edge" d="M630 315H745V495H760" marker-end="url(#a)"/>
+<rect class="b-per" x="20" y="30" width="230" height="100" rx="10"/>
+<circle class="head" cx="46" cy="54" r="9"/>
+<text class="t-name" x="64" y="58">Agent</text>
+<text class="t-type" x="64" y="76">[Person or AI agent]</text>
+<text class="t-desc" x="36" y="100">Recalls and deposits shared</text>
+<text class="t-desc" x="36" y="116">memory through MCP tools</text>
+<rect class="b-ext" x="390" y="30" width="220" height="100" rx="10"/>
+<text class="t-name" x="406" y="58">Corpus repos</text>
+<text class="t-type" x="406" y="76">[External: GitHub]</text>
+<text class="t-desc" x="406" y="100">14 public repos listed in</text>
+<text class="t-desc" x="406" y="116">deploy/corpus-repos.json</text>
+<rect class="b-per" x="750" y="30" width="230" height="100" rx="10"/>
+<circle class="head" cx="776" cy="54" r="9"/>
+<text class="t-name" x="794" y="58">Operator</text>
+<text class="t-type" x="794" y="76">[Person]</text>
+<text class="t-desc" x="766" y="100">Listed in MCL_RAG_OPERATORS;</text>
+<text class="t-desc" x="766" y="116">may rewrite or delete the store</text>
+<rect class="b-ext" x="20" y="200" width="230" height="130" rx="10"/>
+<text class="t-name" x="36" y="228">macula-mcp</text>
+<text class="t-type" x="36" y="246">[External: MCP server]</text>
+<text class="t-desc" x="36" y="270">Outside the fleet. mesh_recall,</text>
+<text class="t-desc" x="36" y="286">mesh_remember,</text>
+<text class="t-desc" x="36" y="302">mesh_remember_directory</text>
+<rect class="b-sys" x="370" y="200" width="260" height="140" rx="10"/>
+<text class="t-name" x="386" y="228">mcl-rag</text>
+<text class="t-type" x="386" y="246">[Software system, mcl-om service]</text>
+<text class="t-desc" x="386" y="270">The mesh's shared memory:</text>
+<text class="t-desc" x="386" y="286">chunks, embeds and retrieves</text>
+<text class="t-desc" x="386" y="302">over a realm-bound corpus;</text>
+<text class="t-desc" x="386" y="318">one shard of the org's retrieval</text>
+<rect class="b-ext" x="750" y="200" width="230" height="130" rx="10"/>
+<text class="t-name" x="766" y="228">macula-cli, lazymesh</text>
+<text class="t-type" x="766" y="246">[External: mesh clients]</text>
+<text class="t-desc" x="766" y="270">Queries; upload_knowledge</text>
+<text class="t-desc" x="766" y="286">and the other operator-only</text>
+<text class="t-desc" x="766" y="302">procedures, when the caller is listed</text>
+<rect class="b-ext" x="20" y="440" width="230" height="110" rx="10"/>
+<text class="t-name" x="36" y="468">Other mcl-rag shards</text>
+<text class="t-type" x="36" y="486">[External system]</text>
+<text class="t-desc" x="36" y="510">The org's federated retrieval</text>
+<text class="t-desc" x="36" y="526">(macula_rag); same model</text>
+<text class="t-desc" x="36" y="542">and dimension only</text>
+<rect class="b-ext" x="330" y="440" width="200" height="110" rx="10"/>
+<text class="t-name" x="346" y="468">macula-station</text>
+<text class="t-type" x="346" y="486">[External system]</text>
+<text class="t-desc" x="346" y="510">Pinned home station; carries</text>
+<text class="t-desc" x="346" y="526">every call to and from</text>
+<text class="t-desc" x="346" y="542">this node</text>
+<rect class="b-ext" x="545" y="440" width="200" height="110" rx="10"/>
+<text class="t-name" x="561" y="468">macula-realm</text>
+<text class="t-type" x="561" y="486">[External system]</text>
+<text class="t-desc" x="561" y="510">Boot identity claim; a D25</text>
+<text class="t-desc" x="561" y="526">provider grant for each</text>
+<text class="t-desc" x="561" y="542">procedure</text>
+<rect class="b-ext" x="760" y="440" width="220" height="110" rx="10"/>
+<text class="t-name" x="776" y="468">ollama on msi00</text>
+<text class="t-type" x="776" y="486">[External: loopback 11434]</text>
+<text class="t-desc" x="776" y="510">e5-small embeddings (384)</text>
+<text class="t-desc" x="776" y="526">and qwen2.5 for topics;</text>
+<text class="t-desc" x="776" y="542">no key, no hosted LLM</text>
+<rect class="b-later" x="760" y="576" width="220" height="60" rx="10"/>
+<text class="t-name" x="776" y="604">mcl-embedder</text>
+<text class="t-type" x="776" y="622">[not used on msi00]</text>
+<text class="t-rel" x="143" y="170">uses</text>
+<text class="t-rel" x="857" y="170" text-anchor="end">uses</text>
+<text class="t-rel" x="686" y="100" text-anchor="middle">admin, on the box:</text>
+<text class="t-rel" x="686" y="124" text-anchor="middle">HTTP, loopback 8451</text>
+<text class="t-rel" x="310" y="238" text-anchor="middle">answer_query,</text>
+<text class="t-rel" x="310" y="252" text-anchor="middle">add_knowledge,</text>
+<text class="t-rel" x="310" y="282" text-anchor="middle">upload_knowledge</text>
+<text class="t-rel" x="310" y="296" text-anchor="middle">(over the mesh)</text>
+<text class="t-rel" x="690" y="252" text-anchor="middle">procedures</text>
+<text class="t-rel" x="690" y="282" text-anchor="middle">(over the mesh)</text>
+<text class="t-rel" x="492" y="170" text-anchor="end">clones, fast-forwards (HTTPS)</text>
+<text class="t-rel" x="145" y="410">asks: rag.query_shard_v1</text>
+<text class="t-rel" x="432" y="416" text-anchor="end">dials out,</text>
+<text class="t-rel" x="432" y="430" text-anchor="end">pinned (QUIC)</text>
+<text class="t-rel" x="588" y="380">claims its</text>
+<text class="t-rel" x="588" y="394">identity</text>
+<text class="t-rel" x="753" y="392" text-anchor="middle">embeds,</text>
+<text class="t-rel" x="753" y="406" text-anchor="middle">classifies</text>
+</svg>

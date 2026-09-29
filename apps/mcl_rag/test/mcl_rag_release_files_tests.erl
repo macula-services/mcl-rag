@@ -87,8 +87,8 @@ the_ports_are_the_registered_ones_test() ->
     ?assertMatch({match, _}, re:run(read("Containerfile"), <<"EXPOSE 8450 8451\\n">>)).
 
 %% barrel_docdb keeps its system database (`_barrel_system') under its own
-%% `data_dir' app env, which defaults to /tmp/barrel_data: inside the
-%% container, gone on every recreate. It lives on the data volume, beside
+%% `data_dir' app env, which defaults to data/barrel_docdb relative to the
+%% working directory: inside the container, gone on every recreate. It lives on the data volume, beside
 %% rag_chunks.
 barrel_system_db_is_on_the_data_volume_test() ->
     ?assertMatch({match, _},
@@ -105,7 +105,7 @@ the_claim_carries_its_labels_test() ->
 
 %% relx puts in the release only what an `applications' list reaches, while
 %% the test code path holds every rebar dep. An app called directly but not
-%% listed passes every suite and is `undef' in production: macula_rag was
+%% listed passes every suite and is `undef' in the release: macula_rag was
 %% (join_federation), and dialyzer, not a test, noticed.
 every_directly_called_app_is_listed_test() ->
     [?assert(lists:member(Dep, applications(App)))

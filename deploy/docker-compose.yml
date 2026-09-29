@@ -3,12 +3,19 @@
 # Runnable as-is. It carries what the SERVICE knows about itself: its image, its
 # port, the environment variables its own code reads, and its health check.
 #
-#   MCL_REALM=<64-hex> \
+#   MCL_RAG_IMAGE_DIGEST=sha256:<64-hex digest of a released image> \
+#     MCL_REALM=<64-hex> \
 #     MCL_REALM_NAME=<the realm name whose sha256 is MCL_REALM> \
 #     MCL_REALM_KEY=<hex of the realm's public signing key> \
 #     MACULA_STATION_SEEDS=station.example:4433 \
 #     MACULA_STATION_NODE_IDS=<64-hex node id of that station> \
 #     docker compose -p mcl-rag -f deploy/docker-compose.yml up -d
+#
+# A MINIMAL RUNNABLE EXAMPLE. The fleet deploys services from its own files in
+# macula-fleet, in the same shape: the image by digest, the digest from the box's
+# committed config. It needs the node's own ollama on 127.0.0.1:11434 with the
+# embedding model (macula/multilingual-e5-small:f16) and the classifier's model
+# (qwen2.5:7b-instruct-q4_K_M) present.
 #
 # IF YOU DEPLOY THROUGH SOMETHING ELSE, keep this file anyway and let the other
 # thing carry PLACEMENT: which host, which station, which realm, which secret
@@ -18,7 +25,8 @@
 
 services:
   mcl-rag:
-    image: ghcr.io/macula-services/mcl-rag:latest
+    # BY DIGEST, NEVER A TAG: a tag moves under a running box.
+    image: ghcr.io/macula-services/mcl-rag@${MCL_RAG_IMAGE_DIGEST:?set MCL_RAG_IMAGE_DIGEST to sha256:<digest> of a released image}
     container_name: mcl-rag
     restart: unless-stopped
     # HOST NETWORKING IS NOT LAZINESS. macula stations are reachable over IPv6
@@ -30,8 +38,8 @@ services:
       # ⚠ THE SERVICE'S IDENTITY LIVES HERE. mcl_om generates the node key on
       # first boot and loads it on every boot after. The image declares this
       # path a VOLUME, and with nothing mounted docker gives each new container
-      # a fresh anonymous one, so every recreate (watchtower does them as
-      # routine) would mint a new node id while the service looks healthy.
+      # a fresh anonymous one, so every recreate would mint a new node id while
+      # the service looks healthy.
       - secrets:/etc/mcl/secrets
       # ⚠ THE SHARED MEMORY: the barrel store and the corpus checkouts. On an
       # anonymous volume every recreate would start an empty memory and
@@ -41,10 +49,6 @@ services:
       # edits the list. Their ids are the watermark namespace, so renaming one
       # re-embeds that repo.
       - ./corpus-repos.json:/etc/mcl-rag/corpus-repos.json:ro
-    labels:
-      # Only meaningful if you run watchtower: it pulls a new :latest and
-      # recreates the container. Harmless otherwise.
-      - "com.centurylinklabs.watchtower.enable=true"
     environment:
       # No default. A service that guesses its realm announces itself where
       # nobody can attribute it, and that looks exactly like a healthy node.
@@ -59,7 +63,7 @@ services:
       # unreachable. Public material, so it belongs here and not in secrets.
       - MCL_REALM_KEY=${MCL_REALM_KEY:?set MCL_REALM_KEY to the hex-encoded public realm signing key}
       # No default either: naming a realm costs nothing, dialling somebody's
-      # production station from every dev clone does. The 11.x dial is PINNED:
+      # fleet station from every dev clone does. The 11.x dial is PINNED:
       # every seed host pairs with its station's node id, index for index
       # (D5) -- mcl_om refuses to boot a pool with an unpinned seed, since
       # that dial could never connect anyway.
@@ -83,11 +87,6 @@ services:
       # refuse every caller, and queries and add_knowledge stay open.
       # macula-cli's upload_knowledge callers belong here.
       - MCL_RAG_OPERATORS=${MCL_RAG_OPERATORS:-}
-      # Topic classification keys (Groq, then DeepSeek as fallback). Secrets:
-      # supply them from the host's env file, never commit them. Empty turns
-      # classification into a refusal, not a crash.
-      - MCL_RAG_TOPIC_API_KEY=${MCL_RAG_TOPIC_API_KEY:-}
-      - MCL_RAG_TOPIC_FALLBACK_API_KEY=${MCL_RAG_TOPIC_FALLBACK_API_KEY:-}
 
 # The identity volume, NAMED HERE rather than left to the project name, so a
 # `docker compose -p` with a different name reuses the same key instead of

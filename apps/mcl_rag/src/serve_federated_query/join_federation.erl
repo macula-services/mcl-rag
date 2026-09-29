@@ -5,7 +5,7 @@
 %% stored vectors were made with; registers answer_federated_query as the
 %% shard's responder; and publishes the shard's summary, without which no
 %% query ever asks this shard. The summary's topics and bloom are empty:
-%% macula_rag 0.1 carries them but asks every shard whose embedding matches,
+%% macula_rag 0.2 carries them but asks every shard whose embedding matches,
 %% and defines no bloom format to fill.
 %%
 %% The pool may not exist yet when the service starts, so joining waits for

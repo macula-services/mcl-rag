@@ -2,7 +2,7 @@
 %%% apps under /api/v1/*. Each slice's *_api module exports a
 %%% routes/0 function returning a Cowboy-style route list.
 %%%
-%%% This is the local admin / debug surface; production traffic
+%%% This is the local admin / debug surface; real traffic
 %%% comes via mesh RPC (see mcl_rag_mesh_rpc), not HTTP.
 -module(mcl_rag_api_routes).
 
