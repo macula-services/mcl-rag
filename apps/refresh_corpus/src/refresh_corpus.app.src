@@ -1,6 +1,6 @@
 {application, refresh_corpus, [
     {description, "Detect corpus changes and schedule re-embed (CMD)"},
-    {vsn, "0.1.1"},
+    {vsn, "0.1.2"},
     {registered, []},
     {mod, {refresh_corpus_app, []}},
     {applications, [

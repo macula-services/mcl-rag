@@ -58,7 +58,7 @@
 <text class="t-desc" x="46" y="122">Six callbacks. capabilities/0: the seventeen procedures, each mcl-rag/&lt;name&gt; v1 through mcl_om_simple_handler.</text>
 <text class="t-desc" x="46" y="138">identity_spec/0: scope mcl-rag, no actions or resources, 30 days. No store_id/0 or data_dir/0: storeless.</text>
 <rect class="bound-in" x="32" y="180" width="928" height="112" rx="10"/>
-<text class="t-bound" x="48" y="202">mcl_om 0.33.1 [library: what every mcl-om service gets]</text>
+<text class="t-bound" x="48" y="202">mcl_om 0.33.3 [library: what every mcl-om service gets]</text>
 <rect class="b-cmp" x="48" y="208" width="168" height="68" rx="8"/>
 <text class="t-code t-small" x="60" y="228">identity key</text>
 <text class="t-desc" x="60" y="248">/etc/mcl/secrets; the node</text>
