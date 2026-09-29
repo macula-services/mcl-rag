@@ -69,12 +69,11 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 | `rag_store` | gen_server over barrel (`apps/rag`) | The one database, `rag_chunks`: chunk content, metadata and vectors, source records, watermarks and re-embed requests. Barrel never embeds by itself; callers pass the vector in |
 | `rag_embedder`, `rag_chunk_embedder` | Components (`apps/rag`) | `rag_embedder` decides the provider in one place, so stored vectors and queries always come from the same model: `ollama` on loopback (msi00) or `mcl_embedder` over the mesh. `rag_chunk_embedder` embeds in the caller's process, then writes, so the store's process never waits on the model |
 
-**No events.** The desks keep the command, handler and desk-per-capability shape, but none emits a domain event: every write goes straight to `rag_store`. A few command modules carry the `evoq_command` behaviour for their `from_map`/`validate` shape; nothing dispatches them through evoq, and no event store runs.
+**No events.** The desks keep the command, handler and desk-per-capability shape, but none emits a domain event: every write goes straight to `rag_store`. A few command modules carry the `evoq_command` behaviour for their `from_map`/`validate` shape; nothing dispatches them through evoq, and no event store runs. So `embed_corpus`, `refresh_corpus` and `serve_retrieval` list `evoq` and not `reckon_db` or `reckon_evoq`; a test holds every app to listing only what its modules use.
 
 ## Open questions
 
 - [ ] macula-fleet `origin/main` (19e27d8, 2026-09-29) declares msi00's `ollama.container` but no mcl-rag unit yet, and records msi00 as installed by `edge/msi00.lab/apply-quadlets.sh` rather than reconciled. Which file carries mcl-rag's placement, and which station does it pin?
-- [ ] `reckon_db`, `evoq` and `reckon_evoq` are listed as applications of `embed_corpus`, `refresh_corpus` and `serve_retrieval`, so they start although no event store is used. Keep or drop?
 
 ## Editing the diagrams
 
