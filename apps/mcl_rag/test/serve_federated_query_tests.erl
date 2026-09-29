@@ -20,7 +20,7 @@
 %% 0.2 (macula_rag on macula 13; the API is 0.1.0's, unchanged) is the release this
 %% module is written against.
 the_resolved_macula_rag_is_0_2_test() ->
-    ok = application:load(macula_rag),
+    ok = loaded(application:load(macula_rag)),
     {ok, Vsn} = application:get_key(macula_rag, vsn),
     ?assertMatch("0.2." ++ _, Vsn),
     {module, _} = code:ensure_loaded(macula_rag),
@@ -192,3 +192,6 @@ await_status(Want, N) ->
         Want -> ok;
         _    -> timer:sleep(20), await_status(Want, N - 1)
     end.
+
+loaded(ok)                            -> ok;
+loaded({error, {already_loaded, _}}) -> ok.

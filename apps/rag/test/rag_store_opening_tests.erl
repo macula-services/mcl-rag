@@ -15,6 +15,9 @@
 -include_lib("eunit/include/eunit.hrl").
 
 -define(DB, #{name => <<"rag_chunks">>}).
+%% The store opens barrel with rag_embedder's provider; these tests are about
+%% the open, not the model, so they name the stub (ollama needs a named model).
+-define(PROVIDER, {rag_embed_stub, #{dimension => 384}}).
 
 %% A call during the open is refused at once, not queued behind it.
 a_call_during_the_open_is_refused_not_queued_test() ->
@@ -78,6 +81,7 @@ with_held_open(Test) ->
     end),
     Dir = scratch_dir(),
     ok = application:set_env(mcl_rag, data_dir, Dir),
+    ok = application:set_env(mcl_rag, embed_provider, ?PROVIDER),
     {ok, Pid} = rag_store:start_link(),
     unlink(Pid),
     try
@@ -88,6 +92,7 @@ with_held_open(Test) ->
         wait_down(Pid),
         meck:unload(barrel),
         application:unset_env(mcl_rag, data_dir),
+        application:unset_env(mcl_rag, embed_provider),
         file:del_dir_r(Dir)
     end.
 
@@ -95,6 +100,7 @@ stop_reason(DataDir, OpenResult) ->
     ok = meck:new(barrel, [non_strict, no_link]),
     ok = meck:expect(barrel, open, fun(_, _) -> OpenResult end),
     ok = application:set_env(mcl_rag, data_dir, DataDir),
+    ok = application:set_env(mcl_rag, embed_provider, ?PROVIDER),
     process_flag(trap_exit, true),
     try
         {ok, Pid} = rag_store:start_link(),
@@ -103,6 +109,7 @@ stop_reason(DataDir, OpenResult) ->
         process_flag(trap_exit, false),
         meck:unload(barrel),
         application:unset_env(mcl_rag, data_dir),
+        application:unset_env(mcl_rag, embed_provider),
         file:del_dir_r(DataDir)
     end.
 

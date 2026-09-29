@@ -110,8 +110,9 @@ the_claim_carries_its_labels_test() ->
 every_directly_called_app_is_listed_test() ->
     [?assert(lists:member(Dep, applications(App)))
      || {App, Dep} <- [{mcl_rag, macula_rag}, {mcl_rag, ranch}, {rag, barrel_embed},
-                       %% mcl_om stopped bringing it in 0.27; the store is ours.
-                       {rag, barrel_docdb}]].
+                       %% rag calls barrel, and barrel lists barrel_docdb itself
+                       %% (barrel 1.3.1), so the release carries the store.
+                       {rag, barrel}]].
 
 %%==============================================================================
 
