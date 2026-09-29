@@ -112,7 +112,9 @@ every_directly_called_app_is_listed_test() ->
      || {App, Dep} <- [{mcl_rag, macula_rag}, {mcl_rag, ranch}, {rag, barrel_embed},
                        %% rag calls barrel, and barrel lists barrel_docdb itself
                        %% (barrel 1.3.1), so the release carries the store.
-                       {rag, barrel}]].
+                       {rag, barrel}]],
+    %% What makes dropping barrel_docdb from rag's list safe.
+    ?assert(lists:member(barrel_docdb, applications(barrel))).
 
 %%==============================================================================
 

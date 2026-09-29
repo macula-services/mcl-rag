@@ -5,8 +5,6 @@
 %%% filtering. Also verifies the mesh RPC route.
 %%%
 %%% The chat endpoint call itself is tested via a mock (no network in CI).
-%%% E2E verification with the real API is done separately — see
-%%% scripts/verify-topics-e2e.sh.
 -module(classify_topics_SUITE).
 
 -include_lib("common_test/include/ct.hrl").

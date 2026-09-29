@@ -51,7 +51,4 @@ restore(K, undefined) -> application:unset_env(mcl_rag, K);
 restore(K, {ok, V})   -> application:set_env(mcl_rag, K, V).
 
 with_provider(Provider, Test) ->
-    ok = application:set_env(mcl_rag, embed_provider, Provider),
-    try Test()
-    after application:unset_env(mcl_rag, embed_provider)
-    end.
+    with_env([{embed_provider, Provider}], Test).

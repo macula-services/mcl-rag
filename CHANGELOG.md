@@ -73,7 +73,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   longer lists `barrel_docdb` (barrel brings it) and `mcl_rag` no longer lists
   `barrel` (rag brings it). This removes redundant declarations only: mcl_om
   0.33 itself lists `reckon_db`, `evoq` and `reckon_evoq`, so they still start,
-  idle, until mcl_om starts them only for a service that declares a store.
+  idle, until mcl_om drops them (mcl-om#10: a service that wants a store lists
+  it itself). `evoq` is listed by the three apps whose commands use it.
 
 ### Fixed
 

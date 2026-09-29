@@ -81,6 +81,7 @@ with_held_open(Test) ->
     end),
     Dir = scratch_dir(),
     ok = application:set_env(mcl_rag, data_dir, Dir),
+    Was = application:get_env(mcl_rag, embed_provider),
     ok = application:set_env(mcl_rag, embed_provider, ?PROVIDER),
     {ok, Pid} = rag_store:start_link(),
     unlink(Pid),
@@ -92,7 +93,7 @@ with_held_open(Test) ->
         wait_down(Pid),
         meck:unload(barrel),
         application:unset_env(mcl_rag, data_dir),
-        application:unset_env(mcl_rag, embed_provider),
+        restore_provider(Was),
         file:del_dir_r(Dir)
     end.
 
@@ -100,6 +101,7 @@ stop_reason(DataDir, OpenResult) ->
     ok = meck:new(barrel, [non_strict, no_link]),
     ok = meck:expect(barrel, open, fun(_, _) -> OpenResult end),
     ok = application:set_env(mcl_rag, data_dir, DataDir),
+    Was = application:get_env(mcl_rag, embed_provider),
     ok = application:set_env(mcl_rag, embed_provider, ?PROVIDER),
     process_flag(trap_exit, true),
     try
@@ -109,9 +111,12 @@ stop_reason(DataDir, OpenResult) ->
         process_flag(trap_exit, false),
         meck:unload(barrel),
         application:unset_env(mcl_rag, data_dir),
-        application:unset_env(mcl_rag, embed_provider),
+        restore_provider(Was),
         file:del_dir_r(DataDir)
     end.
+
+restore_provider(undefined) -> application:unset_env(mcl_rag, embed_provider);
+restore_provider({ok, P})   -> application:set_env(mcl_rag, embed_provider, P).
 
 await_open(0) -> {error, still_opening};
 await_open(N) ->

@@ -5,6 +5,12 @@
 %% service's apps, every non-OTP application it lists must be used by one of its
 %% own modules: a module of that dependency is called (the beam's imports) or
 %% implemented as a behaviour. Read from the compiled beams, not by grep.
+%%
+%% One direction only: listed implies used. A dependency used but reached
+%% through another app's list (mcl_om, macula through mcl_rag) is not flagged.
+%% A provider called dynamically (barrel_embed_ollama via Module:embed/2) counts
+%% only through a static reference elsewhere in the app, here rag_embed_mcl_embedder's
+%% `-behaviour(barrel_embed_provider)'.
 -module(mcl_rag_app_deps_tests).
 
 -include_lib("eunit/include/eunit.hrl").
