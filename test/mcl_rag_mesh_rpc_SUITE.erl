@@ -48,8 +48,17 @@ ingest_embed_search_answer_prune_over_mesh_rpc(_Config) ->
                                       #{<<"document_id">> => DocId}),
     ?assert(N > 0),
 
+    %% The suites' embedder hashes text, so it cannot rank a query against a
+    %% passage (and e5 embeds the two differently on purpose). The route is
+    %% proven with the chunk's own stored vector, which must come back first;
+    %% a text query must still be answered through the same route.
+    {ok, [#{content := Stored} | _]} = rag_store:list_chunks_by_source(SourcePath, 10),
+    {ok, Vector} = rag_embedder:embed(passage, Stored),
+    {ok, _} = mcl_rag_mesh_rpc:dispatch(<<"mcl-rag.search_chunks_semantic">>,
+                                        #{<<"query_text">> => <<"largest rodent">>,
+                                          <<"top_k">> => 5}),
     {ok, Hits} = mcl_rag_mesh_rpc:dispatch(<<"mcl-rag.search_chunks_semantic">>,
-                                               #{<<"query_text">> => <<"largest rodent">>,
+                                               #{<<"query_vector">> => Vector,
                                                  <<"top_k">> => 5}),
     ?assert(hit_from_source(Hits, SourcePath)),
     %% ...and a hit's content reaches the wire as tagged, non-empty text.
@@ -58,13 +67,13 @@ ingest_embed_search_answer_prune_over_mesh_rpc(_Config) ->
 
     {ok, #{hits := AnswerHits}} =
         mcl_rag_mesh_rpc:dispatch(<<"mcl-rag.answer_query">>,
-                                      #{<<"query_text">> => <<"largest rodent">>, <<"top_k">> => 5}),
+                                      #{<<"query_vector">> => Vector, <<"top_k">> => 5}),
     ?assert(hit_from_source(AnswerHits, SourcePath)),
 
     {ok, _} = rag_test_helpers:operator_dispatch(<<"mcl-rag.prune_chunks">>,
                                             #{<<"document_id">> => DocId}),
     {ok, GoneHits} = mcl_rag_mesh_rpc:dispatch(<<"mcl-rag.search_chunks_semantic">>,
-                                                   #{<<"query_text">> => <<"largest rodent">>,
+                                                   #{<<"query_vector">> => Vector,
                                                      <<"top_k">> => 5}),
     ?assertNot(hit_from_source(GoneHits, SourcePath)).
 

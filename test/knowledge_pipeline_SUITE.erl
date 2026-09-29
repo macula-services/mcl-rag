@@ -96,12 +96,14 @@ upload_knowledge_chunks_are_searchable(_Config) ->
         <<"source_type">> => <<"text/markdown">>,
         <<"raw_bytes">> => Content
     }),
-    %% The chunk's own text, embedded by the same embedder, must find it. The
-    %% suites run a deterministic embedder (rag_embed_stub): it proves the
-    %% chunks are stored WITH vectors and searched through one embedder, not
-    %% semantic quality, which is mcl-embedder's to prove.
+    %% The chunk's own text, embedded as the passage it was stored as, must find
+    %% it. The suites run a deterministic embedder (rag_embed_stub): it proves
+    %% the chunks are stored WITH their passage vectors, not semantic quality.
+    %% A text search embeds as a query, a different vector by design (e5's
+    %% prefixes), which a hashing stub cannot rank.
     {ok, [#{content := Stored} | _]} = rag_store:list_chunks_by_source(SourcePath, 10),
-    {ok, Hits} = rag_store:search_text(Stored, 5),
+    {ok, Vector} = rag_embedder:embed(passage, Stored),
+    {ok, Hits} = rag_store:search_vector(Vector, 5),
     ?assert(hit_from_source(Hits, SourcePath)).
 
 %%% ===== add_knowledge =====
