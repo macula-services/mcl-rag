@@ -1,9 +1,9 @@
 %%% @doc How mcl-rag asks mcl-embedder for vectors.
 %%%
 %%% Two things are contract here. The procedure is `mcl-embedder/embed'. And
-%%% the kind is `raw': every vector already in the store was made from raw
-%%% text, and a query embedded with the model's `query:' prefix would not be
-%%% comparable with them.
+%%% the kind is `raw': rag_embedder has already put the model's role prefix
+%%% (`query: ' or `passage: ') on the text, and mcl-embedder would add its own
+%%% for `query'/`passage', prefixing twice.
 -module(rag_embed_mcl_embedder_tests).
 
 -include_lib("eunit/include/eunit.hrl").
