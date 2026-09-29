@@ -58,10 +58,17 @@ chosen(mcl_embedder) ->
     {rag_embed_mcl_embedder, #{dimension => dimension()}};
 chosen(ollama) ->
     Url = application:get_env(mcl_rag, embed_url, <<"http://127.0.0.1:11434">>),
-    Model = application:get_env(mcl_rag, embed_model, <<"nomic-embed-text">>),
-    {barrel_embed_ollama, #{url => to_bin(Url), model => to_bin(Model)}};
+    {barrel_embed_ollama, #{url => to_bin(Url), model => named(embedding())}};
 chosen({Module, Config}) when is_atom(Module), is_map(Config) ->
     {Module, Config}.
+
+%% The model the store is built with, from embedding/0: refused when unnamed,
+%% never replaced by one ollama happens to have, whose vectors would not fit
+%% the store's index.
+named(#{model := undefined}) ->
+    erlang:error({no_embed_model, "set mcl_rag's embed_model to the model the store is built with"});
+named(#{model := Model}) ->
+    Model.
 
 to_bin(B) when is_binary(B) -> B;
 to_bin(L) when is_list(L)   -> list_to_binary(L).

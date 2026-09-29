@@ -17,7 +17,7 @@ rustler = "0.34"
 # vendored, not which transports get compiled in. No local test caught
 # this: every Rust test here clones/fetches over a plain file path
 # (a local bare repo), never HTTPS, so the missing TLS backend only
-# showed up live in production ("there is no TLS stream available")
+# showed up live on the fleet ("there is no TLS stream available")
 # once the two earlier ownership/timeout bugs stopped masking it.
 # `ssh` deliberately omitted -- HTTPS only, per this crate's own module
 # doc. `vendored-openssl` alongside `vendored-libgit2` keeps the "no

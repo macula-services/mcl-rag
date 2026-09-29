@@ -9,3 +9,6 @@ data/
 # and a glibc NIF built on the workstation was committed through it.
 apps/*/priv/lib/
 native/*/target/
+# Python bytecode (measure/ scripts)
+__pycache__/
+*.pyc

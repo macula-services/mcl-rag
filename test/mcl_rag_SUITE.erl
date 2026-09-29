@@ -73,7 +73,7 @@ corpus_repos_config_reads_multiple_repos(Config) ->
 %% see that crate's own lib.rs), AND that corpus_git_sync's own
 %% config-driven, clone-if-missing, multi-repo behavior works end to
 %% end. Fixture repos are built with the real `git' CLI here -- fine
-%% for test setup; the property being proved is that PRODUCTION sync
+%% for test setup; the property being proved is that the RELEASE's sync
 %% (corpus_git_sync -> mcl_rag_corpus_sync_nif) needs no `git`
 %% binary at runtime, not that git tooling can never exist anywhere in
 %% the test environment.

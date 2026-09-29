@@ -300,7 +300,7 @@ mod tests {
     // bare repo) -- none of them exercise the actual HTTPS transport, which
     // is exactly what let a real bug (`default-features = false` on the
     // `git2` dep silently dropping the `https` feature, and with it the TLS
-    // backend) ship all the way to production undetected: "there is no TLS
+    // backend) ship all the way to the fleet undetected: "there is no TLS
     // stream available" only surfaced live, against a real
     // `https://github.com/...` URL, once the two earlier bugs (ownership
     // check, gen_server timeout) stopped masking it. `octocat/Hello-World`

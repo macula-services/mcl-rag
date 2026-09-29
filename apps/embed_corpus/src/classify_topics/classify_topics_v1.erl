@@ -1,7 +1,7 @@
 %%% @doc Parameters for `classify_topics'.
 %%%
 %%% Classifies a document's chunks into 1-5 topic labels per chunk,
-%%% using an LLM API (NVIDIA NIM by default). The document must already
+%%% using an LLM (the node's own ollama). The document must already
 %%% be embedded — `classify_topics' reads chunks back from `rag_store'
 %%% by `document_id', classifies each chunk's content, and tags the
 %%% stored chunk with the resulting topics.

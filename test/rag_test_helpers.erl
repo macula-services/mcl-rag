@@ -60,7 +60,7 @@ add_branch(undefined, Base) -> Base;
 add_branch(Branch, Base)    -> Base#{<<"branch">> => Branch}.
 
 %% @doc Put an mcl_rag env key back the way a test found it. Unsetting is not
-%% that: an unset `data_dir' falls to the production default, which is not
+%% that: an unset `data_dir' falls to the release default, which is not
 %% writable here, and every later suite then fails to open the store.
 -spec restore_env(atom(), {ok, term()} | undefined) -> ok.
 restore_env(Key, {ok, Value}) -> application:set_env(mcl_rag, Key, Value);

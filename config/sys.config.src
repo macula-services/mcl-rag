@@ -42,7 +42,9 @@
             enabled  => true,
             endpoint => <<"http://127.0.0.1:11434/v1/chat/completions">>,
             model    => <<"qwen2.5:7b-instruct-q4_K_M">>,
-            timeout  => 30000
+            %% A first call after ollama unloaded the model (5 min idle) loads
+            %% 7B from disk before it answers.
+            timeout  => 120000
         }}
     ]},
     {mcl_om, [

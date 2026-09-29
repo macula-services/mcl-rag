@@ -1,7 +1,7 @@
 %%% @doc The store opens at start, off its own process, and says so while it
 %%% does.
 %%%
-%%% Opening the production store rebuilds its HNSW index: 227 s for beam03's
+%%% Opening the full store rebuilds its HNSW index: 227 s for beam03's
 %%% 22,316 vectors on a workstation, longer on a Celeron. Opened lazily inside
 %%% the gen_server, the first call blocked it for all of that and every caller
 %%% queued behind it died on the 60 s call timeout, while size and the list

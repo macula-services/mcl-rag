@@ -1,7 +1,7 @@
 %%% @doc A desk passes a store refusal through; it does not crash on it.
 %%%
 %%% The store refuses every call with {error, store_opening} while it opens
-%%% (minutes on the production corpus), and can refuse for other reasons. The
+%%% (minutes on the full corpus), and can refuse for other reasons. The
 %%% desks matched only {error, not_found}, so any other refusal became a
 %%% case_clause, function_clause or badmatch inside the caller: a crashed
 %%% handler instead of an answer naming why. Each desk here meets a store that

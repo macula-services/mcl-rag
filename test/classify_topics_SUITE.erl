@@ -4,7 +4,7 @@
 %%% rag_store:tag_chunk storage, and search_chunks_semantic topic
 %%% filtering. Also verifies the mesh RPC route.
 %%%
-%%% The NVIDIA API call itself is tested via a mock (no network in CI).
+%%% The chat endpoint call itself is tested via a mock (no network in CI).
 %%% E2E verification with the real API is done separately — see
 %%% scripts/verify-topics-e2e.sh.
 -module(classify_topics_SUITE).
@@ -126,7 +126,7 @@ v1_validate_invalid_max_topics(_Config) ->
 %%% The API call itself is E2E verified separately.
 
 classifier_strip_code_fence_json(_Config) ->
-    %% NVIDIA wraps JSON in markdown code fences
+    %% A chat model may wrap JSON in markdown code fences
     Input = <<"```json\n[\"event sourcing\", \"ddd\"]\n```">>,
     Result = rag_topic_classifier:extract_topics(Input),
     ?assertEqual([<<"event sourcing">>, <<"ddd">>], Result).
@@ -155,7 +155,7 @@ classifier_extract_topics_empty_on_garbage(_Config) ->
 classifier_configured_false_when_no_env(_Config) ->
     %% The test config doesn't set topic_classifier, so it should
     %% report not configured. We temporarily clear any config that
-    %% might have leaked from dev.config.
+    %% might have leaked from another test.
     application:set_env(mcl_rag, topic_classifier, #{}),
     ?assertNot(rag_topic_classifier:configured()),
     application:unset_env(mcl_rag, topic_classifier).
@@ -203,7 +203,7 @@ handler_document_mode_tags_all_chunks(_Config) ->
     {ok, #{chunks := N}} = embed(DocId),
     ?assert(N > 0),
 
-    %% Mock the classifier — we're testing the handler, not NVIDIA
+    %% Mock the classifier — we're testing the handler, not the model
     meck:new(rag_topic_classifier, [passthrough]),
     meck:expect(rag_topic_classifier, classify, fun(_Text, _Max) ->
         {ok, [<<"event sourcing">>, <<"aggregate">>, <<"ddd">>]}

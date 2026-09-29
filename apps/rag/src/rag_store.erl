@@ -252,7 +252,7 @@ status() ->
 %%% gen_server
 
 %% The open starts here, in a linked process, not on the first call.
-%% Opening the production store rebuilds its HNSW index: 227 s for 22,316
+%% Opening the full store rebuilds its HNSW index: 227 s for 22,316
 %% vectors on a workstation, longer on a Celeron. Run inside this process it
 %% blocked every caller for all of that, and each died on the call timeout.
 init([]) ->
