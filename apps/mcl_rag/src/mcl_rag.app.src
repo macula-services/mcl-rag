@@ -17,8 +17,7 @@
         %% The org's federated retrieval (join_federation). Unlisted, relx
         %% leaves it out of the release and joining is `undef'.
         macula_rag,
-        barrel,
-        %% The slices, started before this app.
+        %% The slices, started before this app (rag brings barrel).
         rag,
         embed_corpus,
         refresh_corpus,

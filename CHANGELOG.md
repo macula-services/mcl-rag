@@ -66,6 +66,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   named a macula-ci-images commit.
 - The boot claim carries `MCL_SERVICE_NAME=mcl-rag` and the deploying host's
   `MCL_BOX`, so the realm's Providers desk shows the service and box.
+- Every app lists only the dependencies its own modules call or implement,
+  held by a test that reads the compiled beams (`mcl_rag_app_deps_tests`).
+  `embed_corpus`, `refresh_corpus` and `serve_retrieval` no longer list
+  `reckon_db` and `reckon_evoq` (the service has no event store), `rag` no
+  longer lists `barrel_docdb` (barrel brings it) and `mcl_rag` no longer lists
+  `barrel` (rag brings it). This removes redundant declarations only: mcl_om
+  0.33 itself lists `reckon_db`, `evoq` and `reckon_evoq`, so they still start,
+  idle, until mcl_om starts them only for a service that declares a store.
 
 ### Fixed
 

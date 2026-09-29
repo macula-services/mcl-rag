@@ -8,9 +8,10 @@
         stdlib,
         crypto,
         cowboy,
-        reckon_db,
+        %% evoq_command is the desks' command behaviour. No event store: the
+        %% service exports no store_id/0, so reckon_db and reckon_evoq are
+        %% not this app's (mcl_om still lists them; mcl-om's to fix).
         evoq,
-        reckon_evoq,
         rag
     ]},
     {env, []},
