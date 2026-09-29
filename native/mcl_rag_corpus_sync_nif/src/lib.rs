@@ -1,18 +1,13 @@
 //! mcl_rag_corpus_sync_nif
 //!
-//! Rustler NIF backing the corpus git-sync gen_server. Given a repo's
-//! URL and a local path, clones it if the path isn't a checkout yet;
-//! otherwise fetches `origin` for the checkout's current branch and
-//! fast-forwards it. Entirely via vendored libgit2 (statically linked
-//! at build time) -- no `git` binary needed on the host or in the
-//! container at runtime. Replaces an earlier bash-script-on-a-
-//! systemd-timer design that only handled the fetch/fast-forward half
-//! and assumed the checkout already existed.
-//!
-//! Deliberately `--ff-only` in spirit: a real merge is never
-//! attempted. A diverged history is reported as `not_fast_forward`
-//! and left untouched, the same safety property `git pull --ff-only`
-//! has.
+//! Rustler NIF backing the corpus git-sync gen_server. Given a repo's URL, a
+//! local path, a branch and a commit, clones the repo if the path isn't a
+//! checkout yet, fetches the branch, and checks out exactly that commit if the
+//! branch contains it. It never follows the branch head: the corpus list names
+//! the commit, reviewed in macula-fleet, so a push to a corpus repo is ingested
+//! only once the list is advanced to it. Entirely via vendored libgit2
+//! (statically linked at build time), no `git` binary on the host or in the
+//! container.
 //!
 //! HTTPS only (mirrors this fleet's actual clone convention -- see
 //! `macula-demo/infrastructure/gitops/README.md`'s enrollment step).
@@ -40,7 +35,7 @@
 //! and this NIF's own caller re-syncs the same handful of paths every
 //! 2 minutes for the life of the process.
 
-use git2::{AnnotatedCommit, FetchOptions, Reference, Repository};
+use git2::{FetchOptions, Oid, Repository};
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Mutex;
@@ -60,13 +55,12 @@ fn ensure_path_trusted(path: &str) -> Result<(), SyncError> {
 }
 
 pub enum Status {
-    Cloned,
     UpToDate,
-    FastForwarded { from: String, to: String },
+    Moved { from: String, to: String },
 }
 
 pub enum SyncError {
-    NotFastForward,
+    CommitNotOnBranch,
     Git(String),
 }
 
@@ -76,86 +70,58 @@ impl From<git2::Error> for SyncError {
     }
 }
 
-/// Ensures `path` is a checkout of `url` and current with it: clones if
-/// `path` has no `.git` yet (checking out `branch` if non-empty, else
-/// the remote's own default branch), otherwise fetches+fast-forwards
-/// whatever branch is already checked out (existing checkouts are
-/// never switched to a different branch by a config change -- that's
-/// a rarer, deliberate operator action, not something to do silently
-/// mid-poll-loop).
-pub fn clone_or_sync(url: &str, path: &str, branch: &str) -> Result<Status, SyncError> {
+/// Ensures `path` is a checkout of `url` at exactly `commit`: clones if `path`
+/// has no `.git` yet, fetches `branch` from origin, and checks `commit` out,
+/// detached, only if `branch` contains it. The branch head is never followed:
+/// what the checkout holds is what the corpus list names, so a push to a
+/// corpus repo reaches answers only once a reviewed list names its commit.
+/// A commit the branch does not contain is refused and the checkout is left
+/// where it was. The checkout is this service's own, so a local edit in it is
+/// replaced by the pinned content.
+pub fn sync_to_commit(url: &str, path: &str, branch: &str, commit: &str) -> Result<Status, SyncError> {
     ensure_path_trusted(path)?;
-    if Path::new(path).join(".git").is_dir() {
-        sync_inner(path)
+    let repo = if Path::new(path).join(".git").is_dir() {
+        Repository::open(path)?
     } else {
-        clone_inner(url, path, branch)
+        git2::build::RepoBuilder::new().branch(branch).clone(url, Path::new(path))?
+    };
+    let target = Oid::from_str(commit)?;
+    let tip = fetch_branch_tip(&repo, branch)?;
+    if !on_branch(&repo, tip, target) {
+        return Err(SyncError::CommitNotOnBranch);
     }
-}
-
-fn clone_inner(url: &str, path: &str, branch: &str) -> Result<Status, SyncError> {
-    let mut builder = git2::build::RepoBuilder::new();
-    if !branch.is_empty() {
-        builder.branch(branch);
-    }
-    builder.clone(url, Path::new(path))?;
-    Ok(Status::Cloned)
-}
-
-fn sync_inner(path: &str) -> Result<Status, SyncError> {
-    let repo = Repository::open(path)?;
-    let branch_name = current_branch_name(&repo)?;
-
-    fetch_origin(&repo, &branch_name)?;
-
-    let fetch_commit = fetch_head_commit(&repo)?;
-    let before = repo.head()?.peel_to_commit()?.id().to_string();
-
-    let analysis = repo.merge_analysis(&[&fetch_commit])?;
-    if analysis.0.is_up_to_date() {
+    let before = repo.head().ok().and_then(|h| h.target());
+    if before == Some(target) && repo.head_detached()? && clean(&repo)? {
         return Ok(Status::UpToDate);
     }
-    if !analysis.0.is_fast_forward() {
-        return Err(SyncError::NotFastForward);
-    }
-
-    fast_forward(&repo, &branch_name, &fetch_commit)?;
-    let after = fetch_commit.id().to_string();
-    Ok(Status::FastForwarded { from: before, to: after })
-}
-
-fn current_branch_name(repo: &Repository) -> Result<String, SyncError> {
-    let head = repo.head()?;
-    head.shorthand()
-        .map(|s| s.to_string())
-        .ok_or_else(|| SyncError::Git("HEAD is not a valid UTF-8 branch name".to_string()))
-}
-
-fn fetch_origin(repo: &Repository, branch_name: &str) -> Result<(), SyncError> {
-    let mut remote = repo.find_remote("origin")?;
-    let mut opts = FetchOptions::new();
-    remote.fetch(&[branch_name], Some(&mut opts), None)?;
-    Ok(())
-}
-
-fn fetch_head_commit(repo: &Repository) -> Result<AnnotatedCommit<'_>, SyncError> {
-    let fetch_head = repo.find_reference("FETCH_HEAD")?;
-    Ok(repo.reference_to_annotated_commit(&fetch_head)?)
-}
-
-fn fast_forward(
-    repo: &Repository,
-    branch_name: &str,
-    fetch_commit: &AnnotatedCommit,
-) -> Result<(), SyncError> {
-    let refname = format!("refs/heads/{branch_name}");
-    let mut reference: Reference = repo.find_reference(&refname)?;
-    reference.set_target(
-        fetch_commit.id(),
-        &format!("fast-forward: {refname} -> {}", fetch_commit.id()),
-    )?;
-    repo.set_head(&refname)?;
+    repo.set_head_detached(target)?;
     repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
-    Ok(())
+    Ok(Status::Moved {
+        from: before.map(|o| o.to_string()).unwrap_or_default(),
+        to: target.to_string(),
+    })
+}
+
+fn fetch_branch_tip(repo: &Repository, branch: &str) -> Result<Oid, SyncError> {
+    let mut remote = repo.find_remote("origin")?;
+    let refspec = format!("+refs/heads/{branch}:refs/remotes/origin/{branch}");
+    remote.fetch(&[refspec.as_str()], Some(&mut FetchOptions::new()), None)?;
+    let tip = repo.find_reference(&format!("refs/remotes/origin/{branch}"))?;
+    tip.target()
+        .ok_or_else(|| SyncError::Git(format!("origin/{branch} is not a direct reference")))
+}
+
+/// Whether `branch`'s tip is `target` or descends from it. A sha the fetch did
+/// not bring (another branch, a fork, a typo) is not on the branch either.
+fn on_branch(repo: &Repository, tip: Oid, target: Oid) -> bool {
+    repo.find_commit(target).is_ok()
+        && (tip == target || repo.graph_descendant_of(tip, target).unwrap_or(false))
+}
+
+fn clean(repo: &Repository) -> Result<bool, SyncError> {
+    let mut opts = git2::StatusOptions::new();
+    opts.include_untracked(false);
+    Ok(repo.statuses(Some(&mut opts))?.is_empty())
 }
 
 // The wrapper below pulls in `enif_*` symbols that only exist once this is
@@ -174,25 +140,19 @@ mod nif {
         rustler::atoms! {
             ok,
             error,
-            cloned,
             up_to_date,
-            fast_forwarded,
-            not_fast_forward,
+            moved,
+            commit_not_on_branch,
             git_error,
         }
     }
 
     #[rustler::nif(schedule = "DirtyIo")]
-    fn clone_or_sync<'a>(env: Env<'a>, url: String, path: String, branch: String) -> NifResult<Term<'a>> {
-        Ok(match super::clone_or_sync(&url, &path, &branch) {
-            Ok(Status::Cloned) => (atoms::ok(), atoms::cloned()).encode(env),
+    fn sync_to_commit<'a>(env: Env<'a>, url: String, path: String, branch: String, commit: String) -> NifResult<Term<'a>> {
+        Ok(match super::sync_to_commit(&url, &path, &branch, &commit) {
             Ok(Status::UpToDate) => (atoms::ok(), atoms::up_to_date()).encode(env),
-            Ok(Status::FastForwarded { from, to }) => {
-                (atoms::ok(), (atoms::fast_forwarded(), from, to)).encode(env)
-            }
-            Err(SyncError::NotFastForward) => {
-                (atoms::error(), atoms::not_fast_forward()).encode(env)
-            }
+            Ok(Status::Moved { from, to }) => (atoms::ok(), (atoms::moved(), from, to)).encode(env),
+            Err(SyncError::CommitNotOnBranch) => (atoms::error(), atoms::commit_not_on_branch()).encode(env),
             Err(SyncError::Git(msg)) => (atoms::error(), (atoms::git_error(), msg)).encode(env),
         })
     }
@@ -275,8 +235,8 @@ mod tests {
     }
 
     /// Same as `setup_remote_with_content` plus an already-cloned local
-    /// checkout -- what the three tests below exercise `clone_or_sync`'s
-    /// fetch+fast-forward branch against (the NIF under test operates on
+    /// checkout -- what the tests below exercise `sync_to_commit`'s
+    /// fetch-and-pin path against (the NIF under test operates on
     /// `local_clone_dir`, matching what a real corpus checkout on a beam
     /// host already is by the time this ever runs against it).
     fn setup() -> (TempDir, TempDir, TempDir) {

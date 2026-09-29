@@ -2,10 +2,11 @@
 %%% `corpus_repos_config:read/0'. Every `?POLL_INTERVAL_MS', re-reads
 %%% that config file (cheap, and it's what lets a repo being added or
 %%% removed there take effect on this service's very next tick with no
-%%% restart) and calls `mcl_rag_corpus_sync_nif:clone_or_sync/3' for
-%%% each one -- clones it if its local path doesn't exist yet,
-%%% otherwise fetches `origin' and fast-forwards. No OS `git` binary
-%%% involved, on the host or in the container.
+%%% restart) and calls `mcl_rag_corpus_sync_nif:sync_to_commit/4' for
+%%% each one -- clones it if its local path doesn't exist yet, fetches its
+%%% branch, and checks out exactly the listed commit. The branch head is
+%%% never followed: a reviewed macula-fleet change advances the commit. No
+%%% OS `git` binary involved, on the host or in the container.
 %%%
 %%% Lives here (service-level infrastructure, per `mcl_rag_sup''s
 %%% own module doc), not inside `refresh_corpus': it calls
@@ -18,7 +19,7 @@
 %%% "two independent, uncoordinated reconciliation loops, eventual
 %%% consistency" shape the fleet's own GitOps reconciler already has.
 %%% This loop's only job is
-%%% keeping every configured checkout current with git; noticing that
+%%% keeping every configured checkout at its listed commit; noticing that
 %%% files changed and re-embedding them is `refresh_corpus_scheduler''s
 %%% own separate concern, on its own separate timer, reading the same
 %%% config independently.
@@ -84,20 +85,17 @@ sync_repos({ok, Repos}) ->
 %% itself -- a fresh clone needs its own leaf directory to not already
 %% exist (the standard, well-supported case for a git clone target);
 %% an existing checkout's directory is already there either way.
-sync_one(#{id := Id, url := Url, branch := Branch, path := Path}) ->
+sync_one(#{id := Id, url := Url, branch := Branch, commit := Commit, path := Path}) ->
     ok = filelib:ensure_dir(Path),
-    log_result(Id, mcl_rag_corpus_sync_nif:clone_or_sync(Url, Path, Branch)).
+    log_result(Id, mcl_rag_corpus_sync_nif:sync_to_commit(Url, Path, Branch, Commit)).
 
-log_result(Id, {ok, cloned} = R) ->
-    logger:info("[corpus_git_sync] ~s: cloned", [Id]),
-    R;
 log_result(_Id, {ok, up_to_date} = R) ->
     R;
-log_result(Id, {ok, {fast_forwarded, From, To}} = R) ->
-    logger:info("[corpus_git_sync] ~s: fast-forwarded ~s -> ~s", [Id, From, To]),
+log_result(Id, {ok, {moved, From, To}} = R) ->
+    logger:info("[corpus_git_sync] ~s: checked out the listed commit ~s (was ~s)", [Id, To, From]),
     R;
-log_result(Id, {error, not_fast_forward} = R) ->
-    logger:warning("[corpus_git_sync] ~s: local checkout has diverged from origin -- left untouched", [Id]),
+log_result(Id, {error, commit_not_on_branch} = R) ->
+    logger:warning("[corpus_git_sync] ~s: the listed commit is not on its branch -- left where it was", [Id]),
     R;
 log_result(Id, {error, {git_error, Msg}} = R) ->
     logger:warning("[corpus_git_sync] ~s: git error: ~ts", [Id, Msg]),

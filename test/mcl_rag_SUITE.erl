@@ -6,11 +6,11 @@
 
 -export([all/0, init_per_suite/1, end_per_suite/1]).
 -export([service_info/1, capabilities_advertised/1, identity_spec_shape/1, mesh_rpc_dispatch_unknown/1,
-         corpus_repos_config_reads_multiple_repos/1, corpus_git_sync_clones_then_fast_forwards/1]).
+         corpus_repos_config_reads_multiple_repos/1, corpus_git_sync_follows_the_listed_commit/1]).
 
 all() ->
     [service_info, capabilities_advertised, identity_spec_shape, mesh_rpc_dispatch_unknown,
-     corpus_repos_config_reads_multiple_repos, corpus_git_sync_clones_then_fast_forwards].
+     corpus_repos_config_reads_multiple_repos, corpus_git_sync_follows_the_listed_commit].
 
 init_per_suite(Config) ->
     ok = rag_test_helpers:start_mcl_rag(),
@@ -62,22 +62,20 @@ corpus_repos_config_reads_multiple_repos(Config) ->
     ?assertEqual(<<"main">>, maps:get(branch, RepoA)),
     ?assertEqual(iolist_to_binary(filename:join([DataDir, "corpus", "repo-a"])), maps:get(path, RepoA)),
     ?assertEqual(<<"repo-b">>, maps:get(id, RepoB)),
-    ?assertEqual(<<>>, maps:get(branch, RepoB)),
+    ?assertEqual(<<"main">>, maps:get(branch, RepoB)),
+    ?assertMatch(<<_:40/binary>>, maps:get(commit, RepoB)),
 
     ok = rag_test_helpers:restore_env(corpus_repos_config, PrevReposConfig),
     ok = rag_test_helpers:restore_env(data_dir, PrevDataDir).
 
-%% End-to-end proof that the embedded Rust NIF actually loads and works
-%% inside a real running mcl_rag application, not just in the crate's
-%% own `cargo test' (which deliberately excludes the rustler wrapper --
-%% see that crate's own lib.rs), AND that corpus_git_sync's own
-%% config-driven, clone-if-missing, multi-repo behavior works end to
-%% end. Fixture repos are built with the real `git' CLI here -- fine
-%% for test setup; the property being proved is that the RELEASE's sync
-%% (corpus_git_sync -> mcl_rag_corpus_sync_nif) needs no `git`
-%% binary at runtime, not that git tooling can never exist anywhere in
-%% the test environment.
-corpus_git_sync_clones_then_fast_forwards(Config) ->
+%% End-to-end proof that the embedded Rust NIF loads and works inside a real
+%% running mcl_rag application (the crate's own `cargo test' excludes the
+%% rustler wrapper), and that corpus_git_sync ingests exactly the listed
+%% commit: it clones and checks it out, stays on it when the branch moves, and
+%% moves only when the list names a new commit. Fixture repos are built with
+%% the real `git' CLI here -- the property proved is that the RELEASE's sync
+%% needs no `git' binary at runtime.
+corpus_git_sync_follows_the_listed_commit(Config) ->
     TmpDir = ?config(priv_dir, Config),
     RemoteDir = filename:join(TmpDir, "remote.git"),
     OriginDir = filename:join(TmpDir, "origin-workdir"),
@@ -89,24 +87,33 @@ corpus_git_sync_clones_then_fast_forwards(Config) ->
     ok = git_init_bare(RemoteDir),
     ok = git_clone(RemoteDir, OriginDir),
     ok = git_commit_and_push(OriginDir, "corpus.md", "# v1\n", "initial"),
-    ok = rag_test_helpers:write_repos_config(ConfigPath, [#{id => RepoId, url => list_to_binary(RemoteDir)}]),
+    Branch = git_out(OriginDir, "rev-parse --abbrev-ref HEAD"),
+    V1 = git_out(OriginDir, "rev-parse HEAD"),
+    Pin = fun(Commit) ->
+        ok = rag_test_helpers:write_repos_config(ConfigPath, [#{id => RepoId, url => list_to_binary(RemoteDir),
+                                                                 branch => Branch, commit => Commit}])
+    end,
+    ok = Pin(V1),
     PrevReposConfig = application:get_env(mcl_rag, corpus_repos_config),
     ok = application:set_env(mcl_rag, corpus_repos_config, ConfigPath),
     PrevDataDir = application:get_env(mcl_rag, data_dir),
     ok = application:set_env(mcl_rag, data_dir, DataDir),
 
-    %% Local path doesn't exist yet -- clones itself, no manual pre-clone step.
-    ?assertEqual(#{RepoId => {ok, cloned}}, corpus_git_sync:sync_now()),
-    {ok, V1Content} = file:read_file(filename:join(LocalDir, "corpus.md")),
-    ?assertEqual(<<"# v1\n">>, V1Content),
-
+    %% Local path doesn't exist yet -- clones itself, at the listed commit.
+    ?assertEqual(#{RepoId => {ok, {moved, <<>>, V1}}}, corpus_git_sync:sync_now()),
+    ?assertEqual({ok, <<"# v1\n">>}, file:read_file(filename:join(LocalDir, "corpus.md"))),
     ?assertEqual(#{RepoId => {ok, up_to_date}}, corpus_git_sync:sync_now()),
 
+    %% A push to the branch is not ingested.
     ok = git_commit_and_push(OriginDir, "corpus.md", "# v2\n", "update"),
+    V2 = git_out(OriginDir, "rev-parse HEAD"),
+    ?assertEqual(#{RepoId => {ok, up_to_date}}, corpus_git_sync:sync_now()),
+    ?assertEqual({ok, <<"# v1\n">>}, file:read_file(filename:join(LocalDir, "corpus.md"))),
 
-    ?assertMatch(#{RepoId := {ok, {fast_forwarded, _, _}}}, corpus_git_sync:sync_now()),
-    {ok, V2Content} = file:read_file(filename:join(LocalDir, "corpus.md")),
-    ?assertEqual(<<"# v2\n">>, V2Content),
+    %% Advancing the list moves it.
+    ok = Pin(V2),
+    ?assertEqual(#{RepoId => {ok, {moved, V1, V2}}}, corpus_git_sync:sync_now()),
+    ?assertEqual({ok, <<"# v2\n">>}, file:read_file(filename:join(LocalDir, "corpus.md"))),
 
     ok = rag_test_helpers:restore_env(corpus_repos_config, PrevReposConfig),
     ok = rag_test_helpers:restore_env(data_dir, PrevDataDir).
@@ -132,6 +139,10 @@ git_ok(Cmd) ->
     Full = lists:flatten(Cmd),
     Output = os:cmd(Full ++ "; echo EXIT:$?"),
     check_exit(lists:suffix("EXIT:0\n", Output), Full, Output).
+
+%% A git command's trimmed output, as a binary (a sha, a branch name).
+git_out(Dir, Args) ->
+    list_to_binary(string:trim(os:cmd(lists:flatten(io_lib:format("git -C ~s ~s", [Dir, Args]))))).
 
 check_exit(true, _Full, _Output)  -> ok;
 check_exit(false, Full, Output) -> error({git_command_failed, Full, Output}).

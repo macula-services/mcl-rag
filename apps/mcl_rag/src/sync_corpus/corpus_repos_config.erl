@@ -15,16 +15,20 @@
 %%%
 %%% File shape:
 %%%   {"repos": [{"id": "macula", "url": "https://...",
-%%%               "branch": "main"}, ...]}
-%%% `branch' is optional; an absent/empty one means "whatever the
-%%% remote's own default branch is" (both `git2::build::RepoBuilder'
-%%% on first clone and plain HEAD tracking on subsequent syncs already
-%%% handle that without needing a specific name).
+%%%               "branch": "main", "commit": "<40 hex>"}, ...]}
+%%% EVERY ENTRY IS PINNED: `commit' is the reviewed commit corpus_git_sync
+%%% checks out, and `branch' the branch that must contain it. The branch head
+%%% is never followed, so a push to a corpus repo reaches answers only once a
+%%% reviewed macula-fleet change names its commit here. An entry without a
+%%% branch or a commit, or with a commit that is not 40 lowercase hex, refuses
+%%% the whole list, naming the entry: nothing moves, and no repo falls back to
+%%% following its branch.
 -module(corpus_repos_config).
 
 -export([read/0]).
 
--type repo() :: #{id := binary(), url := binary(), branch := binary(), path := binary()}.
+-type repo() :: #{id := binary(), url := binary(), branch := binary(), commit := binary(),
+                  path := binary()}.
 -export_type([repo/0]).
 
 %% Overridable so a test can point this at a fixture file instead of
@@ -56,13 +60,28 @@ decode(Bin) ->
     end.
 
 repos_from(#{<<"repos">> := Repos}) when is_list(Repos) ->
-    {ok, [normalize(R) || R <- Repos]};
+    pinned(Repos, []);
 repos_from(_) ->
     {error, missing_repos_key}.
 
-normalize(#{<<"id">> := Id, <<"url">> := Url} = R) ->
-    Branch = maps:get(<<"branch">>, R, <<>>),
-    #{id => Id, url => Url, branch => Branch, path => clone_path(Id)}.
+pinned([], Acc) -> {ok, lists:reverse(Acc)};
+pinned([R | Rest], Acc) ->
+    case entry(R) of
+        {ok, Repo} -> pinned(Rest, [Repo | Acc]);
+        {error, _} = E -> E
+    end.
+
+entry(#{<<"id">> := Id, <<"url">> := Url} = R) ->
+    checked(Id, Url, maps:get(<<"branch">>, R, <<>>), maps:find(<<"commit">>, R)).
+
+checked(Id, _Url, <<>>, _Commit) -> {error, {missing_branch, Id}};
+checked(Id, _Url, _Branch, error) -> {error, {unpinned_repo, Id}};
+checked(Id, Url, Branch, {ok, Commit}) ->
+    sha(Id, Commit, is_binary(Commit) andalso re:run(Commit, <<"^[0-9a-f]{40}$">>) =/= nomatch,
+        #{id => Id, url => Url, branch => Branch, commit => Commit, path => clone_path(Id)}).
+
+sha(_Id, _Commit, true, Repo) -> {ok, Repo};
+sha(Id, Commit, false, _Repo) -> {error, {malformed_commit, Id, Commit}}.
 
 clone_path(Id) ->
     DataDir = application:get_env(mcl_rag, data_dir, "/data"),
