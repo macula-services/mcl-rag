@@ -11,7 +11,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - The service starts. On mcl_om 0.33.2, `mcl_om_capabilities:register/1`
   advertised every procedure over the network inside a 5 s `gen_server:call`;
-  mcl-rag's seventeen outran it, and 0.1.1 failed in `start/2` on every boot
+  mcl-rag's eighteen (its seventeen plus mcl_om's `info`) outran it, and 0.1.1 failed in `start/2` on every boot
   on msi00. mcl_om 0.33.3 replies at once and advertises after, and mcl-rag
   requires it (`~> 0.33.3`).
 
