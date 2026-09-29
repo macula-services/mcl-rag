@@ -77,7 +77,7 @@ joining_configures_answers_and_summarizes_test() ->
         ?assertEqual({?POOL, ?REALM}, {Pool, Realm}),
         ?assertEqual(#{org => <<"mcl-rag">>, shard_id => atom_to_binary(node()),
                        realm_name => ?REALM_NAME,
-                       embedding => #{model => <<"intfloat/multilingual-e5-small">>, dim => 384}},
+                       embedding => #{model => <<"macula/multilingual-e5-small:f16">>, dim => 384}},
                      Opts),
         ?assertEqual(1, meck:num_calls(macula_rag, register_responder,
                                        [fun answer_federated_query:answer/2])),

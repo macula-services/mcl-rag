@@ -27,7 +27,7 @@ embed_and_store(Chunks) when is_list(Chunks) ->
 
 embed_one(#{chunk_id := ChunkId, content := Content} = Chunk, {Ok, Err}) ->
     Meta = maps:without([chunk_id, content], Chunk),
-    case rag_embedder:embed(Content) of
+    case rag_embedder:embed(passage, Content) of
         {ok, Vector} -> store_chunk(ChunkId, Content, Meta, Vector, Ok, Err);
         {error, Reason} -> {Ok, [{ChunkId, Reason} | Err]}
     end.

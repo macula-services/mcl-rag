@@ -9,7 +9,9 @@ Architecture: the C4 model (context, containers, components) is in [architecture
 It holds the mesh's shared memory: documents from a set of git repos plus the
 knowledge agents deposit, chunked and embedded (384 dims,
 `intfloat/multilingual-e5-small`, from the node's own ollama on loopback, where
-it is named `macula/multilingual-e5-small:f16`),
+it is named `macula/multilingual-e5-small:f16`; stored text is embedded with
+e5's `passage: ` prefix and queries with `query: `, see
+[`measure/e5_prefixes`](measure/e5_prefixes/PREREGISTRATION.md)),
 and answers retrieval over it. It also serves as one shard of the org's
 federated retrieval (`macula_rag`, procedure `mcl-rag/rag.query_shard_v1`).
 

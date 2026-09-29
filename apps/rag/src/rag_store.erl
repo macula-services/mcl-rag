@@ -146,7 +146,7 @@ tag_chunk(ChunkId, Topics) when is_binary(ChunkId), is_list(Topics) ->
 -spec search_text(binary(), pos_integer()) -> {ok, [map()]} | {error, term()}.
 search_text(QueryText, TopK)
   when is_binary(QueryText), is_integer(TopK), TopK > 0 ->
-    case rag_embedder:embed(QueryText) of
+    case rag_embedder:embed(query, QueryText) of
         {ok, Vector} -> search_vector(Vector, TopK);
         {error, _} = E -> E
     end.

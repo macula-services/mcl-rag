@@ -27,3 +27,24 @@ Fixed before any result was seen (this file, `corpus.json`, `queries.json` and
 
 Result: appended below after the run, with the model's manifest digest and the
 exact command.
+
+## Result (2026-09-29)
+
+Run on msi00 inside `ci-runners.slice`, from this directory at mcl-rag
+`054bcb5` (inputs unchanged since `a6dda76`), against msi00's ollama:
+
+    python3 measure.py --model macula/multilingual-e5-small:f16
+
+Model manifest `7bacd70e433ff8ef9ccb10bb9ed488ddcd122c406c6796c5c77819fed83227e5`
+(bert, 117.51M parameters, F16), 384 dimensions for every vector.
+
+| Variant | recall@5 | MRR@10 |
+| --- | --- | --- |
+| raw | 1.0 | 0.9083 |
+| `passage: ` / `query: ` | 1.0 | 0.9167 |
+
+Recall@5 ties; MRR@10 decides, and raw is not strictly better, so the
+prefixes stay (they would have stayed on a tie too). The whole difference is
+one query: q11's relevant passage ranks 3rd raw and 2nd prefixed; the other 19
+rank the same both ways. So this says the prefixes cost nothing on this set,
+not that they are measurably better. mcl-rag 0.1.1 embeds with them.

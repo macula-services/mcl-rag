@@ -5,6 +5,24 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Text is embedded in a role, with the prefix e5 is trained on: `passage: `
+  for everything stored (add, upload, ingest, embed, seed, the corpus
+  refresh) and `query: ` for every search (`answer_query`,
+  `search_chunks_semantic`, the federated shard answer). The pre-registered
+  measurement in `measure/e5_prefixes` kept them (recall@5 tied at 1.0,
+  MRR@10 0.9167 against 0.9083 raw: one query's rank). 0.1.0 was never
+  deployed, so no vector was stored without them.
+- The prefix scheme is keyed to the embed model id in `rag_embedder`, not a
+  setting: macula_rag merges scores between shards naming the same model and
+  dimension, so the model id decides how text becomes a vector. A model
+  mcl-rag has no scheme for is refused when the store opens.
+- `rag_embedder:embed/1` and `embed_batch/1` are `embed/2` and
+  `embed_batch/2`, taking the role (`query` or `passage`) first.
+
 ## [0.1.0] - 2026-09-29
 
 ### Added

@@ -12,19 +12,53 @@
 %%% Provider selection mirrors `rag_store:embedder()': `ollama' (the
 %%% node's own, on loopback; msi00's since 2026-09-29) or `mcl_embedder'
 %%% (over the mesh, for a node that cannot embed locally).
+%%%
+%%% Every text is embedded in a role: `passage' for what is stored, `query'
+%%% for what is searched. The model decides what the role adds: e5 is trained
+%%% on "passage: " and "query: " prefixes, and measure/e5_prefixes (2026-09-29)
+%%% kept them. The scheme is keyed to the model id, not set on its own, because
+%%% macula_rag merges scores between shards that name the same model and
+%%% dimension: the model id must fully decide how text becomes a vector.
 -module(rag_embedder).
 
--export([embed/1, embed_batch/1, dimension/0, embedding/0, provider/0]).
+-export([embed/2, embed_batch/2, dimension/0, embedding/0, provider/0]).
 
--spec embed(binary()) -> {ok, [float()]} | {error, term()}.
-embed(Text) when is_binary(Text) ->
-    {Module, Config} = provider(),
-    Module:embed(Text, Config).
+-export_type([role/0]).
 
--spec embed_batch([binary()]) -> {ok, [[float()]]} | {error, term()}.
-embed_batch(Texts) when is_list(Texts) ->
+-type role() :: query | passage.
+
+%% The embedding models mcl-rag knows, and the prefix each role gets. A model
+%% not listed is refused (provider/0): add it here with its scheme.
+-define(SCHEMES, #{<<"macula/multilingual-e5-small:f16">> => e5}).
+
+-spec embed(role(), binary()) -> {ok, [float()]} | {error, term()}.
+embed(Role, Text) when is_binary(Text) ->
     {Module, Config} = provider(),
-    Module:embed_batch(Texts, Config).
+    Module:embed(prefixed(Role, Text), Config).
+
+-spec embed_batch(role(), [binary()]) -> {ok, [[float()]]} | {error, term()}.
+embed_batch(Role, Texts) when is_list(Texts) ->
+    {Module, Config} = provider(),
+    Module:embed_batch([prefixed(Role, T) || T <- Texts], Config).
+
+prefixed(Role, Text) ->
+    <<(prefix(scheme(), Role))/binary, Text/binary>>.
+
+prefix(e5, query)   -> <<"query: ">>;
+prefix(e5, passage) -> <<"passage: ">>;
+prefix(none, _Role) -> <<>>.
+
+%% No model named: only a provider module named directly (the tests' stub)
+%% gets here, since ollama refuses an unnamed model. It embeds the text as is.
+scheme() ->
+    scheme(maps:get(model, embedding())).
+
+scheme(undefined) -> none;
+scheme(Model) ->
+    case maps:find(Model, ?SCHEMES) of
+        {ok, Scheme} -> Scheme;
+        error -> erlang:error({unknown_embed_model, Model, maps:keys(?SCHEMES)})
+    end.
 
 -spec dimension() -> pos_integer().
 dimension() ->
@@ -51,7 +85,10 @@ model(Model)     -> to_bin(Model).
 %% query is embedded with always come from the provider that made the stored
 %% ones.
 -spec provider() -> {module(), map()}.
+%% The model's prefix scheme is checked here too, so a model mcl-rag does not
+%% know stops the store's open instead of the first embed.
 provider() ->
+    _ = scheme(),
     chosen(application:get_env(mcl_rag, embed_provider, ollama)).
 
 chosen(mcl_embedder) ->

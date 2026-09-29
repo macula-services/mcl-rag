@@ -116,6 +116,17 @@ every_directly_called_app_is_listed_test() ->
     %% What makes dropping barrel_docdb from rag's list safe.
     ?assert(lists:member(barrel_docdb, applications(barrel))).
 
+%% The version the service reports (mcl-rag/info, the boot claim) is the app's
+%% and the release's: one bumped without the others names a build that is not
+%% the one running.
+the_versions_agree_test() ->
+    #{version := Reported} = mcl_rag_service:info(),
+    _ = application:load(mcl_rag),
+    {ok, App} = application:get_key(mcl_rag, vsn),
+    {match, [Release]} = re:run(read("rebar.config"), <<"\\{release, \\{mcl_rag, \"([^\"]+)\"\\}">>,
+                                [{capture, all_but_first, binary}]),
+    ?assertEqual({Reported, Reported}, {list_to_binary(App), Release}).
+
 %%==============================================================================
 
 applications(App) ->

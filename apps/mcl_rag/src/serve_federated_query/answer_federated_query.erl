@@ -15,7 +15,7 @@
 
 -spec answer(map(), #{top_k := pos_integer()}) -> {ok, [map()]} | {error, term()}.
 answer(#{<<"text">> := Text}, #{top_k := TopK}) when is_binary(Text), Text =/= <<>> ->
-    searched(rag_embedder:embed(Text), TopK);
+    searched(rag_embedder:embed(query, Text), TopK);
 answer(_Query, _Opts) ->
     {error, missing_text}.
 
