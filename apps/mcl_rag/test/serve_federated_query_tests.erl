@@ -8,6 +8,10 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+%% A hit as rag_store returns it: its provenance goes to the federated peer too.
+-define(PROVENANCE, #{kind => <<"corpus">>, repo_id => <<"r">>, path => <<"a.md">>,
+                      commit => binary:copy(<<"c">>, 40), content_sha256 => binary:copy(<<"d">>, 64)}).
+
 -define(REALM_NAME, <<"io.macula">>).
 -define(REALM, crypto:hash(sha256, ?REALM_NAME)).
 -define(POOL, whereis(init)). %% any stable pid: the mock runs in the joining process
@@ -37,7 +41,7 @@ a_query_is_embedded_here_and_searched_here_test() ->
         ?assertEqual(1, meck:num_calls(rag_embedder, embed, [query, <<"federated">>])),
         ?assertEqual(1, meck:num_calls(rag_store, search_vector, [?VECTOR, 3])),
         ?assertEqual(#{id => <<"c1">>, score => 0.9, content => <<"body">>,
-                       source_path => <<"a.md">>}, Hit)
+                       source_path => <<"a.md">>, provenance => ?PROVENANCE}, Hit)
     end).
 
 %% Every hit carries the contract's minimum, or macula_rag refuses the answer.
@@ -141,7 +145,8 @@ with_store(Test) ->
     ok = meck:expect(rag_embedder, embed, fun(_, _) -> {ok, ?VECTOR} end),
     ok = meck:expect(rag_store, search_vector, fun(_, _) ->
         {ok, [#{chunk_id => <<"c1">>, score => 0.9, content => <<"body">>,
-                source_path => <<"a.md">>, meta => #{<<"kind">> => <<"prose">>}}]}
+                source_path => <<"a.md">>, provenance => ?PROVENANCE,
+                meta => #{<<"kind">> => <<"prose">>}}]}
     end),
     try Test() after meck:unload([rag_embedder, rag_store]) end.
 
