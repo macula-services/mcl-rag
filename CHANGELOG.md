@@ -5,6 +5,15 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-09-30
+
+### Fixed
+
+- `:latest` is the signed release image. 0.1.3's promote step wrapped the
+  signed manifest in a new, unsigned index, so `:latest` named a digest no
+  signature covers; the step now copies the manifest as it is and fails unless
+  `:latest` resolves to the signed digest. No code change from 0.1.3.
+
 ## [0.1.3] - 2026-09-30
 
 ### Changed
