@@ -65,11 +65,24 @@ mcl-rag is the reference implementation of the RAG service contract
 - **The operator signs its corpus.** With an identity key, `describe_corpus`
   also returns `signature`, a macula signed object (CBOR bytes, carrying its
   key) over `{corpus_hash}` under the label `macula-rag corpus v1`, and
-  `signed_by`, the hex node id of that key. A caller verifies the object under
-  the label (`macula_signed_object:verify/3`), checks the signed hash equals
-  the described one, and checks that `signed_by`, derived from the carried
-  key, is the node it called. Without an identity key the corpus is unsigned
-  and neither field is present.
+  `signed_by`, the hex node id of that key, a display label only. Without an
+  identity key the corpus is unsigned and neither field is present.
+
+  The signature is static, so any provider can copy another's. A caller treats
+  a corpus as signed by node P only when all of these hold:
+  1. it called P itself: `macula:call/6` with `#{provider => P}`, P taken from
+     `macula:providers/3`. A `macula:call/5` caller does not know who
+     answered, so it treats the corpus as **unsigned**;
+  2. `macula_signed_object:verify/3` accepts the object under the label and
+     the caller's profile;
+  3. the node id derived from the `key` that `verify/3` returns
+     (`macula_node_keys:node_id(Key, Profile)`) is P. `signed_by` is never
+     evidence;
+  4. the signed `corpus_hash` equals the one the caller **recomputed** from
+     the described `model`, `dim` and `repos`, and the one on its
+     `answer_query` replies from P.
+
+  The signature says P vouched for that corpus; it does not say when.
 
 ## Health
 

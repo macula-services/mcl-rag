@@ -12,11 +12,17 @@
 %%% THE OPERATOR'S SIGNATURE (optional in the contract; mcl-rag signs when it
 %%% has an identity key). `signature' is a macula_signed_object, carrying its
 %%% key, over #{corpus_hash} under the label ?LABEL; `signed_by' is the hex node
-%%% id of that key. A caller verifies the object under the label and its own
-%%% profile, checks the signed hash equals the described one, and checks that
-%%% signed_by, derived from the carried key, is the node it called. The label
-%%% keeps this signature from ever passing for any other signed object. Without
-%%% an identity key the corpus is unsigned and neither key is present.
+%%% id of that key, a display label and never evidence. The label keeps this
+%%% signature from ever passing for any other signed object. Without an identity
+%%% key the corpus is unsigned and neither key is present.
+%%%
+%%% The object is static, so another provider can serve a copy of it. A caller
+%%% counts a corpus as signed by P only when it called P itself
+%%% (macula:call/6 with #{provider => P}; a call/5 caller does not know who
+%%% answered and treats the corpus as unsigned), the object verifies under
+%%% ?LABEL and the caller's profile, the node id derived from the key verify/3
+%%% returns is P, and the signed hash equals the one the caller recomputed from
+%%% model, dim and repos.
 %%%
 %%% A node with no corpus list serves only deposits: an empty corpus, still
 %%% named. A list that is there and refused names nothing, and is refused here
