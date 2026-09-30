@@ -5,6 +5,15 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-10-01
+
+### Changed
+
+- The corpus hash and the operator's signature come from macula_rag 0.3
+  (`~> 0.3`, the RAG service contract), not from this service's own copy of
+  the canonical JSON: the provider and every caller use one definition, held
+  to that library's frozen vectors. The hash and signatures are unchanged.
+
 ## [0.3.0] - 2026-09-30
 
 ### Added

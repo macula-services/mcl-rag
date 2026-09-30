@@ -50,15 +50,6 @@ a_refused_list_is_refused_test() ->
         ?assertMatch({error, {corpus_list_refused, _}}, describe_corpus:describe())
     end).
 
-%% RFC 8785: keys sorted, no whitespace, integers as they are, strings with
-%% only ", \ and control characters escaped (lowercase \u00xx), everything
-%% else as UTF-8.
-canonical_json_test() ->
-    ?assertEqual(<<"{\"a\":[1,\"x\"],\"b\":{\"c\":\"q\\\"b\\\\s\\n\\u0001", 16#c3, 16#a9, "/\"}}">>,
-                 describe_corpus:canonical_json(
-                     #{<<"b">> => #{<<"c">> => <<"q\"b\\s\n", 1, 16#c3, 16#a9, "/">>},
-                       <<"a">> => [1, <<"x">>]})).
-
 %%% Internals
 
 vector_list() ->
