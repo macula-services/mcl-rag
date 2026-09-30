@@ -90,9 +90,11 @@ repos_from(_) ->
 pinned([], Acc) -> {ok, lists:reverse(Acc)};
 pinned([R | Rest], Acc) ->
     case entry(R) of
-        {ok, #{id := Id} = Repo} -> unique(lists:any(fun(#{id := I}) -> I =:= Id end, Acc), Repo, Rest, Acc);
+        {ok, Repo} -> unique(seen(Repo, Acc), Repo, Rest, Acc);
         {error, _} = E -> E
     end.
+
+seen(#{id := Id}, Acc) -> lists:member(Id, [I || #{id := I} <- Acc]).
 
 unique(true, #{id := Id}, _Rest, _Acc) -> {error, {duplicate_id, Id}};
 unique(false, Repo, Rest, Acc)         -> pinned(Rest, [Repo | Acc]).
