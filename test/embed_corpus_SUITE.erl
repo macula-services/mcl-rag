@@ -93,12 +93,12 @@ seed_corpus_creates_verbatim_source(Config) ->
     ok = file:write_file(filename:join(TmpDir, RelPath), Content),
 
     {ok, _Stats} = maybe_seed_corpus:seed(seed_cmd(SeedId, TmpDir)),
-    ?assertEqual({ok, #{source_path => RelPath, raw_bytes => Content}},
+    ?assertMatch({ok, #{source_path := RelPath, raw_bytes := Content}},
                  rag_store:get_source_content(RelPath)),
 
     %% Re-seeding the same file (content unchanged) upserts, not errors.
     {ok, _Stats2} = maybe_seed_corpus:seed(seed_cmd(SeedId, TmpDir)),
-    ?assertEqual({ok, #{source_path => RelPath, raw_bytes => Content}},
+    ?assertMatch({ok, #{source_path := RelPath, raw_bytes := Content}},
                  rag_store:get_source_content(RelPath)).
 
 seed_cmd(SeedId, RootDir) ->
@@ -116,8 +116,16 @@ get_document_verbatim_round_trip(_Config) ->
     {ok, _} = ingest(DocId, SourcePath, Content),
 
     %% source_path is {text, _}-tagged for the wire; raw_bytes deliberately not.
-    ?assertEqual({ok, #{source_path => {text, SourcePath}, raw_bytes => Content}},
+    ?assertMatch({ok, #{source_path := {text, SourcePath}, raw_bytes := Content}},
                  get_document_verbatim:handle(SourcePath)),
+    %% An operator's ingest is a deposit, not corpus content: no repo, no
+    %% commit, and the hash of exactly these bytes.
+    ContentSha = binary:encode_hex(crypto:hash(sha256, Content), lowercase),
+    {ok, #{provenance := Provenance}} = get_document_verbatim:handle(SourcePath),
+    %% Text on the wire, like source_path; only raw_bytes stays bytes.
+    ?assertEqual(#{kind => {text, <<"deposit">>}, path => {text, SourcePath},
+                   content_sha256 => {text, ContentSha}},
+                 maps:without([deposited_by], Provenance)),
     ?assertEqual({error, not_found},
                  get_document_verbatim:handle(<<"no-such-path.md">>)).
 
@@ -233,7 +241,14 @@ refresh_scheduler_detects_and_refreshes_change(Config) ->
                  "Ituri rainforest of Congo.\n">>,
     ok = file:write_file(AbsPath, Original),
     ok = refresh_corpus_scheduler:scan(),
-    ?assertEqual({ok, #{source_path => NamespacedId, raw_bytes => Original}},
+    ?assertMatch({ok, #{source_path := NamespacedId, raw_bytes := Original}},
+                 rag_store:get_source_content(NamespacedId)),
+    %% The file is recorded as corpus content from its repo at the commit the
+    %% list pins (the fixture's), and so is every chunk made from it.
+    Pin = binary:copy(<<"0">>, 40),
+    OriginalSha = binary:encode_hex(crypto:hash(sha256, Original), lowercase),
+    ?assertMatch({ok, #{provenance := #{kind := <<"corpus">>, repo_id := RepoId, path := NamespacedId,
+                                        commit := Pin, content_sha256 := OriginalSha}}},
                  rag_store:get_source_content(NamespacedId)),
     %% Verbatim is not enough: the scheduler's refresh must also make the
     %% file a semantic hit (live, 2026-09-02: every git-synced file was
@@ -243,14 +258,14 @@ refresh_scheduler_detects_and_refreshes_change(Config) ->
 
     %% Unchanged content -- a second scan is a no-op, same content still there.
     ok = refresh_corpus_scheduler:scan(),
-    ?assertEqual({ok, #{source_path => NamespacedId, raw_bytes => Original}},
+    ?assertMatch({ok, #{source_path := NamespacedId, raw_bytes := Original}},
                  rag_store:get_source_content(NamespacedId)),
 
     %% Changed content -- the next scan picks it up.
     Updated = <<"# After\n\nUpdated content, different bytes.\n">>,
     ok = file:write_file(AbsPath, Updated),
     ok = refresh_corpus_scheduler:scan(),
-    ?assertEqual({ok, #{source_path => NamespacedId, raw_bytes => Updated}},
+    ?assertMatch({ok, #{source_path := NamespacedId, raw_bytes := Updated}},
                  rag_store:get_source_content(NamespacedId)),
 
     ok = rag_test_helpers:restore_env(corpus_repos_config, PrevReposConfig),
@@ -287,9 +302,9 @@ refresh_scheduler_namespaces_by_repo_to_avoid_collisions(Config) ->
 
     IdA = <<RepoA/binary, "/", RelPath/binary>>,
     IdB = <<RepoB/binary, "/", RelPath/binary>>,
-    ?assertEqual({ok, #{source_path => IdA, raw_bytes => <<"# From A\n">>}},
+    ?assertMatch({ok, #{source_path := IdA, raw_bytes := <<"# From A\n">>}},
                  rag_store:get_source_content(IdA)),
-    ?assertEqual({ok, #{source_path => IdB, raw_bytes => <<"# From B\n">>}},
+    ?assertMatch({ok, #{source_path := IdB, raw_bytes := <<"# From B\n">>}},
                  rag_store:get_source_content(IdB)),
 
     ok = rag_test_helpers:restore_env(corpus_repos_config, PrevReposConfig),
