@@ -42,7 +42,8 @@
     handle_list_sources_page/1,
     handle_get_document_verbatim/1,
     handle_detect_corpus_change/1,
-    handle_schedule_reembed/1
+    handle_schedule_reembed/1,
+    handle_describe_corpus/1
 ]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
@@ -91,6 +92,7 @@ handle_list_sources_page(P)      -> route(<<"mcl-rag.list_sources_page">>, P).
 handle_get_document_verbatim(P)  -> route(<<"mcl-rag.get_document_verbatim">>, P).
 handle_detect_corpus_change(P)   -> route(<<"mcl-rag.detect_corpus_change">>, P).
 handle_schedule_reembed(P)       -> route(<<"mcl-rag.schedule_reembed">>, P).
+handle_describe_corpus(P)        -> route(<<"mcl-rag.describe_corpus">>, P).
 
 %%% Internal: method → slice handler → mesh wire shape
 
@@ -142,7 +144,9 @@ desk(<<"mcl-rag.prune_chunks">>, P) ->
 desk(<<"mcl-rag.retire_document">>, P) ->
     maybe_retire_document:retire(P);
 desk(<<"mcl-rag.answer_query">>, P) ->
-    answer_query_result(maybe_answer_query:retrieve(P));
+    answer_query_result(describe_corpus:corpus_hash(), maybe_answer_query:retrieve(P));
+desk(<<"mcl-rag.describe_corpus">>, _P) ->
+    describe_corpus:describe();
 desk(<<"mcl-rag.rerank_results">>, P) ->
     rerank_result(maybe_rerank_results:rerank(P));
 desk(<<"mcl-rag.get_chunk_by_id">>, P) ->
@@ -167,8 +171,10 @@ desk(Other, _P) ->
 %% Both mirror their own HTTP handler's response shape (answer_query_api.erl/
 %% rerank_results_api.erl), so a mesh caller and an HTTP caller see the same
 %% contract for either.
-answer_query_result({ok, Hits})    -> {ok, #{hits => Hits}};
-answer_query_result({error, _} = E) -> E.
+%% The mesh reply also names the corpus that answered (describe_corpus).
+answer_query_result({ok, Hash}, {ok, Hits}) -> {ok, #{corpus_hash => Hash, hits => Hits}};
+answer_query_result({error, _} = E, _)      -> E;
+answer_query_result(_, {error, _} = E)      -> E.
 
 rerank_result({ok, Hits})    -> {ok, #{hits => Hits}};
 rerank_result({error, _} = E) -> E.

@@ -25,5 +25,7 @@ searched({error, _} = E, _TopK) -> E.
 hits({ok, Hits})      -> {ok, [hit(H) || H <- Hits]};
 hits({error, _} = E)  -> E.
 
-hit(#{chunk_id := Id, score := Score, content := Content, source_path := Path}) ->
-    #{id => Id, score => Score, content => Content, source_path => Path}.
+hit(#{chunk_id := Id, score := Score, content := Content, source_path := Path,
+      provenance := Provenance}) ->
+    #{id => Id, score => Score, content => Content, source_path => Path,
+      provenance => Provenance}.

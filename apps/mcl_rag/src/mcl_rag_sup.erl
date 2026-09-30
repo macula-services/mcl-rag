@@ -1,5 +1,5 @@
 %% @doc Supervises the service's own processes: the local HTTP API, the mesh
-%% RPC router the seventeen procedures go through, the corpus git sync, the
+%% RPC router the eighteen procedures go through, the corpus git sync, the
 %% re-embed scheduler, and this node's place in the org's federated retrieval. The per-slice apps (rag, embed_corpus, ...) boot on
 %% their own through the release.
 %%

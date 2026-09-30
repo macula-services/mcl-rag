@@ -5,6 +5,29 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-09-30
+
+### Added
+
+- **Provenance on everything returned.** Search hits (`answer_query`,
+  `search_chunks_semantic`), `get_chunk_by_id`, `list_chunks_by_source`,
+  source rows, `get_document_verbatim` and federated hits carry
+  `provenance`: `kind` (`corpus` | `deposit`), `path`, `content_sha256`, and
+  `repo_id` + `commit` for corpus content, the lines for a chunk,
+  `deposited_by` for a known depositor. The corpus refresh records the repo
+  and the pinned commit on each source, and every chunk write stamps the
+  sha256 of its text.
+- **`describe_corpus`** (open): `corpus_hash`, `model`, `dim` and the pinned
+  `repos`. The realm must grant it (D25) before it is advertised.
+- **`answer_query` names its corpus**: the reply is `{corpus_hash, hits}`.
+
+### Changed
+
+- The refresh's index generation is `provenance-v2`: on first start every
+  corpus file re-ingests once, with provenance. Deposits made before 0.2.0
+  carry none; msi00 starts on a fresh data volume, so there are none there.
+- A hit's `meta` no longer repeats the provenance fields.
+
 ## [0.1.6] - 2026-09-30
 
 ### Added

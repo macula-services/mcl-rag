@@ -69,6 +69,11 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 -define(DB_NAME, rag_chunks).
+%% Stored on every chunk (and source) so a hit carries its provenance without a
+%% second read: the corpus repo and the commit it was ingested at, or who
+%% deposited it, and the sha256 of the stored text.
+-define(PROVENANCE_FIELDS, [<<"repo_id">>, <<"commit">>, <<"content_sha256">>,
+                            <<"deposited_by">>]).
 -define(SOURCE_ID_PREFIX, "source:").
 -define(WATERMARK_ID_PREFIX, "watermark:").
 -define(REEMBED_ID_PREFIX, "reembed:").
@@ -390,7 +395,7 @@ open_in(ok) ->
             dimensions => dimension(),
             metadata_fields => [<<"source_path">>, <<"header_path">>, <<"kind">>,
                                 <<"start_line">>, <<"end_line">>, <<"type">>,
-                                <<"topics">>]
+                                <<"topics">> | ?PROVENANCE_FIELDS]
         }
     }).
 
@@ -515,12 +520,14 @@ normalize_write({ok, _RevInfo}) -> ok;
 normalize_write({error, _} = E) -> E.
 
 chunk_from_doc({ok, #{<<"id">> := Id, <<"content">> := Content} = Doc}) ->
-    {ok, #{chunk_id => Id, content => Content, meta => chunk_meta(Doc)}};
+    {ok, #{chunk_id => Id, content => Content, meta => chunk_meta(Doc),
+           provenance => provenance(Doc)}};
 chunk_from_doc(_NotFound) ->
     {error, not_found}.
 
 chunk_meta(Doc) ->
-    maps:without([<<"id">>, <<"content">>, <<"_embedding">>, <<"_rev">>, <<"type">>], Doc).
+    maps:without([<<"id">>, <<"content">>, <<"_embedding">>, <<"_rev">>, <<"type">>
+                  | ?PROVENANCE_FIELDS], Doc).
 
 chunk_count(Db) ->
     case barrel:vector_stats(Db) of
@@ -546,7 +553,8 @@ hit(Db, #{key := Id, score := Score} = Raw) ->
       content     => hit_content(Db, Id, maps:get(text, Raw, <<>>)),
       score       => Score,
       source_path => maps:get(<<"source_path">>, Meta, <<>>),
-      meta        => maps:without([<<"source_path">>], Meta)}.
+      provenance  => provenance(Meta),
+      meta        => maps:without([<<"source_path">> | ?PROVENANCE_FIELDS], Meta)}.
 
 hit_content(_Db, _Id, Text) when byte_size(Text) > 0 ->
     Text;
@@ -569,7 +577,10 @@ put_source_doc(Db, #{document_id := Id} = Source) ->
         <<"source_path">>  => field_or_empty(source_path, Source),
         <<"source_type">>  => field_or_empty(source_type, Source),
         <<"raw_bytes">>    => field_or_empty(raw_bytes, Source),
-        <<"deposited_by">> => field_or_empty(deposited_by, Source)
+        <<"deposited_by">> => field_or_empty(deposited_by, Source),
+        <<"repo_id">>      => field_or_empty(repo_id, Source),
+        <<"commit">>       => field_or_empty(commit, Source),
+        <<"content_sha256">> => sha256_hex(field_or_empty(raw_bytes, Source))
     },
     normalize_write(put_doc_upsert(Db, SourceDocId, Doc)).
 
@@ -598,14 +609,39 @@ source_row(Doc) ->
     omit_empty(deposited_by, maps:get(<<"deposited_by">>, Doc, <<>>),
         #{document_id => maps:get(<<"document_id">>, Doc),
           source_path => maps:get(<<"source_path">>, Doc, <<>>),
-          source_type => maps:get(<<"source_type">>, Doc, <<>>)}).
+          source_type => maps:get(<<"source_type">>, Doc, <<>>),
+          provenance  => provenance(Doc)}).
+
+%% THE CONTRACT'S PROVENANCE, from a stored chunk or source (binary keys):
+%% `corpus' content names its repo and the commit it was ingested at, anything
+%% else is a `deposit' and names who deposited it when that is known. A chunk
+%% adds its lines. `content_sha256' is the hash of the stored text (a chunk's
+%% content, a source's raw bytes). Empty or absent fields are left out.
+%% A corpus file unchanged across a pin move keeps the commit it was ingested
+%% at: its bytes are identical at the new pin, which the refresh proves by
+%% not seeing it change.
+provenance(Stored) ->
+    Base = #{kind => origin(maps:get(<<"repo_id">>, Stored, <<>>)),
+             path => maps:get(<<"source_path">>, Stored, <<>>)},
+    lists:foldl(fun({Key, Field}, Acc) -> omit_empty(Key, maps:get(Field, Stored, <<>>), Acc) end,
+                Base,
+                [{repo_id, <<"repo_id">>}, {commit, <<"commit">>},
+                 {start_line, <<"start_line">>}, {end_line, <<"end_line">>},
+                 {content_sha256, <<"content_sha256">>}, {deposited_by, <<"deposited_by">>}]).
+
+origin(RepoId) when is_binary(RepoId), RepoId =/= <<>> -> <<"corpus">>;
+origin(_None)                                           -> <<"deposit">>.
+
+sha256_hex(Bin) ->
+    binary:encode_hex(crypto:hash(sha256, Bin), lowercase).
 
 omit_empty(_Key, <<>>, Row) -> Row;
 omit_empty(Key, Value, Row) -> Row#{Key => Value}.
 
 source_content_from_doc({ok, #{<<"type">> := <<"source">>} = Doc}) ->
     {ok, #{source_path => maps:get(<<"source_path">>, Doc, <<>>),
-           raw_bytes   => maps:get(<<"raw_bytes">>, Doc, <<>>)}};
+           raw_bytes   => maps:get(<<"raw_bytes">>, Doc, <<>>),
+           provenance  => provenance(Doc)}};
 source_content_from_doc(_NotFoundOrNotASource) ->
     {error, not_found}.
 

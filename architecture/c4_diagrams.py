@@ -221,7 +221,7 @@ def containers():
 
     s.element("b-sys", 260, 100, 480, 220, "mcl-rag service",
               "[Container: OCI image, OTP 28 release, mcl_om 0.33.3]",
-              ["Seventeen procedures as mcl-rag/<name>, and rag.query_shard_v1",
+              ["Eighteen procedures as mcl-rag/<name>, and rag.query_shard_v1",
                "through macula_rag 0.2 (macula 13.0.1). From mcl-om: node",
                "identity, pinned outbound station dial, realm identity claim,",
                "provider grants, mcl-rag/info, /health on 8450.",
@@ -277,7 +277,7 @@ def components():
     s.bound("bound", 16, 40, 960, 1264, "mcl-rag service [Container]")
 
     s.component("b-sys", 32, 76, 928, 84, "apps/mcl_rag: mcl_rag_service", "[mcl_om_service behaviour]",
-                ["Six callbacks. capabilities/0: the seventeen procedures, each mcl-rag/<name> v1 through mcl_om_simple_handler.",
+                ["Six callbacks. capabilities/0: the eighteen procedures, each mcl-rag/<name> v1 through mcl_om_simple_handler.",
                  "identity_spec/0: scope mcl-rag, no actions or resources, 30 days. No store_id/0 or data_dir/0: storeless."])
 
     # What mcl-om provides

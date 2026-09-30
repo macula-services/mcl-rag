@@ -25,14 +25,14 @@ To serve your own corpus, see [Run your own corpus](docs/RUN_YOUR_OWN_CORPUS.md)
 
 ## The procedures
 
-Seventeen, each served as `mcl-rag/<name>` (version 1) under the org
+Eighteen, each served as `mcl-rag/<name>` (version 1) under the org
 `mcl-rag`. The realm has to grant this node a provider authorization for each
 one (D25). Until it does, nothing is advertised and `/health` names the
 missing grants.
 
 | Open to any caller the station admits | Operator-only |
 |---|---|
-| `answer_query`, `rerank_results`, `search_chunks_semantic`, `get_chunk_by_id`, `list_chunks_by_source`, `get_source_by_id`, `list_sources_page`, `get_document_verbatim`, `add_knowledge` | `prune_chunks`, `retire_document`, `ingest_document`, `upload_knowledge`, `embed_document`, `classify_topics`, `schedule_reembed`, `detect_corpus_change` |
+| `describe_corpus`, `answer_query`, `rerank_results`, `search_chunks_semantic`, `get_chunk_by_id`, `list_chunks_by_source`, `get_source_by_id`, `list_sources_page`, `get_document_verbatim`, `add_knowledge` | `prune_chunks`, `retire_document`, `ingest_document`, `upload_knowledge`, `embed_document`, `classify_topics`, `schedule_reembed`, `detect_corpus_change` |
 
 **Operators** are the node ids in `MCL_RAG_OPERATORS`. The check reads the
 caller as macula verified it on the wire, never a field the caller wrote. An
@@ -42,6 +42,26 @@ list means nobody, which is a valid setting. Anyone running
 
 Known callers: `macula-mcp` (`mesh_recall`, `mesh_remember`), `macula-cli` and
 `macula-lazymesh`.
+
+## Provenance and corpus identity
+
+mcl-rag is the reference implementation of the RAG service contract
+(macula-architecture `plans/DESIGN_RAG_SERVICE_CONTRACT.md`).
+
+- **Every hit says where it came from.** A search hit, a chunk fetched by id,
+  a source row, a verbatim document and a federated hit all carry
+  `provenance`: `kind` (`corpus` or `deposit`), `path`, `content_sha256` (the
+  sha256 of the stored text), plus `repo_id` and `commit` for corpus content,
+  the lines for a chunk, and `deposited_by` for a deposit whose depositor is
+  known. `commit` is the pin the content was ingested at. A file unchanged
+  across a pin move keeps it, since its bytes are the same at the new pin.
+- **Every answer names its corpus.** `answer_query` replies
+  `{corpus_hash, hits}`. `describe_corpus` returns `corpus_hash`, `model`,
+  `dim` and `repos` (id, url, branch, commit). `corpus_hash` is the lowercase
+  hex sha256 of the RFC 8785 canonical JSON of
+  `{"dim", "model", "repos": [{"branch", "commit", "id", "url"}]}`, repos in
+  list order, so a caller can recompute it. With no corpus list, the corpus
+  is empty and still named; a list that is refused makes both calls refuse.
 
 ## Health
 

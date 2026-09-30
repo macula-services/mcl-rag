@@ -49,7 +49,8 @@
 %%% file as changed again.
 %%%
 %%% `?INDEX_GENERATION' salts every hash. Bump it when what a refresh
-%%% WRITES changes shape (2026-09-02: chunks gained their vector), so
+%%% WRITES changes shape (2026-09-02: chunks gained their vector; 0.2.0:
+%%% chunks and sources gained their provenance), so
 %%% every file re-ingests exactly once on the next tick and a store
 %%% built by the old code catches up without anyone touching the corpus.
 %%%
@@ -71,7 +72,7 @@
 
 -define(POLL_INTERVAL_MS, 120000).
 -define(GLOB, "**/*.md").
--define(INDEX_GENERATION, <<"vectors-v1:">>).
+-define(INDEX_GENERATION, <<"provenance-v2:">>).
 -define(RETRY_WATERMARK, <<"retry">>).
 
 -spec start_link() -> {ok, pid()}.
@@ -122,24 +123,24 @@ scan_config({ok, Repos}) ->
 %% (which uses list ++) both require a list, unlike filelib:is_dir/1,
 %% which happens to accept either -- convert once, here, rather than
 %% at every call site downstream.
-scan_repo(#{id := RepoId, path := Root}) ->
+scan_repo(#{id := RepoId, commit := Pin, path := Root}) ->
     RootList = binary_to_list(Root),
-    scan_root(RepoId, filelib:is_dir(RootList), RootList).
+    scan_root(RepoId, Pin, filelib:is_dir(RootList), RootList).
 
 %% Not every configured repo is necessarily cloned yet (corpus_git_sync
 %% hasn't reached it on its own independent tick) -- skip quietly
 %% rather than erroring on a missing directory.
-scan_root(_RepoId, false, _Root) ->
+scan_root(_RepoId, _Pin, false, _Root) ->
     ok;
-scan_root(RepoId, true, Root) ->
+scan_root(RepoId, Pin, true, Root) ->
     Files = filelib:wildcard(filename:join(Root, ?GLOB)),
-    lists:foreach(fun(P) -> scan_file(RepoId, Root, P) end, Files).
+    lists:foreach(fun(P) -> scan_file(RepoId, Pin, Root, P) end, Files).
 
-scan_file(RepoId, Root, AbsPath) ->
+scan_file(RepoId, Pin, Root, AbsPath) ->
     RelPath = relative_path(Root, AbsPath),
     case file:read_file(AbsPath) of
         {ok, Content} ->
-            check_and_refresh(RepoId, RelPath, Content);
+            check_and_refresh(RepoId, Pin, RelPath, Content);
         {error, Reason} ->
             logger:warning("[refresh_corpus_scheduler] ~s: read error path=~ts ~p",
                             [RepoId, RelPath, Reason])
@@ -152,31 +153,33 @@ relative_path(RootDir, AbsPath) ->
     Prefix = string:trim(RootDir, trailing, "/") ++ "/",
     list_to_binary(string:replace(AbsPath, Prefix, "", leading)).
 
-check_and_refresh(RepoId, RelPath, Content) ->
+check_and_refresh(RepoId, Pin, RelPath, Content) ->
     DocId = namespaced_id(RepoId, RelPath),
     Hash = diff_hash(Content),
     Detect = #{<<"corpus_id">> => RepoId, <<"source_path">> => DocId,
                <<"diff_hash">> => Hash},
     case maybe_detect_corpus_change:detect(Detect) of
-        {ok, #{changed := 1}} -> refresh_changed(RepoId, DocId, Content);
+        {ok, #{changed := 1}} -> refresh_changed(RepoId, Pin, DocId, Content);
         {ok, #{changed := 0}} -> ok;
         {error, Reason} ->
             logger:warning("[refresh_corpus_scheduler] ~s: detect error path=~ts ~p",
                             [RepoId, DocId, Reason])
     end.
 
-refresh_changed(RepoId, DocId, Content) ->
+refresh_changed(RepoId, Pin, DocId, Content) ->
     %% Best-effort record; {error, not_ingested} for a brand-new file is
     %% expected (nothing to schedule against yet) and not itself an error --
     %% refresh_file below ingests it regardless.
     _ = maybe_schedule_reembed:schedule(#{<<"corpus_id">> => RepoId,
                                            <<"source_path">> => DocId}),
-    refresh_file(RepoId, DocId, Content).
+    refresh_file(RepoId, Pin, DocId, Content).
 
-refresh_file(RepoId, DocId, Content) ->
+%% Recorded as corpus content: this repo, at the commit its entry pins.
+refresh_file(RepoId, Pin, DocId, Content) ->
     Source = #{
         document_id => DocId, source_path => DocId,
-        source_type => <<"markdown">>, raw_bytes => Content
+        source_type => <<"markdown">>, raw_bytes => Content,
+        repo_id => RepoId, commit => Pin
     },
     source_refreshed(rag_store:upsert_source(Source), RepoId, DocId).
 

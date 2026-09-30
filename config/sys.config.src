@@ -60,7 +60,7 @@
         {identity_key_path, "/etc/mcl/secrets/identity.key"},
         {health_port,       ${MCL_HEALTH_PORT}},
         {capability_topic,  <<"_mesh.cap.">>},
-        %% The org the seventeen procedures are served under: `mcl-rag/<name>'.
+        %% The org the eighteen procedures are served under: `mcl-rag/<name>'.
         %% The realm must have granted THIS node a provider authorization for
         %% each (D25), or nothing is advertised and /health says so.
         {org,               <<"mcl-rag">>},

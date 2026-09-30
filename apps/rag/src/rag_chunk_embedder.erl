@@ -26,7 +26,9 @@ embed_and_store(Chunks) when is_list(Chunks) ->
     lists:foldl(fun embed_one/2, {0, []}, Chunks).
 
 embed_one(#{chunk_id := ChunkId, content := Content} = Chunk, {Ok, Err}) ->
-    Meta = maps:without([chunk_id, content], Chunk),
+    %% Every stored chunk carries the hash of its own text: the provenance a
+    %% caller checks a hit's content against.
+    Meta = (maps:without([chunk_id, content], Chunk))#{content_sha256 => sha256_hex(Content)},
     case rag_embedder:embed(passage, Content) of
         {ok, Vector} -> store_chunk(ChunkId, Content, Meta, Vector, Ok, Err);
         {error, Reason} -> {Ok, [{ChunkId, Reason} | Err]}
@@ -37,3 +39,6 @@ store_chunk(ChunkId, Content, Meta, Vector, Ok, Err) ->
         ok -> {Ok + 1, Err};
         {error, Reason} -> {Ok, [{ChunkId, Reason} | Err]}
     end.
+
+sha256_hex(Bin) ->
+    binary:encode_hex(crypto:hash(sha256, Bin), lowercase).

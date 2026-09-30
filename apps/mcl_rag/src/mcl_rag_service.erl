@@ -1,7 +1,7 @@
 %% @doc The mcl_om service contract for mcl-rag: the mesh's shared memory.
 %%
 %% Retrieval over a realm-bound corpus, and the deposits agents remember into
-%% it, served as seventeen org-namespaced procedures under `mcl-rag'. Its data
+%% it, served as eighteen org-namespaced procedures under `mcl-rag'. Its data
 %% is one barrel database, `rag_chunks' (documents and vectors), under the
 %% data dir. A store migrated from the predecessor service opens as it is.
 %%
@@ -15,7 +15,7 @@
 
 info() ->
     #{name => <<"mcl-rag">>,
-      version => <<"0.1.6">>,
+      version => <<"0.2.0">>,
       description => <<"The mesh shared memory: retrieval over a realm-bound corpus, and the deposits agents remember into it">>}.
 
 %% The operator list is checked before anything starts: a malformed one would
@@ -33,8 +33,8 @@ stop(_State) -> ok.
 %% this shard. Opening the store rebuilds the vector index, minutes on the
 %% full corpus, and every call is refused with `{error, store_opening}'
 %% meanwhile. The federated procedure is macula_rag's, not one of the
-%% seventeen, so mcl_om's provider_grants never lists it: join_federation
-%% reports its grant here. Whether callers can REACH each of the seventeen
+%% eighteen, so mcl_om's provider_grants never lists it: join_federation
+%% reports its grant here. Whether callers can REACH each of the eighteen
 %% (its D25 provider grant) is reported by mcl_om's /health itself, combined
 %% with this verdict.
 health() ->
@@ -46,7 +46,7 @@ store_health(_Pid)      -> opened(rag_store:status()).
 opened(open)    -> join_federation:health();
 opened(opening) -> {degraded, store_opening}.
 
-%% The seventeen procedures, registered by mcl_om as `mcl-rag/<name>' (the org
+%% The eighteen procedures, registered by mcl_om as `mcl-rag/<name>' (the org
 %% comes from config). Each goes through mcl_om's simple handler into
 %% mcl_rag_mesh_rpc's handler of the same name.
 %%
@@ -63,7 +63,7 @@ capabilities() ->
                            <<"search_chunks_semantic">>, <<"list_chunks_by_source">>,
                            <<"get_source_by_id">>, <<"list_sources_page">>,
                            <<"get_document_verbatim">>, <<"detect_corpus_change">>,
-                           <<"schedule_reembed">>]].
+                           <<"schedule_reembed">>, <<"describe_corpus">>]].
 
 cap(Name) ->
     #{name => Name, version => 1,

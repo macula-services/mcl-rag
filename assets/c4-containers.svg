@@ -67,7 +67,7 @@
 <rect class="b-sys" x="260" y="100" width="480" height="220" rx="10"/>
 <text class="t-name" x="276" y="128">mcl-rag service</text>
 <text class="t-type" x="276" y="146">[Container: OCI image, OTP 28 release, mcl_om 0.33.3]</text>
-<text class="t-desc" x="276" y="170">Seventeen procedures as mcl-rag/&lt;name&gt;, and rag.query_shard_v1</text>
+<text class="t-desc" x="276" y="170">Eighteen procedures as mcl-rag/&lt;name&gt;, and rag.query_shard_v1</text>
 <text class="t-desc" x="276" y="186">through macula_rag 0.2 (macula 13.0.1). From mcl-om: node</text>
 <text class="t-desc" x="276" y="202">identity, pinned outbound station dial, realm identity claim,</text>
 <text class="t-desc" x="276" y="218">provider grants, mcl-rag/info, /health on 8450.</text>

@@ -2,7 +2,7 @@
 
 *This exists so an agent anywhere on the mesh can recall what the org already knows, and deposit what it learns, in one call.*
 
-**Status: 2026-09-30, drawn from the 0.1.6 source** (mcl_om 0.33.3, macula 13.0.1, macula_rag 0.2). Everything here describes code that exists; the one thing marked *not used* is an alternative the code keeps but msi00 does not run.
+**Status: 2026-09-30, drawn from the 0.2.0 source** (mcl_om 0.33.3, macula 13.0.1, macula_rag 0.2). Everything here describes code that exists; the one thing marked *not used* is an alternative the code keeps but msi00 does not run.
 
 `mcl-rag` holds the mesh's shared memory: documents from a set of git repos plus the knowledge agents deposit, chunked, embedded and searchable by meaning. It answers retrieval over it, and it is one shard of its org's federated retrieval. It is an `mcl-om` service: one OTP release in one OCI container, with its node identity, pinned outbound station dial, realm identity claim, provider grants, `mcl-rag/info` and `/health` coming from [`mcl-om`](https://github.com/macula-services/mcl-om).
 
@@ -36,7 +36,7 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 
 | Container | Technology | Responsibility |
 | --- | --- | --- |
-| mcl-rag service | OCI image (`ghcr.io/macula-services/mcl-rag`, deployed by digest), OTP 28.4.3 release, `mcl_om_service` behaviour | Seventeen procedures as `mcl-rag/<name>` v1, `mcl-rag/rag.query_shard_v1` through macula_rag, the corpus sync and re-embed loops. Health on 8450, local HTTP API on 8451 (loopback) |
+| mcl-rag service | OCI image (`ghcr.io/macula-services/mcl-rag`, deployed by digest), OTP 28.4.3 release, `mcl_om_service` behaviour | Eighteen procedures as `mcl-rag/<name>` v1, `mcl-rag/rag.query_shard_v1` through macula_rag, the corpus sync and re-embed loops. Health on 8450, local HTTP API on 8451 (loopback) |
 | Data volume | Named volume `mcl-rag-data` at `/var/lib/mcl-rag` | One barrel database, `rag_chunks` (documents, and vectors under `vectors/`), barrel_docdb's `_barrel_system`, and the corpus checkouts under `corpus/<repo-id>`. Removing it wipes the memory and the node re-embeds the whole corpus |
 | Identity key | Named volume `mcl-rag-secrets` at `/etc/mcl/secrets` | The puzzle-hardened node key mcl-om generates on first boot; the node id survives a container recreate |
 | Corpus list | `deploy/corpus-repos.json`, bind-mounted read-only at `/etc/mcl-rag/corpus-repos.json` (or wherever `MCL_RAG_CORPUS_REPOS` names) | Which repos to sync, each at a pinned 40-hex `commit` on its `branch`, in the shape `schema/corpus-repos.schema.json` publishes; a list breaking it is refused, naming the entry. Each id is the watermark namespace, so renaming one re-embeds that repo |
@@ -54,7 +54,7 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 
 | Component | Kind | Responsibility |
 | --- | --- | --- |
-| `mcl_rag_service` | `mcl_om_service` module | Six callbacks. `capabilities/0` lists the seventeen procedures, each through `mcl_om_simple_handler` into `mcl_rag_mesh_rpc`. `identity_spec/0` claims scope `mcl-rag`, no actions or resources, 30 days. `health/0`: the store first, then the federation join. `start/1` refuses a malformed operator list |
+| `mcl_rag_service` | `mcl_om_service` module | Six callbacks. `capabilities/0` lists the eighteen procedures, each through `mcl_om_simple_handler` into `mcl_rag_mesh_rpc`. `identity_spec/0` claims scope `mcl-rag`, no actions or resources, 30 days. `health/0`: the store first, then the federation join. `start/1` refuses a malformed operator list |
 | `mcl_rag_mesh_rpc` | Router (`apps/mcl_rag`) | One handler per procedure. Every call passes `rag_operators` first, then the desk; replies are shaped for the wire (text, not bytes) |
 | `rag_operators` | Gate (`apps/mcl_rag`) | Eight procedures are operator-only: `prune_chunks`, `retire_document`, `ingest_document`, `upload_knowledge`, `embed_document`, `classify_topics`, `schedule_reembed`, `detect_corpus_change`. The caller is the node id macula verified on the wire, never a field the caller wrote. Anyone else gets `not_an_operator`; an empty list means nobody |
 | HTTP API | cowboy listener (`apps/mcl_rag`) | Port 8451 on loopback by default. Routes are collected from the slices' `*_api` modules. It has writes and no authentication, and does not apply the operator gate, which is why it stays on loopback. Adds `/api/rag/seed`; has no `get_document_verbatim` |

@@ -25,5 +25,9 @@ handle(_) ->
 %% `0x...' hex, so it goes out as `{text, Bin}'. `raw_bytes' stays a
 %% byte string on purpose -- it IS bytes, verbatim, and a caller hashes
 %% or writes them, never reads them as prose.
-as_wire({ok, #{source_path := Path} = Doc}) -> {ok, Doc#{source_path => {text, Path}}};
+as_wire({ok, #{source_path := Path, provenance := Provenance} = Doc}) ->
+    {ok, Doc#{source_path => {text, Path}, provenance => maps:map(fun text/2, Provenance)}};
 as_wire(Other)                              -> Other.
+
+text(_Key, V) when is_binary(V) -> {text, V};
+text(_Key, V)                   -> V.

@@ -46,10 +46,17 @@ do_embed(Cmd) ->
         {error, _} = Refused -> Refused
     end.
 
-chunk_and_store(Id, #{source_path := SourcePath, raw_bytes := RawBytes}) ->
+chunk_and_store(Id, #{source_path := SourcePath, raw_bytes := RawBytes} = Source) ->
     Path = source_path_or_id(SourcePath, Id),
-    Chunks = markdown_chunker:chunk_text(RawBytes, Path, ?MAX_CHUNK_CHARS),
+    Origin = origin(maps:get(provenance, Source, #{})),
+    Chunks = [maps:merge(C, Origin) || C <- markdown_chunker:chunk_text(RawBytes, Path, ?MAX_CHUNK_CHARS)],
     stored(Id, rag_chunk_embedder:embed_and_store(Chunks)).
+
+%% Every chunk carries where its document came from: the corpus repo and the
+%% commit it was ingested at, or who deposited it. A re-embed keeps it, since
+%% it is read from the source record, not from whoever asked for the re-embed.
+origin(Provenance) ->
+    maps:with([repo_id, commit, deposited_by], Provenance).
 
 %% Any failed chunk fails the document. Chunks already written stay
 %% written (each put is its own atomic barrel write, there is no larger
