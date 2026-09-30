@@ -1,17 +1,16 @@
 # Build the OCI image for mcl-rag and push to the registry.
 #
-# TWO CHANNELS, AND A TAG PUSH MUST NOT TOUCH :latest.
+# TWO CHANNELS, AND ONLY A RELEASE MOVES :latest.
 #
-#   push to main : publishes :latest        <- the tip of main, deploys nothing
-#   push of v*   : publishes :<semver> ONLY <- a release
+#   push of v*   : publishes :<semver> and :latest  <- the dev fleet's deploy channel
+#   push to main : publishes :main and :<sha>       <- the tip, for trying; nothing follows it
 #
-# The fleet runs a release BY DIGEST: macula-fleet pins the digest a v* tag
-# produced and reconciles the box to it, so a new image reaches a box only when
-# its pin is bumped. :latest is a moving label for trying the tip of main;
-# nothing on the fleet follows it. A tag that also moved :latest would make that
-# label jump to a release, so the two stay apart.
+# The dev fleet (macula-fleet) runs :latest: each box's reconciler pulls it, verifies the
+# digest it resolved to (signature, SBOM, provenance) and runs that digest. So a green v* tag
+# IS the deploy, with no commit to the fleet, and a push to main deploys nothing. The semver
+# tags stay published, so a bad release can be pinned back to a known one.
 #
-# NO PATH FILTER, ON PURPOSE. A docs-only push should not rebuild :latest and
+# NO PATH FILTER, ON PURPOSE. A docs-only push should not rebuild the image and
 # restart every box, but `paths-ignore' cannot be trusted with that: on the push
 # that CREATES a branch GitHub evaluates it on the head commit alone, so a first
 # push ending in a README edit silently built no image. scripts/is_image_push.sh
@@ -74,15 +73,15 @@ jobs:
         if: steps.gate.outputs.build == 'true'
         id: tag
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            echo "tags=ghcr.io/macula-services/mcl-rag:${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-          elif [[ "${GITHUB_REF}" == refs/heads/main ]]; then
-            echo "tags=ghcr.io/macula-services/mcl-rag:latest" >> "$GITHUB_OUTPUT"
-          else
-            # A build of any other ref (by hand) would overwrite :latest.
-            echo "build-push: only main publishes :latest and only a v* tag a version, not ${GITHUB_REF}" >&2
-            exit 1
-          fi
+          # :latest is the dev fleet's deploy channel: it moves only on a v* tag whose build went
+          # green, and a box picks it up on its next reconcile. main publishes :main and :<sha>
+          # for trying the tip; no box follows those.
+          img=ghcr.io/macula-services/mcl-rag
+          case "${GITHUB_REF}" in
+            refs/tags/v*)    echo "tags=$img:${GITHUB_REF#refs/tags/v},$img:latest" >> "$GITHUB_OUTPUT" ;;
+            refs/heads/main) echo "tags=$img:main,$img:${GITHUB_SHA}" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::only a v* tag publishes a version and :latest, only main :main and :<sha>; refusing ${GITHUB_REF}"; exit 1 ;;
+          esac
 
       - name: Build and push
         if: steps.gate.outputs.build == 'true'
