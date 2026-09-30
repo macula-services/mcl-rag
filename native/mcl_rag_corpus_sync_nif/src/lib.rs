@@ -91,7 +91,10 @@ pub fn sync_to_commit(url: &str, path: &str, branch: &str, commit: &str) -> Resu
         return Err(SyncError::CommitNotOnBranch);
     }
     let before = repo.head().ok().and_then(|h| h.target());
-    if before == Some(target) && repo.head_detached()? && clean(&repo)? {
+    // A checkout already at the pin (one a branch-following release left on
+    // its branch, too) holds the pinned content: detach it, nothing moved.
+    if before == Some(target) && clean(&repo)? {
+        repo.set_head_detached(target)?;
         return Ok(Status::UpToDate);
     }
     repo.set_head_detached(target)?;
