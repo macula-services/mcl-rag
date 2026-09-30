@@ -5,6 +5,18 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-09-30
+
+### Changed
+
+- The corpus is pinned. Every entry in `deploy/corpus-repos.json` carries a
+  40-hex `commit` on its `branch`; the node fetches the branch and checks out
+  that commit detached, so a push to a corpus repo reaches the store only when
+  the list moves its pin. A commit that is not on the branch is refused
+  (`commit_not_on_branch`), and so is an entry with no commit or a malformed
+  one, by name. The 14 shipped repos are pinned to their heads of 2026-09-30.
+- CI runs the corpus-sync NIF's Rust tests (`cargo test --locked`).
+
 ## [0.1.2] - 2026-09-29
 
 ### Fixed

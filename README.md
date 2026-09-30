@@ -16,9 +16,10 @@ and answers retrieval over it. It also serves as one shard of the org's
 federated retrieval (`macula_rag`, procedure `mcl-rag/rag.query_shard_v1`).
 
 The data is one barrel database, `rag_chunks`, under `MCL_DATA_DIR`, next to the
-corpus checkouts. `deploy/corpus-repos.json` lists the repos. The node keeps
-them fast-forwarded (vendored libgit2, HTTPS only) and re-embeds whatever
-changes. The ids in that file are the watermark namespace, so renaming one
+corpus checkouts. `deploy/corpus-repos.json` lists the repos, each pinned to a
+reviewed `commit` on its `branch`. The node fetches the branch and checks out
+exactly that commit (vendored libgit2, HTTPS only), so a push to a corpus repo
+changes nothing until the list moves its pin; it re-embeds whatever changes. The ids in that file are the watermark namespace, so renaming one
 re-embeds that repo from scratch.
 
 ## The procedures

@@ -19,7 +19,7 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 | macula-mcp | MCP server outside the fleet. `mesh_recall` calls `mcl-rag/answer_query`, `mesh_remember` calls `mcl-rag/add_knowledge`, `mesh_remember_directory` calls `mcl-rag/upload_knowledge` once per file |
 | macula-cli, macula-lazymesh | Mesh clients. Any caller may query; the operator-only procedures work only for a listed operator |
 | Operator | A node id in `MCL_RAG_OPERATORS`, allowed to rewrite or delete what the store holds. On the box itself, also the only user of the loopback HTTP API |
-| Corpus repos | The public GitHub repos in `deploy/corpus-repos.json` (14 today), cloned and fast-forwarded over HTTPS, no credentials |
+| Corpus repos | The public GitHub repos in `deploy/corpus-repos.json` (14 today), cloned over HTTPS, no credentials, and held at the commit each entry pins |
 | Other mcl-rag shards | The org's federated retrieval (`macula_rag`): a peer asks this shard with `mcl-rag/rag.query_shard_v1`. Scores merge only between shards naming the same model and dimension |
 | macula-station | The pinned home station the service dials out to over QUIC; every call to and from this node goes through it |
 | macula-realm | Takes the boot identity claim and grants a D25 provider authorization for each procedure; its public key (`MCL_REALM_KEY`) is the trust anchor for every advertisement |
@@ -39,7 +39,7 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 | mcl-rag service | OCI image (`ghcr.io/macula-services/mcl-rag`, deployed by digest), OTP 28.4.3 release, `mcl_om_service` behaviour | Seventeen procedures as `mcl-rag/<name>` v1, `mcl-rag/rag.query_shard_v1` through macula_rag, the corpus sync and re-embed loops. Health on 8450, local HTTP API on 8451 (loopback) |
 | Data volume | Named volume `mcl-rag-data` at `/var/lib/mcl-rag` | One barrel database, `rag_chunks` (documents, and vectors under `vectors/`), barrel_docdb's `_barrel_system`, and the corpus checkouts under `corpus/<repo-id>`. Removing it wipes the memory and the node re-embeds the whole corpus |
 | Identity key | Named volume `mcl-rag-secrets` at `/etc/mcl/secrets` | The puzzle-hardened node key mcl-om generates on first boot; the node id survives a container recreate |
-| Corpus list | `deploy/corpus-repos.json`, bind-mounted read-only at `/etc/mcl-rag/corpus-repos.json` | Which repos to sync. Each id is the watermark namespace, so renaming one re-embeds that repo |
+| Corpus list | `deploy/corpus-repos.json`, bind-mounted read-only at `/etc/mcl-rag/corpus-repos.json` | Which repos to sync, each at a pinned 40-hex `commit` on its `branch`; an entry without one is refused. Each id is the watermark namespace, so renaming one re-embeds that repo |
 | ollama | Its own Quadlet unit on msi00, `127.0.0.1:11434` | `macula/multilingual-e5-small:f16` (built on msi00 from intfloat's weights), 384 dimensions, for every stored vector (as `passage: ` text) and every query (as `query: ` text); `qwen2.5:7b-instruct-q4_K_M` through the OpenAI-compatible endpoint for topics |
 
 **Placement.** The service runs on msi00, a lab box, with host networking: macula stations are reachable over IPv6 and a default bridge has none. The service's own compose file (`deploy/docker-compose.yml`) carries what the service knows about itself; placement (which box, station, realm, secrets) belongs to macula-fleet.
