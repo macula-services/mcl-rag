@@ -296,8 +296,9 @@ latest_moves_only_after_attest_on_a_version_tag_test() ->
     Has(<<"exit 1 ;;">>),
     Has(<<"\n  promote-latest:\n    needs: [build-and-push, attest]\n"
           "    if: startsWith(github.ref, 'refs/tags/v')">>),
-    Has(<<"imagetools create --tag \"$IMAGE:latest\" \"$IMAGE@$DIGEST\"">>),
-    ?assertEqual(1, length(binary:matches(Body, <<"$IMAGE:latest">>))),
+    Has(<<"imagetools create --prefer-index=false --tag \"$IMAGE:latest\" \"$IMAGE@$DIGEST\"">>),
+    Has(<<"if [ \"$got\" != \"$DIGEST\" ]; then">>),
+    ?assertEqual(1, length(binary:matches(Body, <<"imagetools create">>))),
     ?assertEqual(nomatch, binary:match(Body, <<",$img:latest">>)).
 
 %% Raf, 2026-09-29: embeddings from msi00's ollama, the e5 model built there
