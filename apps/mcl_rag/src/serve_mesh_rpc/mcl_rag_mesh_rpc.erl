@@ -104,8 +104,8 @@ handle_describe_corpus(P)        -> route(<<"mcl-rag.describe_corpus">>, P).
 %% once here, at the mesh boundary, and every binary in it becomes
 %% `{text, Bin}'. Here and not in the desks: the same desks serve HTTP
 %% through their `*_api' modules, where jsx wants bare binaries.
-%% `get_document_verbatim' is the one exception and shapes itself: its
-%% `raw_bytes' really are bytes and must stay so.
+%% `get_document_verbatim' shapes itself: its `raw_bytes' really are bytes and
+%% must stay so; so does `describe_corpus''s `signature'.
 %% Every procedure passes the operator gate first: open ones pass for anyone,
 %% the destructive ones only for a verified operator (rag_operators).
 route(Method, P) ->
@@ -118,8 +118,18 @@ procedure(<<"mcl-rag.", Name/binary>>) -> Name.
 
 routed(<<"mcl-rag.get_document_verbatim">> = Method, P) ->
     desk(Method, P);
+routed(<<"mcl-rag.describe_corpus">> = Method, P) ->
+    signature_as_bytes(desk(Method, P));
 routed(Method, P) ->
     as_wire(desk(Method, P)).
+
+%% describe_corpus's signature is a CBOR signed object, bytes on the wire; the
+%% rest of the description is text like any other reply.
+signature_as_bytes({ok, #{signature := Signature} = D}) ->
+    {ok, Wire} = as_wire({ok, maps:remove(signature, D)}),
+    {ok, Wire#{signature => Signature}};
+signature_as_bytes(Other) ->
+    as_wire(Other).
 
 as_wire({ok, Value}) -> {ok, text_wire(Value)};
 as_wire(Other)       -> Other.

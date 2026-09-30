@@ -1,6 +1,6 @@
 {application, mcl_rag, [
     {description, "The mesh shared memory: retrieval over a realm-bound corpus, and the deposits agents remember into it"},
-    {vsn, "0.2.0"},
+    {vsn, "0.3.0"},
     {registered, [mcl_rag_sup, mcl_rag_mesh_rpc, corpus_git_sync, refresh_corpus_scheduler]},
     {mod, {mcl_rag_app, []}},
     {applications, [
@@ -14,6 +14,8 @@
         ranch,
         %% Mesh SDK, realm identity, capabilities, health.
         mcl_om,
+        %% describe_corpus signs with the node's identity key (macula_signed_object).
+        macula,
         %% The org's federated retrieval (join_federation). Unlisted, relx
         %% leaves it out of the release and joining is `undef'.
         macula_rag,

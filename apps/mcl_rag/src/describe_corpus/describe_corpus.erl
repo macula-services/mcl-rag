@@ -9,6 +9,15 @@
 %%% answer_query reply carries it, so a caller can tell which corpus answered
 %%% and recompute the hash from this description.
 %%%
+%%% THE OPERATOR'S SIGNATURE (optional in the contract; mcl-rag signs when it
+%%% has an identity key). `signature' is a macula_signed_object, carrying its
+%%% key, over #{corpus_hash} under the label ?LABEL; `signed_by' is the hex node
+%%% id of that key. A caller verifies the object under the label and its own
+%%% profile, checks the signed hash equals the described one, and checks that
+%%% signed_by, derived from the carried key, is the node it called. The label
+%%% keeps this signature from ever passing for any other signed object. Without
+%%% an identity key the corpus is unsigned and neither key is present.
+%%%
 %%% A node with no corpus list serves only deposits: an empty corpus, still
 %%% named. A list that is there and refused names nothing, and is refused here
 %%% too, so it cannot pass for an empty one.
@@ -16,14 +25,35 @@
 
 -export([describe/0, corpus_hash/0, canonical_json/1]).
 
+-define(LABEL, <<"macula-rag corpus v1">>).
+
 -spec describe() -> {ok, map()} | {error, term()}.
 describe() ->
-    described(listed(corpus_repos_config:read()), rag_embedder:embedding()).
+    signed(identity(), unsigned()).
 
-%% @doc The hash alone, for answer_query.
+%% @doc The hash alone, for answer_query: nothing to sign there.
 -spec corpus_hash() -> {ok, binary()} | {error, term()}.
 corpus_hash() ->
-    hashed(describe()).
+    hashed(unsigned()).
+
+unsigned() ->
+    described(listed(corpus_repos_config:read()), rag_embedder:embedding()).
+
+identity() ->
+    identity_key(mcl_om:identity_key()).
+
+identity_key({ok, Key})   -> identity_node(macula_node_keys:node_id(Key), Key);
+identity_key({error, _})  -> unsigned.
+
+identity_node({ok, NodeId}, Key) -> {Key, NodeId};
+identity_node({error, _}, _Key)  -> unsigned.
+
+signed({Key, NodeId}, {ok, #{corpus_hash := Hash} = D}) ->
+    Object = macula_signed_object:sign(?LABEL, #{{text, <<"corpus_hash">>} => {text, Hash}}, Key),
+    {ok, D#{signature => macula_signed_object:encode(Object),
+            signed_by => binary:encode_hex(NodeId, lowercase)}};
+signed(_Unsigned, Described) ->
+    Described.
 
 hashed({ok, #{corpus_hash := Hash}}) -> {ok, Hash};
 hashed({error, _} = E)              -> E.

@@ -1,6 +1,6 @@
 {application, serve_retrieval, [
     {description, "Answer retrieval queries from the index (CMD)"},
-    {vsn, "0.2.0"},
+    {vsn, "0.3.0"},
     {registered, []},
     {mod, {serve_retrieval_app, []}},
     {applications, [

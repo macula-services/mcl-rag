@@ -5,6 +5,16 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-09-30
+
+### Added
+
+- `describe_corpus` is signed by the operator's node: `signature` (a
+  macula_signed_object over `{corpus_hash}` under the label
+  `macula-rag corpus v1`, carrying its key; bytes on the wire) and
+  `signed_by` (the hex node id of that key). A node with no identity key
+  describes an unsigned corpus, without either field.
+
 ## [0.2.0] - 2026-09-30
 
 ### Added

@@ -62,6 +62,14 @@ mcl-rag is the reference implementation of the RAG service contract
   `{"dim", "model", "repos": [{"branch", "commit", "id", "url"}]}`, repos in
   list order, so a caller can recompute it. With no corpus list, the corpus
   is empty and still named; a list that is refused makes both calls refuse.
+- **The operator signs its corpus.** With an identity key, `describe_corpus`
+  also returns `signature`, a macula signed object (CBOR bytes, carrying its
+  key) over `{corpus_hash}` under the label `macula-rag corpus v1`, and
+  `signed_by`, the hex node id of that key. A caller verifies the object under
+  the label (`macula_signed_object:verify/3`), checks the signed hash equals
+  the described one, and checks that `signed_by`, derived from the carried
+  key, is the node it called. Without an identity key the corpus is unsigned
+  and neither field is present.
 
 ## Health
 
