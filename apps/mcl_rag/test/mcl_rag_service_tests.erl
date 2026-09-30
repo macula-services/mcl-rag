@@ -284,13 +284,20 @@ uses(Workflow) ->
         nomatch -> []
     end.
 
-%% Only main publishes :latest; any other ref ends in exit 1.
-only_main_publishes_latest_test() ->
-    ?assertEqual(<<"exit 1">>,
-                 pinned(".github/workflows/build-push.yml",
-                        "^\\s+elif \\[\\[ \"\\$\\{GITHUB_REF\\}\" == refs/heads/main \\]\\]; then\\n"
-                        "\\s+echo \"tags=[^\\n]*:latest\" >> \"\\$GITHUB_OUTPUT\"\\n"
-                        "\\s+else\\n(?:\\s+#[^\\n]*\\n)*\\s+echo [^\\n]*>&2\\n\\s+(exit 1)\\n\\s+fi$")).
+%% :latest is the dev fleet's deploy channel (Raf, 2026-09-30). The build publishes a v* tag's
+%% version only, and main :main and :<sha>; any other ref ends in exit 1. :latest moves in
+%% promote-latest, on a v* tag, only after attest signed the digest.
+latest_moves_only_after_attest_on_a_version_tag_test() ->
+    {ok, Body} = file:read_file(alongside(".github/workflows/build-push.yml")),
+    Has = fun(Bin) -> ?assertNotEqual(nomatch, binary:match(Body, Bin)) end,
+    Has(<<"refs/tags/v*)    echo \"tags=$img:${GITHUB_REF#refs/tags/v}\" >> \"$GITHUB_OUTPUT\" ;;">>),
+    Has(<<"refs/heads/main) echo \"tags=$img:main,$img:${GITHUB_SHA}\" >> \"$GITHUB_OUTPUT\" ;;">>),
+    Has(<<"exit 1 ;;">>),
+    Has(<<"\n  promote-latest:\n    needs: [build-and-push, attest]\n"
+          "    if: startsWith(github.ref, 'refs/tags/v')">>),
+    Has(<<"imagetools create --tag \"$IMAGE:latest\" \"$IMAGE@$DIGEST\"">>),
+    ?assertEqual(1, length(binary:matches(Body, <<"$IMAGE:latest">>))),
+    ?assertEqual(nomatch, binary:match(Body, <<",$img:latest">>)).
 
 %% Raf, 2026-09-29: embeddings from msi00's ollama, the e5 model built there
 %% from intfloat's weights (384 dims); the topic classifier on the same local
