@@ -38,6 +38,9 @@ jobs:
                 {<<"28.4.3">>, true} -> halt(0);
                 _                    -> halt(1)
             end.'
+      # The corpus-sync NIF's own tests: the pinned checkout lives here.
+      - run: cargo test --locked
+        working-directory: native/mcl_rag_corpus_sync_nif
       # The corpus-sync NIF: the suites load it, and nothing else builds it.
       - run: bash scripts/build-corpus-sync-nif.sh
       - run: rebar3 lint
