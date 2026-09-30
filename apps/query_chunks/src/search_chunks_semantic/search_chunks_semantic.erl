@@ -11,7 +11,9 @@
 %%%   #{<<"query_vector">> := [Float], <<"top_k">> := N}
 %%%       used as given. It must be the query embedding on the store's
 %%%       model (e5: `query: ' plus the text, 384 dims); the service cannot
-%%%       set the role of a vector it did not make.
+%%%       set the role of a vector it did not make. A vector of another
+%%%       length is refused, `{dimension_mismatch, Expected, Got}', before
+%%%       the store is touched.
 %%%
 %%% Both forms accept an optional `top_k` field, default 10.
 %%%
@@ -43,11 +45,16 @@ handle(_) ->
     {error, bad_params}.
 
 handle_(V, _Text, Params) when is_list(V) ->
-    search_with_topics(Params, fun() -> rag_store:search_vector(V, fetch_k(Params)) end);
+    sized(V, length(V), rag_embedder:dimension(), Params);
 handle_(_V, Text, Params) when is_binary(Text) ->
     search_with_topics(Params, fun() -> rag_store:search_text(Text, fetch_k(Params)) end);
 handle_(_V, _Text, _Params) ->
     {error, query_text_or_vector_required}.
+
+sized(V, Dim, Dim, Params) ->
+    search_with_topics(Params, fun() -> rag_store:search_vector(V, fetch_k(Params)) end);
+sized(_V, Got, Expected, _Params) ->
+    {error, {dimension_mismatch, Expected, Got}}.
 
 search_with_topics(Params, SearchFun) ->
     case SearchFun() of

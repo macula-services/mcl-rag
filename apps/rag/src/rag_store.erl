@@ -62,13 +62,13 @@
     get_watermark/2,
     put_watermark/3,
     put_reembed_request/1,
-    status/0
+    status/0,
+    dimension/0
 ]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 -define(DB_NAME, rag_chunks).
--define(DEFAULT_DIM, 768).
 -define(SOURCE_ID_PREFIX, "source:").
 -define(WATERMARK_ID_PREFIX, "watermark:").
 -define(REEMBED_ID_PREFIX, "reembed:").
@@ -387,7 +387,7 @@ open_in(ok) ->
             fields => [],
             mode => sync,
             embedder => embedder(),
-            dimensions => configured_dim(),
+            dimensions => dimension(),
             metadata_fields => [<<"source_path">>, <<"header_path">>, <<"kind">>,
                                 <<"start_line">>, <<"end_line">>, <<"type">>,
                                 <<"topics">>]
@@ -400,8 +400,11 @@ data_dir() ->
 vector_data_dir() ->
     filename:join(data_dir(), "vectors").
 
-configured_dim() ->
-    application:get_env(mcl_rag, embed_dim, ?DEFAULT_DIM).
+%% @doc The dimension of the stored vectors: the embedder's, from one place,
+%% so the index and every vector made or accepted for it agree.
+-spec dimension() -> pos_integer().
+dimension() ->
+    rag_embedder:dimension().
 
 %% Provider selection. Defaults to `ollama', the node's own on loopback, which
 %% is what msi00 runs (config/sys.config.src, 2026-09-29). `mcl_embedder'

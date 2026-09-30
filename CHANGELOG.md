@@ -5,6 +5,18 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-09-30
+
+### Fixed
+
+- A supplied `query_vector` of the wrong length is refused with
+  `{dimension_mismatch, Expected, Got}` (`search_chunks_semantic`,
+  `answer_query`), before the store is touched. It used to be searched as
+  given against the store's 384-dim vectors.
+- The store takes its dimension from the embedder (`rag_embedder:dimension/0`,
+  default 384). Its own default was 768, which disagreed with the embedder
+  whenever `embed_dim` was unset; msi00 sets it, so it never ran that way.
+
 ## [0.1.4] - 2026-09-30
 
 ### Fixed
