@@ -80,7 +80,8 @@ impl From<git2::Error> for SyncError {
 /// replaced by the pinned content.
 pub fn sync_to_commit(url: &str, path: &str, branch: &str, commit: &str) -> Result<Status, SyncError> {
     ensure_path_trusted(path)?;
-    let repo = if Path::new(path).join(".git").is_dir() {
+    let existing = Path::new(path).join(".git").is_dir();
+    let repo = if existing {
         Repository::open(path)?
     } else {
         git2::build::RepoBuilder::new().branch(branch).clone(url, Path::new(path))?
@@ -90,7 +91,8 @@ pub fn sync_to_commit(url: &str, path: &str, branch: &str, commit: &str) -> Resu
     if !on_branch(&repo, tip, target) {
         return Err(SyncError::CommitNotOnBranch);
     }
-    let before = repo.head().ok().and_then(|h| h.target());
+    // A fresh clone had nothing checked out: it always moves to the pin.
+    let before = if existing { repo.head().ok().and_then(|h| h.target()) } else { None };
     // A checkout already at the pin (one a branch-following release left on
     // its branch, too) holds the pinned content: detach it, nothing moved.
     if before == Some(target) && clean(&repo)? {
