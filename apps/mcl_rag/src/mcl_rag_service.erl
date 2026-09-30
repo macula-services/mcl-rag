@@ -15,7 +15,7 @@
 
 info() ->
     #{name => <<"mcl-rag">>,
-      version => <<"0.1.5">>,
+      version => <<"0.1.6">>,
       description => <<"The mesh shared memory: retrieval over a realm-bound corpus, and the deposits agents remember into it">>}.
 
 %% The operator list is checked before anything starts: a malformed one would

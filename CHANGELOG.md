@@ -5,6 +5,25 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2026-09-30
+
+### Added
+
+- `MCL_RAG_CORPUS_REPOS` names the corpus list; the app env
+  `corpus_repos_config` and then `/etc/mcl-rag/corpus-repos.json` follow.
+- `schema/corpus-repos.schema.json` (JSON Schema 2020-12) publishes the list's
+  rules, and a test holds it to the ones the service enforces.
+- `docs/RUN_YOUR_OWN_CORPUS.md`: serving a corpus of your own.
+
+### Changed
+
+- The corpus list is refused, naming the entry, for an id that is not
+  lowercase letters, digits and dashes (`malformed_id`: the id names the
+  checkout directory, so `../x` could have left it), a duplicate id
+  (`duplicate_id`), a url that is neither `https://` nor an absolute path
+  (`unsupported_url`), or a key outside id, url, branch and commit
+  (`unknown_key`). The shipped list and msi00's already meet all four.
+
 ## [0.1.5] - 2026-09-30
 
 ### Fixed

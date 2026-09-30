@@ -1,6 +1,6 @@
 {application, query_sources, [
     {description, "Source read model (per-document metadata) (QRY)"},
-    {vsn, "0.1.5"},
+    {vsn, "0.1.6"},
     {registered, []},
     {mod, {query_sources_app, []}},
     {applications, [

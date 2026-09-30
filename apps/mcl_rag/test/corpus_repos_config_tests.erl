@@ -46,11 +46,14 @@ a_duplicate_id_refuses_the_list_test() ->
         ?assertEqual({error, {duplicate_id, <<"a">>}}, corpus_repos_config:read())
     end).
 
-a_url_that_is_not_https_refuses_the_list_test() ->
+%% https, or an absolute path on the box (a local mirror); nothing that
+%% needs credentials and nothing relative.
+an_unsupported_url_refuses_the_list_test() ->
     [with_list([(entry(<<"a">>, ?SHA))#{<<"url">> => Bad}], fun() ->
-         ?assertEqual({error, {not_https, <<"a">>, Bad}}, corpus_repos_config:read())
+         ?assertEqual({error, {unsupported_url, <<"a">>, Bad}}, corpus_repos_config:read())
      end)
-     || Bad <- [<<"http://github.com/x/a.git">>, <<"git@github.com:x/a.git">>, <<"/srv/a">>]].
+     || Bad <- [<<"http://github.com/x/a.git">>, <<"git@github.com:x/a.git">>, <<"srv/a">>,
+               <<"file:///srv/a">>]].
 
 an_unknown_key_refuses_the_list_test() ->
     with_list([(entry(<<"a">>, ?SHA))#{<<"tag">> => <<"v1">>}], fun() ->
@@ -70,6 +73,11 @@ the_env_var_names_the_list_first_test() ->
             file:delete(Path)
         end,
         ?assertMatch({ok, [#{id := <<"from-app-env">>}]}, corpus_repos_config:read())
+    end).
+
+a_local_mirror_is_a_source_test() ->
+    with_list([(entry(<<"a">>, ?SHA))#{<<"url">> => <<"/srv/mirrors/a.git">>}], fun() ->
+        ?assertMatch({ok, [#{url := <<"/srv/mirrors/a.git">>}]}, corpus_repos_config:read())
     end).
 
 the_default_is_the_mount_test() ->

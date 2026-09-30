@@ -21,6 +21,7 @@ reviewed `commit` on its `branch`. The node fetches the branch and checks out
 exactly that commit (vendored libgit2, HTTPS only), so a push to a corpus repo
 changes nothing until the list moves its pin; it re-embeds whatever changes. The ids in that file are the watermark namespace, so renaming one
 re-embeds that repo from scratch.
+To serve your own corpus, see [Run your own corpus](docs/RUN_YOUR_OWN_CORPUS.md).
 
 ## The procedures
 
@@ -82,6 +83,7 @@ copied in; locally, `scripts/build-corpus-sync-nif.sh` builds it into
 | `MACULA_STATION_NODE_IDS` | required | The matching 64-hex station node ids, comma-separated, index-paired with the seeds. The 11.x dial is pinned (D5): mcl_om refuses to boot a pool with an unpinned seed. |
 | `MCL_REALM_NAME` | required | The realm's name. Its `sha256` must be `MCL_REALM`, or joining the federation is refused and `/health` reports down. |
 | `MCL_RAG_OPERATORS` | empty | Node ids (64 hex, comma-separated) allowed to call the operator-only procedures. Empty means nobody. |
+| `MCL_RAG_CORPUS_REPOS` | `/etc/mcl-rag/corpus-repos.json` | The corpus list: every repo pinned to a reviewed commit, in the shape [`schema/corpus-repos.schema.json`](schema/corpus-repos.schema.json) publishes. A list that breaks it is refused whole, naming the entry. See [Run your own corpus](docs/RUN_YOUR_OWN_CORPUS.md). |
 | `MCL_DATA_DIR` | `/var/lib/mcl-rag` | The store and the corpus checkouts. Mount it on a persistent volume (compose names it `mcl-rag-data`). |
 | `MCL_RAG_IMAGE_DIGEST` | required by the compose file | `sha256:<digest>` of the released image to run: the compose file runs the image by digest, never by tag. |
 | `MCL_RAG_HTTP_PORT` | `8451` | The local HTTP API. Registered in macula-fleet `PORTS.md`, like the health port. |

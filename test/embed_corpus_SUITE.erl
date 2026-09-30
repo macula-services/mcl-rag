@@ -222,7 +222,7 @@ refresh_scheduler_detects_and_refreshes_change(Config) ->
     ConfigPath = filename:join(TmpDir, <<"refresh-config-", DocId/binary, ".json">>),
     NamespacedId = <<RepoId/binary, "/", RelPath/binary>>,
     ok = filelib:ensure_dir(filename:join(RepoDir, ".")),
-    ok = rag_test_helpers:write_repos_config(ConfigPath, [#{id => RepoId, url => <<"unused">>}]),
+    ok = rag_test_helpers:write_repos_config(ConfigPath, [#{id => RepoId, url => <<"https://example.com/unused.git">>}]),
     PrevReposConfig = application:get_env(mcl_rag, corpus_repos_config),
     ok = application:set_env(mcl_rag, corpus_repos_config, ConfigPath),
     PrevDataDir = application:get_env(mcl_rag, data_dir),
@@ -273,8 +273,8 @@ refresh_scheduler_namespaces_by_repo_to_avoid_collisions(Config) ->
     ok = filelib:ensure_dir(filename:join(DirA, ".")),
     ok = filelib:ensure_dir(filename:join(DirB, ".")),
     ok = rag_test_helpers:write_repos_config(ConfigPath, [
-        #{id => RepoA, url => <<"unused">>},
-        #{id => RepoB, url => <<"unused">>}
+        #{id => RepoA, url => <<"https://example.com/unused.git">>},
+        #{id => RepoB, url => <<"https://example.com/unused.git">>}
     ]),
     PrevReposConfig = application:get_env(mcl_rag, corpus_repos_config),
     ok = application:set_env(mcl_rag, corpus_repos_config, ConfigPath),
