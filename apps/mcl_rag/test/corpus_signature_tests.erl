@@ -24,6 +24,23 @@ signed_corpus_test_() ->
           fun() -> the_signature_travels_as_bytes(Key) end}]
      end}.
 
+%% The fleet's profile (config/sys.config.src). Its key is made once, in setup:
+%% hybrid keygen outruns eunit's per-test timeout on a loaded runner.
+the_fleet_profile_signs_and_verifies_test_() ->
+    {setup, fun() -> {ok, K} = macula_node_keys:generate(identity, pq_hybrid), K end,
+     fun(Key) ->
+         {timeout, 60, fun() ->
+             with_identity({ok, Key}, fun() ->
+                 {ok, #{corpus_hash := Hash, signature := Signature}} = describe_corpus:describe(),
+                 {ok, Object} = macula_signed_object:decode(Signature),
+                 {ok, #{key := Carried, fields := Fields}} =
+                     macula_signed_object:verify(?LABEL, Object, pq_hybrid),
+                 ?assertEqual({text, Hash}, maps:get(?HASH_FIELD, Fields)),
+                 ?assertEqual(macula_node_keys:node_id(Key), {ok, macula_node_keys:node_id(Carried, pq_hybrid)})
+             end)
+         end}
+     end}.
+
 an_unsigned_corpus_says_nothing_about_a_signature_test() ->
     with_identity({error, no_identity_key}, fun() ->
         {ok, D} = describe_corpus:describe(),
