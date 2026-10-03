@@ -140,19 +140,22 @@ scan_file(RepoId, Pin, Root, AbsPath) ->
     RelPath = relative_path(Root, AbsPath),
     case file:read_file(AbsPath) of
         {ok, Content} ->
-            case attempt(fun() -> check_and_refresh(RepoId, Pin, RelPath, Content) end) of
-                {ok, _} ->
-                    ok;
-                {crash, Class, Reason, Stack} ->
-                    %% One bad file costs one file, not the scan (issue #3):
-                    %% say where, reset its watermark, carry on with the rest.
-                    logger:error("[refresh_corpus_scheduler] ~s: refresh crashed path=~ts ~p:~p ~p",
-                                 [RepoId, RelPath, Class, Reason, Stack]),
-                    retry_next_tick(RepoId, namespaced_id(RepoId, RelPath))
-            end;
+            refresh_file_contained(RepoId, Pin, RelPath, Content);
         {error, Reason} ->
             logger:warning("[refresh_corpus_scheduler] ~s: read error path=~ts ~p",
                             [RepoId, RelPath, Reason])
+    end.
+
+%% One bad file costs one file, not the scan (issue #3): say where, reset its
+%% watermark, carry on with the rest.
+refresh_file_contained(RepoId, Pin, RelPath, Content) ->
+    case attempt(fun() -> check_and_refresh(RepoId, Pin, RelPath, Content) end) of
+        {ok, _} ->
+            ok;
+        {crash, Class, Reason, Stack} ->
+            logger:error("[refresh_corpus_scheduler] ~s: refresh crashed path=~ts ~p:~p ~p",
+                         [RepoId, RelPath, Class, Reason, Stack]),
+            retry_next_tick(RepoId, namespaced_id(RepoId, RelPath))
     end.
 
 %% Same trailing-slash normalization maybe_seed_corpus:ingest_file/3 uses --
