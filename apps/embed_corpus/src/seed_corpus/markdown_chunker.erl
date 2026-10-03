@@ -122,7 +122,14 @@ classify(Line) ->
 classify_header(Bin) ->
     case header_level(Bin, 0) of
         {Level, Rest} when Level >= 1, Level =< 6 ->
-            {header, Level, trim(Rest)};
+            %% A hash-only line (`#`, `###   `) has no title, so it is not a
+            %% heading for chunking: treating it as one would leave an empty
+            %% segment in the header path, and `trim_right/1` used to crash
+            %% on the empty remainder (issue #2).
+            case trim(Rest) of
+                <<>>  -> text;
+                Title -> {header, Level, Title}
+            end;
         _ ->
             text
     end.
@@ -256,6 +263,7 @@ trim(B) -> trim_right(trim_left(B)).
 trim_left(<<C, Rest/binary>>) when C =:= $\s; C =:= $\t -> trim_left(Rest);
 trim_left(B) -> B.
 
+trim_right(<<>>) -> <<>>;
 trim_right(B) ->
     case binary:last(B) of
         C when C =:= $\s; C =:= $\t ->

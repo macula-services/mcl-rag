@@ -5,6 +5,26 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-10-03
+
+### Fixed
+
+- **A hash-only ATX heading line crashed the chunker and stalled the corpus
+  refresh** ([#2](https://github.com/macula-services/mcl-rag/issues/2)):
+  `classify_header/1` trimmed the remainder, and `trim_right/1` called
+  `binary:last(<<>>)`. Seen live on msi00 after the corpus grew to 52 repos:
+  `refresh_corpus_scheduler` died on every tick at the first such file (9 in
+  the corpus), and 3,184 of 4,028 sources never embedded. `trim_right/1` now
+  accepts an empty binary, and a hash-only line classifies as text, so it
+  keeps its surrounding section instead of creating an empty header-path
+  segment.
+- **One crashing file no longer aborts the whole scan**
+  ([#3](https://github.com/macula-services/mcl-rag/issues/3)): the refresh
+  loop handled `{error, _}` returns, but an exception killed the gen_server
+  and the tick, leaving every later file unrefreshed until the next restart.
+  Each file's refresh is now contained: the crash is logged with its path,
+  the file's watermark is reset, and the scan continues.
+
 ## [0.3.1] - 2026-10-01
 
 ### Changed

@@ -67,7 +67,7 @@
 -module(refresh_corpus_scheduler).
 -behaviour(gen_server).
 
--export([start_link/0, scan/0]).
+-export([start_link/0, scan/0, attempt/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 -define(POLL_INTERVAL_MS, 120000).
@@ -140,7 +140,16 @@ scan_file(RepoId, Pin, Root, AbsPath) ->
     RelPath = relative_path(Root, AbsPath),
     case file:read_file(AbsPath) of
         {ok, Content} ->
-            check_and_refresh(RepoId, Pin, RelPath, Content);
+            case attempt(fun() -> check_and_refresh(RepoId, Pin, RelPath, Content) end) of
+                {ok, _} ->
+                    ok;
+                {crash, Class, Reason, Stack} ->
+                    %% One bad file costs one file, not the scan (issue #3):
+                    %% say where, reset its watermark, carry on with the rest.
+                    logger:error("[refresh_corpus_scheduler] ~s: refresh crashed path=~ts ~p:~p ~p",
+                                 [RepoId, RelPath, Class, Reason, Stack]),
+                    retry_next_tick(RepoId, namespaced_id(RepoId, RelPath))
+            end;
         {error, Reason} ->
             logger:warning("[refresh_corpus_scheduler] ~s: read error path=~ts ~p",
                             [RepoId, RelPath, Reason])
@@ -205,6 +214,13 @@ retry_marked(ok, _DocId) ->
     ok;
 retry_marked({error, Reason}, DocId) ->
     logger:warning("[refresh_corpus_scheduler] retry watermark error path=~ts ~p", [DocId, Reason]).
+
+%% Wraps one per-file step so an exception becomes a value instead of a
+%% dead scan (issue #3). Exported for its own test.
+attempt(Fun) when is_function(Fun, 0) ->
+    try {ok, Fun()}
+    catch Class:Reason:Stack -> {crash, Class, Reason, Stack}
+    end.
 
 namespaced_id(RepoId, RelPath) ->
     <<RepoId/binary, "/", RelPath/binary>>.
