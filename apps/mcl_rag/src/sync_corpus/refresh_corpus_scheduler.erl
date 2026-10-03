@@ -149,13 +149,15 @@ scan_file(RepoId, Pin, Root, AbsPath) ->
 %% One bad file costs one file, not the scan (issue #3): say where, reset its
 %% watermark, carry on with the rest.
 refresh_file_contained(RepoId, Pin, RelPath, Content) ->
-    case attempt(fun() -> check_and_refresh(RepoId, Pin, RelPath, Content) end) of
+    DocId = namespaced_id(RepoId, RelPath),
+    Refresh = fun() -> check_and_refresh(RepoId, Pin, RelPath, Content) end,
+    case attempt(Refresh) of
         {ok, _} ->
             ok;
         {crash, Class, Reason, Stack} ->
             logger:error("[refresh_corpus_scheduler] ~s: refresh crashed path=~ts ~p:~p ~p",
                          [RepoId, RelPath, Class, Reason, Stack]),
-            retry_next_tick(RepoId, namespaced_id(RepoId, RelPath))
+            retry_next_tick(RepoId, DocId)
     end.
 
 %% Same trailing-slash normalization maybe_seed_corpus:ingest_file/3 uses --
