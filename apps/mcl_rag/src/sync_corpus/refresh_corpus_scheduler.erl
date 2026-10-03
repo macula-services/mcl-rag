@@ -67,7 +67,7 @@
 -module(refresh_corpus_scheduler).
 -behaviour(gen_server).
 
--export([start_link/0, scan/0, attempt/1, relative_path/2]).
+-export([start_link/0, scan/0, attempt/1, relative_path/2, sanitise_utf8/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 -define(POLL_INTERVAL_MS, 120000).
@@ -153,7 +153,8 @@ scan_file(RepoId, Pin, Root, AbsPath) ->
 scan_one(RepoId, Pin, Root, AbsPath) ->
     RelPath = relative_path(Root, AbsPath),
     case file:read_file(AbsPath) of
-        {ok, Content} ->
+        {ok, Raw} ->
+            Content = sanitise_utf8(Raw),
             refresh_file_contained(RepoId, Pin, RelPath, Content);
         {error, Reason} ->
             logger:warning("[refresh_corpus_scheduler] ~s: read error path=~ts ~p",
@@ -242,6 +243,29 @@ attempt(Fun) when is_function(Fun, 0) ->
     try {ok, Fun()}
     catch Class:Reason:Stack -> {crash, Class, Reason, Stack}
     end.
+
+%% Lossy UTF-8: valid text is kept, each invalid or truncated byte becomes
+%% U+FFFD. rt-thread's docs are GBK/Latin-1 in places, and the JSON encoder on
+%% the way to the embedder raises on those bytes, so the file used to fail its
+%% embed every tick (issue #10). Exported for its own test.
+sanitise_utf8(Bin) when is_binary(Bin) ->
+    case unicode:characters_to_binary(Bin, utf8, utf8) of
+        Converted when is_binary(Converted) ->
+            Converted;
+        {error, Good, Rest} ->
+            Tail = sanitise_tail(Rest),
+            <<Good/binary, Tail/binary>>;
+        {incomplete, Good, Rest} ->
+            Tail = sanitise_tail(Rest),
+            <<Good/binary, Tail/binary>>
+    end.
+
+sanitise_tail(<<_Bad, Rest/binary>>) ->
+    Replacement = unicode:characters_to_binary([16#FFFD]),
+    Tail = sanitise_utf8(Rest),
+    <<Replacement/binary, Tail/binary>>;
+sanitise_tail(<<>>) ->
+    <<>>.
 
 namespaced_id(RepoId, RelPath) ->
     <<RepoId/binary, "/", RelPath/binary>>.

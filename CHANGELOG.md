@@ -5,6 +5,18 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2026-10-03
+
+### Fixed
+
+- **A corpus file that is not valid UTF-8 no longer fails its embed forever**
+  ([#10](https://github.com/macula-services/mcl-rag/issues/10)): rt-thread's
+  GBK/Latin-1 READMEs raised `{invalid_byte, _}` in the JSON encoder on the
+  way to the embedder. #3's containment kept the scan alive, but the file
+  retried and failed every tick, so it never ingested. Corpus content is read
+  through a lossy UTF-8 sanitiser now (invalid or truncated bytes become
+  U+FFFD), so the file ingests with replacement characters.
+
 ## [0.3.3] - 2026-10-03
 
 ### Fixed
