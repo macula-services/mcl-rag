@@ -67,7 +67,7 @@
 -module(refresh_corpus_scheduler).
 -behaviour(gen_server).
 
--export([start_link/0, scan/0, attempt/1]).
+-export([start_link/0, scan/0, attempt/1, relative_path/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 -define(POLL_INTERVAL_MS, 120000).
@@ -137,6 +137,20 @@ scan_root(RepoId, Pin, true, Root) ->
     lists:foreach(fun(P) -> scan_file(RepoId, Pin, Root, P) end, Files).
 
 scan_file(RepoId, Pin, Root, AbsPath) ->
+    Scan = fun() -> scan_one(RepoId, Pin, Root, AbsPath) end,
+    case attempt(Scan) of
+        {ok, _} ->
+            ok;
+        {crash, Class, Reason, Stack} ->
+            %% The whole per-file scan is contained, path derivation included:
+            %% the first wrap covered only the refresh step, and
+            %% relative_path/2 still cost a scan (issue #7).
+            logger:error("[refresh_corpus_scheduler] ~s: scan crashed path=~ts ~p:~p ~p",
+                         [RepoId, AbsPath, Class, Reason, Stack]),
+            ok
+    end.
+
+scan_one(RepoId, Pin, Root, AbsPath) ->
     RelPath = relative_path(Root, AbsPath),
     case file:read_file(AbsPath) of
         {ok, Content} ->
@@ -162,10 +176,12 @@ refresh_file_contained(RepoId, Pin, RelPath, Content) ->
 
 %% Same trailing-slash normalization maybe_seed_corpus:ingest_file/3 uses --
 %% needed here too since a repo's path is config-supplied and could end
-%% in "/".
+%% in "/". characters_to_binary, not list_to_binary: corpus filenames are not
+%% all Latin-1 (rt-thread's docs include CJK names) and a codepoint above 255
+%% is a badarg for list_to_binary/1 (issue #7). Exported for its own test.
 relative_path(RootDir, AbsPath) ->
     Prefix = string:trim(RootDir, trailing, "/") ++ "/",
-    list_to_binary(string:replace(AbsPath, Prefix, "", leading)).
+    unicode:characters_to_binary(string:replace(AbsPath, Prefix, "", leading)).
 
 check_and_refresh(RepoId, Pin, RelPath, Content) ->
     DocId = namespaced_id(RepoId, RelPath),
