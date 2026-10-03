@@ -15,8 +15,19 @@
 
 info() ->
     #{name => <<"mcl-rag">>,
-      version => <<"0.3.1">>,
+      version => version(),
       description => <<"The mesh shared memory: retrieval over a realm-bound corpus, and the deposits agents remember into it">>}.
+
+%% From the application's own vsn: one place to bump (.app.src and
+%% rebar.config), so the version a peer reads off /health cannot go stale in
+%% a release. The eunit suite pins it
+%% (info_version_matches_the_application_test). v0.3.2 shipped a literal and
+%% reported 0.3.1; never again.
+version() ->
+    case application:get_key(mcl_rag, vsn) of
+        {ok, Vsn} -> list_to_binary(Vsn);
+        undefined -> <<"unknown">>
+    end.
 
 %% The operator list is checked before anything starts: a malformed one would
 %% otherwise surface on the first destructive call, as a crash in the gate.

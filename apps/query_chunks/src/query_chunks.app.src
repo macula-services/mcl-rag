@@ -1,6 +1,6 @@
 {application, query_chunks, [
     {description, "Chunk read model (chunk text + vector ref + metadata) (QRY)"},
-    {vsn, "0.3.2"},
+    {vsn, "0.3.3"},
     {registered, []},
     {mod, {query_chunks_app, []}},
     {applications, [

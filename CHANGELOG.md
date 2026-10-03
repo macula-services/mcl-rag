@@ -5,6 +5,19 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-10-03
+
+### Fixed
+
+- **`mcl-rag/info` and `/health` report the release version from the
+  application's own vsn, not a hand-bumped literal.** v0.3.2 moved the image
+  and rebar release to 0.3.2 but shipped the old `0.3.1` literal, so the
+  deployed service named the wrong version. The eunit suite pinned the
+  disagreement (`info_version_matches_the_application_test`) and
+  `lint-and-test` failed on main — but `build-and-push` does not gate on
+  tests yet ([#6](https://github.com/macula-services/mcl-rag/issues/6)) and
+  promoted `:latest` anyway. There is one place to bump now.
+
 ## [0.3.2] - 2026-10-03
 
 ### Fixed
