@@ -152,7 +152,7 @@ def context():
     s.element("b-per", 20, 30, 230, 100, "Agent", "[Person or AI agent]",
               ["Recalls and deposits shared", "memory through MCP tools"], person=True)
     s.element("b-ext", 390, 30, 220, 100, "Corpus repos", "[External: GitHub]",
-              ["14 public repos listed in", "deploy/corpus-repos.json"])
+              ["51 public repos listed in", "deploy/corpus-repos.json"])
     s.element("b-per", 750, 30, 230, 100, "Operator", "[Person]",
               ["Listed in MCL_RAG_OPERATORS;", "may rewrite or delete the store"],
               person=True)

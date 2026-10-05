@@ -69,7 +69,7 @@
 <rect class="b-ext" x="390" y="30" width="220" height="100" rx="10"/>
 <text class="t-name" x="406" y="58">Corpus repos</text>
 <text class="t-type" x="406" y="76">[External: GitHub]</text>
-<text class="t-desc" x="406" y="100">14 public repos listed in</text>
+<text class="t-desc" x="406" y="100">51 public repos listed in</text>
 <text class="t-desc" x="406" y="116">deploy/corpus-repos.json</text>
 <rect class="b-per" x="750" y="30" width="230" height="100" rx="10"/>
 <circle class="head" cx="776" cy="54" r="9"/>

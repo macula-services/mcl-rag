@@ -19,7 +19,7 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 | macula-mcp | MCP server outside the fleet. `mesh_recall` calls `mcl-rag/answer_query`, `mesh_remember` calls `mcl-rag/add_knowledge`, `mesh_remember_directory` calls `mcl-rag/upload_knowledge` once per file |
 | macula-cli, macula-lazymesh | Mesh clients. Any caller may query; the operator-only procedures work only for a listed operator |
 | Operator | A node id in `MCL_RAG_OPERATORS`, allowed to rewrite or delete what the store holds. On the box itself, also the only user of the loopback HTTP API |
-| Corpus repos | The public GitHub repos in `deploy/corpus-repos.json` (14 today), cloned over HTTPS (or from an absolute path on the box), no credentials, and held at the commit each entry pins |
+| Corpus repos | The public GitHub repos in `deploy/corpus-repos.json` (51 today), cloned over HTTPS (or from an absolute path on the box), no credentials, and held at the commit each entry pins |
 | Other mcl-rag shards | The org's federated retrieval (`macula_rag`): a peer asks this shard with `mcl-rag/rag.query_shard_v1`. Scores merge only between shards naming the same model and dimension |
 | macula-station | The pinned home station the service dials out to over QUIC; every call to and from this node goes through it |
 | macula-realm | Takes the boot identity claim and grants a D25 provider authorization for each procedure; its public key (`MCL_REALM_KEY`) is the trust anchor for every advertisement |
