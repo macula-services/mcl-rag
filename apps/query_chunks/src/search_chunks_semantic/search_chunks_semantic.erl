@@ -33,7 +33,7 @@
 %% macula's frame decoder atomizes an inbound payload's keys
 %% (binary_to_existing_atom), so a hard binary-key match here silently
 %% never matches a real mesh caller's payload. See mcl_om_wire's own
-%% moduledoc and hecate-corpus's antipatterns skill for the full story.
+%% moduledoc and mcl-corpus's antipatterns skill for the full story.
 %% `has_any_topic/2''s own `Meta'/`Topics' lookups are UNCHANGED -- that
 %% map is a stored chunk's own internal metadata from rag_store, never
 %% wire input, so it isn't exposed to this hazard.

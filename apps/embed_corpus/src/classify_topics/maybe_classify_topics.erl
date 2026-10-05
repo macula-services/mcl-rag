@@ -115,7 +115,7 @@ path_or_id(Path, _)   -> Path.
 %% frame decoder atomizes an inbound payload's keys (binary_to_existing_atom),
 %% so a hard binary-key lookup here silently never sees a real mesh
 %% caller's `mode' field. See mcl_om_wire's own moduledoc and
-%% hecate-corpus's antipatterns skill for the full story.
+%% mcl-corpus's antipatterns skill for the full story.
 mode(Params) ->
     case mcl_om_wire:field(<<"mode">>, Params, document) of
         <<"per_chunk">> -> per_chunk;

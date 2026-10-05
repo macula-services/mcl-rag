@@ -53,7 +53,7 @@ new(_) ->
 %% pattern -- macula's frame decoder atomizes an inbound payload's keys
 %% (binary_to_existing_atom), so a hard binary-key match here silently
 %% never matches a real mesh caller's payload. See mcl_om_wire's own
-%% moduledoc and hecate-corpus's antipatterns skill for the full story.
+%% moduledoc and mcl-corpus's antipatterns skill for the full story.
 -spec from_map(map()) -> {ok, t()} | {error, term()}.
 from_map(Map) when is_map(Map) ->
     from_map_(mcl_om_wire:field(<<"text">>, Map), Map);

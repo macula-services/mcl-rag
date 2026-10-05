@@ -456,7 +456,7 @@ put_chunk_with_vector_doc(Db, Id, Content, Meta, Vector) ->
 %% content-derived, so the SAME id can legitimately need DIFFERENT
 %% content on a genuine re-ingest -- treating conflict as a silent
 %% success would leave stale content indexed. Found live re-running
-%% seed_corpus against hecate-corpus: every one of ~500+ chunks from
+%% seed_corpus against mcl-corpus: every one of ~500+ chunks from
 %% the first run reported conflict on the second, and without this fix
 %% every one of those would have been silently skipped rather than
 %% actually re-written.

@@ -15,7 +15,7 @@ handle(Params) when is_map(Params) ->
 %% patterns -- macula's frame decoder atomizes an inbound payload's keys
 %% (binary_to_existing_atom), so a hard binary-key match here silently
 %% never sees a real mesh caller's paging params. See mcl_om_wire's
-%% own moduledoc and hecate-corpus's antipatterns skill for the full story.
+%% own moduledoc and mcl-corpus's antipatterns skill for the full story.
 offset(Params) ->
     case mcl_om_wire:field(<<"offset">>, Params) of
         undefined -> 0;
