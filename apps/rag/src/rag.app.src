@@ -1,6 +1,6 @@
 {application, rag, [
     {description, "Shared root + notation for the mcl-rag service's umbrella apps"},
-    {vsn, "0.3.4"},
+    {vsn, "0.4.0"},
     {registered, [rag_store]},
     {mod, {rag_app, []}},
     {applications, [

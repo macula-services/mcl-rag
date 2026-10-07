@@ -5,6 +5,15 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-10-07
+
+### Changed
+
+- **On mcl_om 0.38, macula 14.2 and macula_rag 0.4** (`~> 0.38`, `~> 14.2`, `~> 0.4`, released versions only),
+  the SDK base every deployed service runs on; it was on mcl_om 0.33 and macula 13.0.1. The test config names an
+  `identity_dir` in place of macula 14's removed `node_identity_path`, and the info test's floors follow. No
+  behaviour change: the corpus contract, provenance and the operator signature are as before. (#15)
+
 ## [0.3.4] - 2026-10-03
 
 ### Fixed
