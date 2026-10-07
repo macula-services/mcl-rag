@@ -295,20 +295,17 @@ uses(Workflow) ->
         nomatch -> []
     end.
 
-%% :latest is the dev fleet's deploy channel (Raf, 2026-09-30). The build publishes a v* tag's
-%% version only, and main :main and :<sha>; any other ref ends in exit 1. :latest moves in
-%% promote-latest, on a v* tag, only after attest signed the digest.
-latest_moves_only_after_attest_on_a_version_tag_test() ->
+%% No box follows a tag (macula-fleet#14, #15): the build publishes a v* tag's version only,
+%% and main :main and :<sha>; any other ref ends in exit 1. macula-fleet pins a release by
+%% digest once attest has signed it, so nothing here moves :latest.
+nothing_moves_latest_test() ->
     {ok, Body} = file:read_file(alongside(".github/workflows/build-push.yml")),
     Has = fun(Bin) -> ?assertNotEqual(nomatch, binary:match(Body, Bin)) end,
     Has(<<"refs/tags/v*)    echo \"tags=$img:${GITHUB_REF#refs/tags/v}\" >> \"$GITHUB_OUTPUT\" ;;">>),
     Has(<<"refs/heads/main) echo \"tags=$img:main,$img:${GITHUB_SHA}\" >> \"$GITHUB_OUTPUT\" ;;">>),
     Has(<<"exit 1 ;;">>),
-    Has(<<"\n  promote-latest:\n    needs: [build-and-push, attest]\n"
-          "    if: startsWith(github.ref, 'refs/tags/v')">>),
-    Has(<<"imagetools create --prefer-index=false --tag \"$IMAGE:latest\" \"$IMAGE@$DIGEST\"">>),
-    Has(<<"if [ \"$got\" != \"$DIGEST\" ]; then">>),
-    ?assertEqual(1, length(binary:matches(Body, <<"imagetools create">>))),
+    ?assertEqual(nomatch, binary:match(Body, <<"promote-latest">>)),
+    ?assertEqual(nomatch, binary:match(Body, <<"imagetools create">>)),
     ?assertEqual(nomatch, binary:match(Body, <<",$img:latest">>)).
 
 %% Raf, 2026-09-29: embeddings from msi00's ollama, the e5 model built there

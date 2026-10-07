@@ -136,13 +136,13 @@ what stops a config table in a README and the real environment drifting.
 
 ## Deployment
 
-A `v*` tag publishes `ghcr.io/macula-services/mcl-rag:<version>` and nothing
-else, and the attest job signs that digest keylessly with its SBOM and
-provenance (macula-ci-images' `attest-image.yml`, pinned by commit); a box that
-enforces signatures refuses any other. A push to `main` publishes `:latest`, the
-tip of main to try; nothing on the fleet follows it. Fleet boxes run an image
-pinned by digest in `macula-fleet`, so a merge is not a deploy. To roll back,
-revert the pin.
+A `v*` tag publishes `ghcr.io/macula-services/mcl-rag:<version>` and nothing else, signed
+by digest with its SBOM and provenance (macula-ci-images' `attest-image.yml`). A push to
+`main` publishes `:main` and `:<sha>`, which nothing follows, and nothing moves `:latest`.
+The fleet runs a release by digest: macula-fleet's pin-releases workflow finds the signed
+release, verifies it was signed on its tag and pins `<version>@sha256:<digest>`
+(macula-fleet#14, #15), so a green `v*` tag is the deploy. To roll back, revert the pin and
+hold the image there.
 
 Three things CI cannot do for you:
 
