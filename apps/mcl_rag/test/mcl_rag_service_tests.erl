@@ -381,3 +381,24 @@ climb(Dir, Name, Left) ->
 found(true, Candidate, _Dir, _Name, _Left) -> Candidate;
 found(false, _Candidate, Dir, Name, Left) ->
     climb(filename:dirname(Dir), Name, Left - 1).
+
+%%==============================================================================
+%% Health is served on a Unix socket only
+%%==============================================================================
+
+%% mcl_om 0.39 serves /health on the `health_socket' path and then runs no TCP
+%% health listener: the probe is the container's own, and no health port is
+%% bound on the host (host networking made a clash a silent bind failure).
+%% The image creates the socket's directory and probes the socket; nothing
+%% still names a health port.
+health_is_served_on_a_unix_socket_only_test() ->
+    {ok, Config} = file:read_file(alongside("config/sys.config.src")),
+    ?assertMatch({match, _}, re:run(Config, <<"\\{health_socket, +\"/run/mcl/health\\.sock\"\\}">>)),
+    ?assertEqual(nomatch, re:run(Config, <<"health_port">>)),
+    {ok, Image} = file:read_file(alongside("Containerfile")),
+    ?assertEqual(nomatch, re:run(Image, <<"MCL_HEALTH_PORT">>)),
+    ?assertMatch({match, _}, re:run(Image, <<"mkdir -p /run/mcl">>)),
+    ?assertMatch({match, _}, re:run(Image, <<"--unix-socket /run/mcl/health\\.sock http://localhost/health">>)),
+    {ok, Compose} = file:read_file(alongside("deploy/docker-compose.yml")),
+    ?assertEqual(nomatch, re:run(Compose, <<"MCL_HEALTH_PORT">>)),
+    ok.
