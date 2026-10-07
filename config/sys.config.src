@@ -58,7 +58,9 @@
         %% on a service generated from an earlier copy of this template that
         %% lacked this line. Point it at the mounted secrets volume.
         {identity_key_path, "/etc/mcl/secrets/identity.key"},
-        {health_port,       ${MCL_HEALTH_PORT}},
+        %% /health on a Unix socket only (mcl_om 0.39): no TCP health
+        %% listener, no health port on the host.
+        {health_socket,     "/run/mcl/health.sock"},
         {capability_topic,  <<"_mesh.cap.">>},
         %% The org the eighteen procedures are served under: `mcl-rag/<name>'.
         %% The realm must have granted THIS node a provider authorization for

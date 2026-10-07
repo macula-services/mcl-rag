@@ -9,10 +9,15 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
-- **On mcl_om 0.38, macula 14.2 and macula_rag 0.4** (`~> 0.38`, `~> 14.2`, `~> 0.4`, released versions only),
+- **`/health` is served on a Unix socket only** (`/run/mcl/health.sock`, mcl_om 0.39 `health_socket`). No TCP
+  health listener runs and no health port is bound on the host: `MCL_HEALTH_PORT`, the `health_port` setting and
+  its `EXPOSE` are gone. The image creates `/run/mcl` and probes the socket; `scripts/health.sh` asks it through
+  the container engine. A deploy that probed the port must probe the socket.
+
+- **On mcl_om 0.39, macula 14.2 and macula_rag 0.4** (`~> 0.39`, `~> 14.2`, `~> 0.4`, released versions only),
   the SDK base every deployed service runs on; it was on mcl_om 0.33 and macula 13.0.1. The test config names an
-  `identity_dir` in place of macula 14's removed `node_identity_path`, and the info test's floors follow. No
-  behaviour change: the corpus contract, provenance and the operator signature are as before. (#15)
+  `identity_dir` in place of macula 14's removed `node_identity_path`, and the info test's floors follow. The
+  corpus contract, provenance and the operator signature are as before. (#15)
 
 ## [0.3.4] - 2026-10-03
 

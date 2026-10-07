@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
 # Ask a running mcl-rag how it is.
 #
-# Defaults to the local node on the port the image exposes. Pass a host to reach
-# one on another host, for example:
+# /health is served on a Unix socket inside the container (/run/mcl/health.sock),
+# so the question goes through the container engine. Pass a container name
+# when it is not the default, and set ENGINE=podman on a podman box:
 #
-#   scripts/health.sh a-remote-host
-#   MCL_HEALTH_PORT=8450 scripts/health.sh a-remote-host
+#   scripts/health.sh
+#   ENGINE=podman scripts/health.sh mcl-rag
 #
 # THREE OUTCOMES, NOT TWO, because they need different responses from whoever is
-# reading. Unreachable means the container is not running or the port is wrong.
-# Unhealthy means the node is up and telling you something is wrong with it, and
-# mcl_om answers that with a 503 carrying a reason. Collapsing the two sends
-# you to look in the wrong place.
+# reading. Unreachable means the container is not running or the socket is not
+# there yet. Unhealthy means the node is up and telling you something is wrong
+# with it, and mcl_om answers that with a 503 carrying a reason. Collapsing the
+# two sends you to look in the wrong place.
 #
 #   0  healthy
 #   1  reachable, reports degraded or down
@@ -19,14 +20,14 @@
 
 set -euo pipefail
 
-HOST="${1:-127.0.0.1}"
-PORT="${MCL_HEALTH_PORT:-8450}"
-URL="http://${HOST}:${PORT}/health"
+CONTAINER="${1:-mcl-rag}"
+ENGINE="${ENGINE:-docker}"
 
 # No -f, so a 503 arrives as a body to be shown rather than as a curl failure
 # that hides the reason the service went to the trouble of reporting.
-if ! RESPONSE="$(curl -sS --max-time 5 -w '\n%{http_code}' "${URL}" 2>/dev/null)"; then
-    echo "unreachable: ${URL}" >&2
+if ! RESPONSE="$("${ENGINE}" exec "${CONTAINER}" curl -sS --max-time 5 -w '\n%{http_code}' \
+        --unix-socket /run/mcl/health.sock http://localhost/health 2>/dev/null)"; then
+    echo "unreachable: ${CONTAINER} /run/mcl/health.sock" >&2
     exit 2
 fi
 
@@ -43,6 +44,6 @@ fi
 
 case "${CODE}" in
     200) exit 0 ;;
-    "")  echo "no response from ${URL}" >&2 ; exit 2 ;;
-    *)   echo "unhealthy (HTTP ${CODE}): ${URL}" >&2 ; exit 1 ;;
+    "")  echo "no response from ${CONTAINER}" >&2 ; exit 2 ;;
+    *)   echo "unhealthy (HTTP ${CODE}): ${CONTAINER}" >&2 ; exit 1 ;;
 esac

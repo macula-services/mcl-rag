@@ -58,9 +58,10 @@ the_health_check_waits_out_the_store_open_test() ->
     ?assert(binary_to_integer(Secs) >= 900).
 
 %% Host networking makes every port fleet-wide, so the registry
-%% (macula-fleet PORTS.md: health 8450, API 8451) is the only authority, and
-%% the image, compose and the app's own default must all say the same thing.
-%% The image once said 8470, which is mcl-sentinel's.
+%% (macula-fleet PORTS.md: API 8451) is the only authority, and the image,
+%% compose and the app's own default must all say the same thing. Health has no
+%% port: it is served on a Unix socket (mcl_rag_service_tests). The image once
+%% said 8470, which is mcl-sentinel's.
 %% The example runs an image by DIGEST, in the shape the fleet's compose files
 %% use: the repository fixed here, the digest from MCL_RAG_IMAGE_DIGEST, no tag
 %% to drift and no watchtower; and it reads no API key (the models are local).
@@ -80,11 +81,9 @@ the_ports_are_the_registered_ones_test() ->
     Default = proplists:get_value(http_port, proplists:get_value(env, Spec)),
     ?assertEqual({ok, [<<"8451">>]}, image_value(<<"MCL_RAG_HTTP_PORT">>)),
     ?assertEqual(8451, Default),
-    ?assertEqual({ok, [<<"8450">>]}, image_value(<<"MCL_HEALTH_PORT">>)),
     Compose = read("deploy/docker-compose.yml"),
     ?assertMatch({match, _}, re:run(Compose, <<"- MCL_RAG_HTTP_PORT=8451\\n">>)),
-    ?assertMatch({match, _}, re:run(Compose, <<"- MCL_HEALTH_PORT=8450\\n">>)),
-    ?assertMatch({match, _}, re:run(read("Containerfile"), <<"EXPOSE 8450 8451\\n">>)).
+    ?assertMatch({match, _}, re:run(read("Containerfile"), <<"EXPOSE 8451\\n">>)).
 
 %% barrel_docdb keeps its system database (`_barrel_system') under its own
 %% `data_dir' app env, which defaults to data/barrel_docdb relative to the

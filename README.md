@@ -79,7 +79,7 @@ mcl-rag is the reference implementation of the RAG service contract
 
 ## Health
 
-`/health` on `MCL_HEALTH_PORT` returns `ok` once the store is open and the org
+`/health`, on the Unix socket `/run/mcl/health.sock` inside the container (`scripts/health.sh` asks it), returns `ok` once the store is open and the org
 can reach this shard. Opening the store rebuilds the vector index, which takes
 over three minutes on the full corpus (longer on a Celeron). While it
 runs, `/health` reports `degraded, store_opening` and every call is refused with
@@ -124,7 +124,7 @@ copied in; locally, `scripts/build-corpus-sync-nif.sh` builds it into
 | `MCL_RAG_HTTP_IP` | `127.0.0.1` | Keep it on loopback: the API has writes and no authentication. |
 | `MCL_SERVICE_NAME` | `mcl-rag` | Label on the boot claim the realm's operator sees on the Providers desk. |
 | `MCL_BOX` | from the host | Label naming the box, also on the boot claim. Set it where you deploy. |
-| `MCL_HEALTH_PORT` | `8450` | Health endpoint. Host networking makes a collision a silent bind failure, so check the host before changing.  |
+| (none) | `/run/mcl/health.sock` | `/health` is served on this Unix socket inside the container (mcl_om `health_socket`); no health port is bound. `scripts/health.sh` asks it. |
 | `MCL_NODE_NAME` | `mcl_rag` | Erlang node name. |
 | `MCL_NODE_HOST` | `127.0.0.1` | Erlang node host. |
 | `MCL_COOKIE` | `mcl_rag` | Erlang cookie. |

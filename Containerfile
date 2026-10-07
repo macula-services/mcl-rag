@@ -75,7 +75,6 @@ ENV RELX_REPLACE_OS_VARS=true
 ENV MCL_NODE_NAME=mcl_rag
 ENV MCL_NODE_HOST=127.0.0.1
 ENV MCL_COOKIE=mcl_rag
-ENV MCL_HEALTH_PORT=8450
 # The local HTTP API: loopback only, because it has writes and no
 # authentication. The mesh procedures are the public surface.
 ENV MCL_RAG_HTTP_PORT=8451
@@ -84,13 +83,16 @@ ENV MCL_DATA_DIR=/var/lib/mcl-rag
 
 VOLUME ["/etc/mcl/secrets", "/var/lib/mcl-rag"]
 
-# Health and the loopback API, as registered in macula-fleet PORTS.md.
-EXPOSE 8450 8451
+# The loopback API, as registered in macula-fleet PORTS.md.
+EXPOSE 8451
 # THE START PERIOD OUTLASTS THE STORE OPEN. Opening rebuilds the vector index:
 # 190-227 s on the workstation for the full corpus, longer on a Celeron,
 # and /health is honestly `degraded, store_opening' throughout. A shorter start
 # period lets an orchestrator kill a healthy open and loop it forever.
+# /health is served on a Unix socket only (mcl_om health_socket); mcl_om
+# creates the socket, mode 0600, in this directory.
+RUN mkdir -p /run/mcl
 HEALTHCHECK --interval=30s --timeout=5s --start-period=900s --retries=3 \
-    CMD curl -fsS "http://127.0.0.1:${MCL_HEALTH_PORT}/health" || exit 1
+    CMD curl -fsS --unix-socket /run/mcl/health.sock http://localhost/health || exit 1
 
 CMD ["/app/bin/mcl_rag", "foreground"]
