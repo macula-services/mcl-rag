@@ -17,7 +17,8 @@
          get_document_verbatim_round_trip/1, retire_document_round_trip/1,
          sources_paging_walks_the_whole_store/1, retire_document_takes_orphan_chunks/1,
          refresh_scheduler_detects_and_refreshes_change/1,
-         refresh_scheduler_namespaces_by_repo_to_avoid_collisions/1]).
+         refresh_scheduler_namespaces_by_repo_to_avoid_collisions/1,
+         refresh_leaves_out_boilerplate/1, identical_text_is_returned_once/1]).
 
 all() ->
     [ingest_embed_search_prune_round_trip, sources_query_round_trip,
@@ -25,7 +26,8 @@ all() ->
      get_document_verbatim_round_trip, retire_document_round_trip,
      sources_paging_walks_the_whole_store, retire_document_takes_orphan_chunks,
      refresh_scheduler_detects_and_refreshes_change,
-     refresh_scheduler_namespaces_by_repo_to_avoid_collisions].
+     refresh_scheduler_namespaces_by_repo_to_avoid_collisions,
+     refresh_leaves_out_boilerplate, identical_text_is_returned_once].
 
 init_per_suite(Config) ->
     ok = rag_test_helpers:start_mcl_rag(),
@@ -211,15 +213,12 @@ retire_document_round_trip(_Config) ->
     ?assertEqual({error, not_ingested},
                  maybe_retire_document:retire(#{<<"document_id">> => DocId})).
 
-%% refresh_corpus_scheduler:scan/0 is the internal half of the freshness
-%% loop (the external half -- keeping each checkout in sync with git --
-%% is corpus_git_sync's own job, not exercised here). Points
-%% corpus_repos_config at a fixture repo list naming one fixture dir
-%% instead of a real cloned checkout -- scan/0 only reads files off
-%% disk, it doesn't care whether git put them there. `path' is never a
-%% JSON field, only ever derived (data_dir/corpus/id, see
-%% corpus_repos_config:clone_path/1), so the fixture data_dir has to
-%% be overridden too, and RepoDir computed the exact same way.
+%% refresh_corpus_scheduler:refresh_repo/2 is the store half of the
+%% freshness loop: it makes the store hold a checkout's files at a head (the
+%% git half, following the branch, is mcl_rag_SUITE's
+%% the_corpus_follows_the_branch_head). The checkout here is a plain fixture
+%% dir and the heads are fixture shas: refresh_repo/2 only reads files off
+%% disk, it doesn't care whether git put them there.
 refresh_scheduler_detects_and_refreshes_change(Config) ->
     DocId = fresh_id(),
     RepoId = <<"refresh-repo-", DocId/binary>>,
@@ -240,12 +239,15 @@ refresh_scheduler_detects_and_refreshes_change(Config) ->
     Original = <<"# Before\n\nThe okapi, a forest giraffe, lives only in the "
                  "Ituri rainforest of Congo.\n">>,
     ok = file:write_file(AbsPath, Original),
-    ok = refresh_corpus_scheduler:scan(),
+    Repo = #{id => RepoId, path => RepoDir},
+    H1 = binary:copy(<<"1">>, 40),
+    H2 = binary:copy(<<"2">>, 40),
+    ok = refresh_corpus_scheduler:refresh_repo(Repo, H1),
     ?assertMatch({ok, #{source_path := NamespacedId, raw_bytes := Original}},
                  rag_store:get_source_content(NamespacedId)),
-    %% The file is recorded as corpus content from its repo at the commit the
-    %% list pins (the fixture's), and so is every chunk made from it.
-    Pin = binary:copy(<<"0">>, 40),
+    %% The file is recorded as corpus content from its repo at the head it was
+    %% read at, and so is every chunk made from it.
+    Pin = H1,
     OriginalSha = binary:encode_hex(crypto:hash(sha256, Original), lowercase),
     ?assertMatch({ok, #{provenance := #{kind := <<"corpus">>, repo_id := RepoId, path := NamespacedId,
                                         commit := Pin, content_sha256 := OriginalSha}}},
@@ -256,15 +258,15 @@ refresh_scheduler_detects_and_refreshes_change(Config) ->
     {ok, Hits} = rag_store:search_text(<<"Where does the okapi live?">>, 5),
     ?assert(hit_from_source(Hits, NamespacedId)),
 
-    %% Unchanged content -- a second scan is a no-op, same content still there.
-    ok = refresh_corpus_scheduler:scan(),
-    ?assertMatch({ok, #{source_path := NamespacedId, raw_bytes := Original}},
+    %% Unchanged content at a new head -- verified there, not re-ingested.
+    ok = refresh_corpus_scheduler:refresh_repo(Repo, H2),
+    ?assertMatch({ok, #{source_path := NamespacedId, raw_bytes := Original, provenance := #{commit := H2}}},
                  rag_store:get_source_content(NamespacedId)),
 
-    %% Changed content -- the next scan picks it up.
+    %% Changed content -- the next head picks it up.
     Updated = <<"# After\n\nUpdated content, different bytes.\n">>,
     ok = file:write_file(AbsPath, Updated),
-    ok = refresh_corpus_scheduler:scan(),
+    ok = refresh_corpus_scheduler:refresh_repo(Repo, binary:copy(<<"3">>, 40)),
     ?assertMatch({ok, #{source_path := NamespacedId, raw_bytes := Updated}},
                  rag_store:get_source_content(NamespacedId)),
 
@@ -298,7 +300,9 @@ refresh_scheduler_namespaces_by_repo_to_avoid_collisions(Config) ->
 
     ok = file:write_file(filename:join(DirA, RelPath), <<"# From A\n">>),
     ok = file:write_file(filename:join(DirB, RelPath), <<"# From B\n">>),
-    ok = refresh_corpus_scheduler:scan(),
+    Head = binary:copy(<<"1">>, 40),
+    ok = refresh_corpus_scheduler:refresh_repo(#{id => RepoA, path => DirA}, Head),
+    ok = refresh_corpus_scheduler:refresh_repo(#{id => RepoB, path => DirB}, Head),
 
     IdA = <<RepoA/binary, "/", RelPath/binary>>,
     IdB = <<RepoB/binary, "/", RelPath/binary>>,
@@ -310,7 +314,61 @@ refresh_scheduler_namespaces_by_repo_to_avoid_collisions(Config) ->
     ok = rag_test_helpers:restore_env(corpus_repos_config, PrevReposConfig),
     ok = rag_test_helpers:restore_env(data_dir, PrevDataDir).
 
+%% mcl-rag#26: a .github template and a LICENSE file are never ingested; a
+%% %CopyrightBegin% header is stripped before chunking; a file that is only
+%% links is recorded but makes no chunk.
+refresh_leaves_out_boilerplate(Config) ->
+    Id = fresh_id(),
+    RepoId = <<"boiler-", Id/binary>>,
+    Dir = filename:join(?config(priv_dir, Config), RepoId),
+    Files = [{<<".github/pull_request_template.md">>, <<"# PR\n\nDescribe the lesson you learned while working.\n">>},
+             {<<"LICENSE.md">>, <<"# License\n\nPermission is hereby granted, free of charge, to any person.\n">>},
+             {<<"chapter.md">>, <<"<!--\n%CopyrightBegin%\nSPDX-License-Identifier: Apache-2.0\n%CopyrightEnd%\n-->\n"
+                                  "# Chapter\n\nThe numbat eats only termites, thousands a day. It is a fixture sentence long enough that the chunker keeps it, past its eighty-byte floor.\n">>},
+             {<<"index.md">>, <<"- [One](one.md)\n- [Two](two.md)\n">>}],
+    [ok = write_fixture(Dir, Rel, Bytes) || {Rel, Bytes} <- Files],
+    ok = refresh_corpus_scheduler:refresh_repo(#{id => RepoId, path => Dir}, binary:copy(<<"1">>, 40)),
+    Path = fun(Rel) -> <<RepoId/binary, "/", Rel/binary>> end,
+    [?assertEqual({error, not_found}, rag_store:get_source(Path(Rel)))
+     || Rel <- [<<".github/pull_request_template.md">>, <<"LICENSE.md">>]],
+    {ok, ChapterChunks} = rag_store:list_chunks_by_source(Path(<<"chapter.md">>), 100),
+    ?assertNotEqual([], ChapterChunks),
+    ?assertEqual([], [C || #{content := C} <- ChapterChunks, binary:match(C, <<"CopyrightBegin">>) =/= nomatch]),
+    ?assertMatch({ok, _}, rag_store:get_source(Path(<<"index.md">>))),
+    ?assertEqual({ok, []}, rag_store:list_chunks_by_source(Path(<<"index.md">>), 100)).
+
+%% mcl-rag#26: the same text in three repos comes back once, naming the other
+%% two under also_in, and a query for k hits still gets k distinct ones.
+identical_text_is_returned_once(Config) ->
+    Id = fresh_id(),
+    Shared = <<"# Scope\n\nThe wombat's cube-shaped droppings mark its territory on rocks. It is a fixture sentence long enough that the chunker keeps it, past its eighty-byte floor.\n">>,
+    Repos = [<<"dup-", N/binary, "-", Id/binary>> || N <- [<<"a">>, <<"b">>, <<"c">>]],
+    [begin
+         Dir = filename:join(?config(priv_dir, Config), R),
+         ok = write_fixture(Dir, <<"SECURITY.md">>, Shared),
+         ok = write_fixture(Dir, <<"own.md">>, <<"# Own\n\nThe wombat of ", R/binary, " digs burrows with its claws. It is a fixture sentence long enough that the chunker keeps it, past its eighty-byte floor.\n">>),
+         ok = refresh_corpus_scheduler:refresh_repo(#{id => R, path => Dir}, binary:copy(<<"1">>, 40))
+     end || R <- Repos],
+    %% The suites' embedder is a hash stub: search by the shared chunk's own
+    %% vector, which every copy shares.
+    {ok, [#{content := SharedChunk} | _]} = rag_store:list_chunks_by_source(<<(hd(Repos))/binary, "/SECURITY.md">>, 1),
+    {ok, Vector} = rag_embedder:embed(passage, SharedChunk),
+    {ok, Hits} = rag_store:search_vector(Vector, 3),
+    Ours = [H || #{source_path := P} = H <- Hits, lists:any(fun(R) -> binary:match(P, R) =/= nomatch end, Repos)],
+    SharedHits = [H || #{content := C} = H <- Ours, binary:match(C, <<"cube-shaped">>) =/= nomatch],
+    ?assertMatch([_], SharedHits),
+    [#{source_path := First, also_in := AlsoIn}] = SharedHits,
+    ?assertEqual(lists:sort([<<R/binary, "/SECURITY.md">> || R <- Repos]), lists:sort([First | AlsoIn])),
+    Shas = [maps:get(content_sha256, maps:get(provenance, H)) || H <- Hits],
+    ?assertEqual(3, length(Hits)),
+    ?assertEqual(length(Shas), length(lists:usort(Shas))).
+
 %%% Internals
+
+write_fixture(Dir, Rel, Bytes) ->
+    Path = filename:join(Dir, Rel),
+    ok = filelib:ensure_dir(Path),
+    file:write_file(Path, Bytes).
 
 %% Binary-keyed, matching what `maybe_*''s `from_map/1' expects and what
 %% the real HTTP layer actually sends (JSON-decoded params) — these

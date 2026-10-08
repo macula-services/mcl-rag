@@ -61,6 +61,17 @@
     find_source_by_path/1,
     get_watermark/2,
     put_watermark/3,
+    forget_watermark/2,
+    watermarked_paths/1,
+    watermarked_corpora/0,
+    forget_chunks_of_source/1,
+    forget_chunks_of_repo_except/2,
+    verify_source/2,
+    put_served/3,
+    get_served/1,
+    forget_served/1,
+    served_repos/0,
+    collapsed/1,
     put_reembed_request/1,
     status/0,
     dimension/0
@@ -77,6 +88,10 @@
 -define(SOURCE_ID_PREFIX, "source:").
 -define(WATERMARK_ID_PREFIX, "watermark:").
 -define(REEMBED_ID_PREFIX, "reembed:").
+-define(SERVED_ID_PREFIX, "served:").
+%% How many documents one find may return. A query here is bounded by one
+%% repo's files or chunks; the largest corpus repo holds a few thousand.
+-define(FIND_ALL, 1000000).
 
 %% The default gen_server:call/2 timeout (5000ms) is too short for this
 %% store under real load: refresh_corpus_scheduler's first-ever pass
@@ -239,6 +254,66 @@ put_watermark(CorpusId, SourcePath, DiffHash)
   when is_binary(CorpusId), is_binary(SourcePath), is_binary(DiffHash) ->
     gen_server:call(?MODULE, {put_watermark, CorpusId, SourcePath, DiffHash}, ?CALL_TIMEOUT).
 
+%% @doc Drop one file's watermark: the file left its repo, or its repo left
+%% the corpus (mcl-rag#25).
+-spec forget_watermark(binary(), binary()) -> ok | {error, term()}.
+forget_watermark(CorpusId, SourcePath) when is_binary(CorpusId), is_binary(SourcePath) ->
+    gen_server:call(?MODULE, {forget_watermark, CorpusId, SourcePath}, ?CALL_TIMEOUT).
+
+%% @doc Every source path a corpus has a watermark for: the files it has
+%% ingested, which a refresh compares with the files its checkout holds now.
+-spec watermarked_paths(binary()) -> {ok, [binary()]} | {error, term()}.
+watermarked_paths(CorpusId) when is_binary(CorpusId) ->
+    gen_server:call(?MODULE, {watermarked_paths, CorpusId}, ?CALL_TIMEOUT).
+
+%% @doc Every corpus id with a watermark: each repo ever ingested, including
+%% one that has since left the list.
+-spec watermarked_corpora() -> {ok, [binary()]} | {error, term()}.
+watermarked_corpora() ->
+    gen_server:call(?MODULE, watermarked_corpora, ?CALL_TIMEOUT).
+
+%% @doc Drop every chunk made from `SourcePath', vector and all. A re-ingest
+%% calls it first: chunk ids are position-derived, so a file that changed
+%% shape would otherwise keep the chunks of positions it no longer has
+%% (mcl-rag#25: a TASK_MODEL.md chunk from an old commit was still served).
+-spec forget_chunks_of_source(binary()) -> {ok, non_neg_integer()} | {error, term()}.
+forget_chunks_of_source(SourcePath) when is_binary(SourcePath) ->
+    gen_server:call(?MODULE, {forget_chunks_of_source, SourcePath}, ?CALL_TIMEOUT).
+
+%% @doc Drop every chunk of corpus repo `RepoId' whose source path is not one
+%% of `Keep' (all of them when `Keep' is empty): the sweep for chunks no
+%% watermark leads to, and for a repo that left the corpus.
+-spec forget_chunks_of_repo_except(binary(), [binary()]) -> {ok, non_neg_integer()} | {error, term()}.
+forget_chunks_of_repo_except(RepoId, Keep) when is_binary(RepoId), is_list(Keep) ->
+    gen_server:call(?MODULE, {forget_chunks_of_repo_except, RepoId, Keep}, ?CALL_TIMEOUT).
+
+%% @doc Record that a source's bytes are present, unchanged, at `Commit': a
+%% refresh that moved its repo to `Commit' and found the file's content
+%% unchanged. Its chunks are not rewritten; a hit reads the commit from here.
+-spec verify_source(binary(), binary()) -> ok | {error, term()}.
+verify_source(DocumentId, Commit) when is_binary(DocumentId), is_binary(Commit) ->
+    gen_server:call(?MODULE, {verify_source, DocumentId, Commit}, ?CALL_TIMEOUT).
+
+%% @doc Record that corpus repo `RepoId' is served at `Commit': every file of
+%% its checkout at that commit is ingested or verified, and nothing else of it
+%% is stored. `Generation' names the index shape it was refreshed under.
+-spec put_served(binary(), binary(), binary()) -> ok | {error, term()}.
+put_served(RepoId, Commit, Generation) when is_binary(RepoId), is_binary(Commit), is_binary(Generation) ->
+    gen_server:call(?MODULE, {put_served, RepoId, Commit, Generation}, ?CALL_TIMEOUT).
+
+-spec get_served(binary()) -> {ok, #{commit := binary(), generation := binary()}} | {error, not_found} | refused().
+get_served(RepoId) when is_binary(RepoId) ->
+    gen_server:call(?MODULE, {get_served, RepoId}, ?CALL_TIMEOUT).
+
+-spec forget_served(binary()) -> ok | {error, term()}.
+forget_served(RepoId) when is_binary(RepoId) ->
+    gen_server:call(?MODULE, {forget_served, RepoId}, ?CALL_TIMEOUT).
+
+%% @doc Every served repo with the commit it is served at.
+-spec served_repos() -> {ok, #{binary() => binary()}} | {error, term()}.
+served_repos() ->
+    gen_server:call(?MODULE, served_repos, ?CALL_TIMEOUT).
+
 %% @doc Records a re-embed request. `Req' keys: `document_id',
 %% `corpus_id', `source_path' (required), `priority', `scheduled_at'
 %% (optional). No worker consumes these yet -- see `maybe_schedule_reembed'
@@ -282,8 +357,11 @@ handle_call({forget_chunk, Id}, _From, S0) ->
 handle_call({tag_chunk, ChunkId, Topics}, _From, S0) ->
     with_db(S0, fun(Db) -> tag_chunk_doc(Db, ChunkId, Topics) end);
 
+%% Over-fetched and collapsed (mcl-rag#26): identical text (one
+%% content_sha256) comes back once, naming every other source it was found in
+%% under `also_in', and a query still gets `TopK' distinct hits.
 handle_call({search_vector, Vector, TopK}, _From, S0) ->
-    with_db(S0, fun(Db) -> to_hits(Db, barrel:search_vector(Db, Vector, #{k => TopK})) end);
+    with_db(S0, fun(Db) -> distinct_hits(Db, Vector, TopK) end);
 
 handle_call({get, Id}, _From, S0) ->
     with_db(S0, fun(Db) -> chunk_from_doc(barrel:get_doc(Db, Id)) end);
@@ -317,6 +395,41 @@ handle_call({get_watermark, CorpusId, SourcePath}, _From, S0) ->
 
 handle_call({put_watermark, CorpusId, SourcePath, DiffHash}, _From, S0) ->
     with_db(S0, fun(Db) -> put_watermark_doc(Db, CorpusId, SourcePath, DiffHash) end);
+
+handle_call({forget_watermark, CorpusId, SourcePath}, _From, S0) ->
+    with_db(S0, fun(Db) -> deleted(barrel:delete_doc(Db, watermark_id(CorpusId, SourcePath))) end);
+
+handle_call({watermarked_paths, CorpusId}, _From, S0) ->
+    with_db(S0, fun(Db) -> watermark_field(Db, [{path, [<<"corpus_id">>], CorpusId}], <<"source_path">>) end);
+
+handle_call(watermarked_corpora, _From, S0) ->
+    with_db(S0, fun(Db) -> watermark_field(Db, [], <<"corpus_id">>) end);
+
+handle_call({forget_chunks_of_source, SourcePath}, _From, S0) ->
+    with_db(S0, fun(Db) -> forget_chunks(Db, [{path, [<<"source_path">>], SourcePath}], fun every_chunk/1) end);
+
+handle_call({forget_chunks_of_repo_except, RepoId, Keep}, _From, S0) ->
+    Kept = sets:from_list(Keep, [{version, 2}]),
+    Doomed = fun(Doc) -> not sets:is_element(maps:get(<<"source_path">>, Doc, <<>>), Kept) end,
+    with_db(S0, fun(Db) -> forget_chunks(Db, [{path, [<<"repo_id">>], RepoId}], Doomed) end);
+
+handle_call({verify_source, Id, Commit}, _From, S0) ->
+    with_db(S0, fun(Db) -> verified_source(Db, Id, Commit, barrel:get_doc(Db, source_id(Id))) end);
+
+handle_call({put_served, RepoId, Commit, Generation}, _From, S0) ->
+    Doc = #{<<"id">> => served_id(RepoId), <<"type">> => <<"served">>, <<"repo_id">> => RepoId,
+            <<"commit">> => Commit, <<"generation">> => Generation},
+    with_db(S0, fun(Db) -> normalize_write(put_doc_upsert(Db, served_id(RepoId), Doc)) end);
+
+handle_call({get_served, RepoId}, _From, S0) ->
+    with_db(S0, fun(Db) -> served_from_doc(barrel:get_doc(Db, served_id(RepoId))) end);
+
+handle_call({forget_served, RepoId}, _From, S0) ->
+    with_db(S0, fun(Db) -> deleted(barrel:delete_doc(Db, served_id(RepoId))) end);
+
+handle_call(served_repos, _From, S0) ->
+    with_db(S0, fun(Db) -> served_map(barrel:find(Db, #{where => [{path, [<<"type">>], <<"served">>}]},
+                                                  #{limit => ?FIND_ALL})) end);
 
 handle_call({put_reembed_request, Req}, _From, S0) ->
     with_db(S0, fun(Db) -> put_reembed_request_doc(Db, Req) end);
@@ -535,10 +648,41 @@ chunk_count(Db) ->
         _                   -> 0
     end.
 
-to_hits(Db, {ok, RawHits}) ->
-    {ok, [hit(Db, H) || H <- RawHits]};
-to_hits(_Db, {error, _} = E) ->
+%% How many more raw hits than asked for a search reads, so duplicates can be
+%% collapsed and `TopK' distinct hits still come back.
+-define(OVERFETCH, 4).
+
+distinct_hits(Db, Vector, TopK) ->
+    distinct(Db, barrel:search_vector(Db, Vector, #{k => TopK * ?OVERFETCH}), TopK).
+
+distinct(Db, {ok, RawHits}, TopK) ->
+    {ok, lists:sublist(collapsed([hit(Db, H) || H <- RawHits]), TopK)};
+distinct(_Db, {error, _} = E, _TopK) ->
     E.
+
+%% @doc Hits in score order, each text once: a later hit with the same
+%% content_sha256 as an earlier one adds its source path to that hit's
+%% `also_in' and is dropped. A hit without a sha is kept as it is.
+-spec collapsed([map()]) -> [map()].
+collapsed(Hits) ->
+    {Kept, Seen} = lists:foldl(fun collapse/2, {[], #{}}, Hits),
+    [also_in(H, Seen) || H <- lists:reverse(Kept)].
+
+collapse(#{provenance := #{content_sha256 := Sha}, source_path := Path} = Hit, {Kept, Seen}) ->
+    case maps:find(Sha, Seen) of
+        {ok, Others} -> {Kept, Seen#{Sha := Others ++ [Path]}};
+        error        -> {[Hit | Kept], Seen#{Sha => []}}
+    end;
+collapse(Hit, {Kept, Seen}) ->
+    {[Hit | Kept], Seen}.
+
+also_in(#{provenance := #{content_sha256 := Sha}} = Hit, Seen) ->
+    case maps:get(Sha, Seen, []) of
+        []     -> Hit;
+        Others -> Hit#{also_in => Others}
+    end;
+also_in(Hit, _Seen) ->
+    Hit.
 
 %% barrel's vector store only carries text for vectors IT embedded.
 %% Every vector here is client-supplied (`_embedding', see
@@ -549,12 +693,25 @@ to_hits(_Db, {error, _} = E) ->
 %% with an empty `content'.
 hit(Db, #{key := Id, score := Score} = Raw) ->
     Meta = maps:get(metadata, Raw, #{}),
+    SourcePath = maps:get(<<"source_path">>, Meta, <<>>),
     #{chunk_id    => Id,
       content     => hit_content(Db, Id, maps:get(text, Raw, <<>>)),
       score       => Score,
-      source_path => maps:get(<<"source_path">>, Meta, <<>>),
-      provenance  => provenance(Meta),
+      source_path => SourcePath,
+      provenance  => provenance(verified_commit(Db, SourcePath, Meta)),
       meta        => maps:without([<<"source_path">> | ?PROVENANCE_FIELDS], Meta)}.
+
+%% A corpus chunk names the commit its file was last verified at (mcl-rag#24):
+%% the bytes are unchanged since it was embedded, so they are present at that
+%% commit, and that is the commit describe_corpus serves. The chunk's own
+%% stored commit is used when the file has no source record.
+verified_commit(Db, SourcePath, #{<<"repo_id">> := RepoId} = Meta) when RepoId =/= <<>>, SourcePath =/= <<>> ->
+    case barrel:get_doc(Db, source_id(SourcePath)) of
+        {ok, #{<<"commit">> := Commit}} when Commit =/= <<>> -> Meta#{<<"commit">> => Commit};
+        _NoSource                                            -> Meta
+    end;
+verified_commit(_Db, _SourcePath, Meta) ->
+    Meta.
 
 hit_content(_Db, _Id, Text) when byte_size(Text) > 0 ->
     Text;
@@ -678,8 +835,11 @@ drop(0, L)                          -> L;
 drop(N, L) when length(L) =< N      -> [];
 drop(N, L)                          -> lists:nthtail(N, L).
 
+%% Chunks are the documents with no `type': a source, its watermark and its
+%% re-embed requests share its `source_path', and would otherwise take slots
+%% of `Limit'.
 list_chunks_by_source_page(Db, SourcePath, Limit) ->
-    Query = #{where => [{path, [<<"source_path">>], SourcePath}]},
+    Query = #{where => [{path, [<<"source_path">>], SourcePath}, {missing, [<<"type">>]}]},
     case barrel:find(Db, Query, #{limit => Limit}) of
         {ok, Docs, _Meta} ->
             {ok, [C || D <- Docs, {ok, C} <- [chunk_from_doc({ok, find_doc(D)})]]};
@@ -718,6 +878,56 @@ watermark_from_doc({ok, #{<<"type">> := <<"watermark">>, <<"diff_hash">> := Hash
     {ok, #{diff_hash => Hash}};
 watermark_from_doc(_NotFoundOrNotAWatermark) ->
     {error, not_found}.
+
+deleted({ok, _})              -> ok;
+deleted({error, not_found})   -> ok;
+deleted({error, _} = E)       -> E.
+
+watermark_field(Db, Where, Field) ->
+    case barrel:find(Db, #{where => [{path, [<<"type">>], <<"watermark">>} | Where]}, #{limit => ?FIND_ALL}) of
+        {ok, Docs, _Meta} -> {ok, lists:usort([maps:get(Field, find_doc(D)) || D <- Docs])};
+        {error, _} = E    -> E
+    end.
+
+%% Chunks are the documents with no `type' (sources, watermarks, served
+%% records and re-embed requests all carry one).
+forget_chunks(Db, Where, Doomed) ->
+    case barrel:find(Db, #{where => [{missing, [<<"type">>]} | Where]}, #{limit => ?FIND_ALL}) of
+        {ok, Docs, _Meta} ->
+            Ids = [Id || D <- Docs, #{<<"id">> := Id} = Doc <- [find_doc(D)],
+                         not maps:is_key(<<"type">>, Doc), Doomed(Doc)],
+            forgot(Db, Ids, 0);
+        {error, _} = E ->
+            E
+    end.
+
+every_chunk(_Doc) -> true.
+
+forgot(_Db, [], N) -> {ok, N};
+forgot(Db, [Id | Rest], N) ->
+    case deleted(barrel:delete_doc(Db, Id)) of
+        ok             -> forgot(Db, Rest, N + 1);
+        {error, _} = E -> E
+    end.
+
+verified_source(_Db, _Id, Commit, {ok, #{<<"type">> := <<"source">>, <<"commit">> := Commit}}) ->
+    ok;
+verified_source(Db, Id, Commit, {ok, #{<<"type">> := <<"source">>} = Doc}) ->
+    normalize_write(put_doc_upsert(Db, source_id(Id), Doc#{<<"commit">> => Commit}));
+verified_source(_Db, _Id, _Commit, _NotASource) ->
+    {error, not_found}.
+
+served_id(RepoId) -> <<?SERVED_ID_PREFIX, RepoId/binary>>.
+
+served_from_doc({ok, #{<<"type">> := <<"served">>, <<"commit">> := Commit, <<"generation">> := Gen}}) ->
+    {ok, #{commit => Commit, generation => Gen}};
+served_from_doc(_NotFound) ->
+    {error, not_found}.
+
+served_map({ok, Docs, _Meta}) ->
+    {ok, maps:from_list([{R, C} || D <- Docs, #{<<"repo_id">> := R, <<"commit">> := C} <- [find_doc(D)]])};
+served_map({error, _} = E) ->
+    E.
 
 %%% Internals — re-embed requests (schedule_reembed)
 

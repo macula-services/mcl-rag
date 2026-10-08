@@ -102,8 +102,9 @@ the_shipped_config_names_the_org_test() ->
     {ok, Text} = file:read_file(alongside("config/sys.config.src")),
     ?assertNotEqual(nomatch, binary:match(Text, <<"{org,               <<\"mcl-rag\">>}">>)).
 
-%% The corpus the shared memory holds: which repos corpus_git_sync keeps
-%% checked out under <data_dir>/corpus/<id>. The ids are the checkout
+%% The corpus the shared memory holds: which repos refresh_corpus_scheduler
+%% follows, checked out under <data_dir>/corpus/<id>, each at its branch head
+%% (nothing is pinned, mcl-rag#24). The ids are the checkout
 %% directories AND the namespace of every stored watermark, so a renamed id
 %% re-embeds that repo from scratch. The list lived only on beam03 and is
 %% rebuilt from the checkouts in the data copy; it must read back through the
@@ -127,9 +128,9 @@ the_shipped_corpus_list_reads_back_test() ->
                       <<"pulseview">>, <<"reckon-ecosystem">>, <<"rt-thread">>, <<"rtl-433">>,
                       <<"sdrangel">>, <<"sdrplusplus">>, <<"soapysdr">>, <<"zephyr">>],
                      lists:sort([Id || #{id := Id} <- Repos])),
-        [?assertMatch(#{url := <<"https://github.com/", _/binary>>, branch := <<_, _/binary>>,
-                        commit := <<_:40/binary>>}, R)
-         || R <- Repos]
+        [?assertMatch(#{url := <<"https://github.com/", _/binary>>, branch := <<_, _/binary>>}, R)
+         || R <- Repos],
+        ?assertEqual([], [R || #{commit := _} = R <- Repos])
     after
         application:unset_env(mcl_rag, corpus_repos_config)
     end.

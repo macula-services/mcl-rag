@@ -1,0 +1,7 @@
+[
+ {"id": "r01", "text": "lesson learned by an agent while working on the fleet or a release"},
+ {"id": "r02", "text": "macula station realm fleet gotcha"},
+ {"id": "r03", "text": "how does a caller seal a call to a provider's KEM key"},
+ {"id": "r04", "text": "how is a new release deployed to the boxes after a v tag"},
+ {"id": "r05", "text": "why are status fields bit flags in an aggregate"}
+]

@@ -1,6 +1,6 @@
 %% @doc Supervises the service's own processes: the local HTTP API, the mesh
-%% RPC router the eighteen procedures go through, the corpus git sync, the
-%% re-embed scheduler, and this node's place in the org's federated retrieval. The per-slice apps (rag, embed_corpus, ...) boot on
+%% RPC router the eighteen procedures go through, the corpus refresh (which
+%% follows every repo's branch head), and this node's place in the org's federated retrieval. The per-slice apps (rag, embed_corpus, ...) boot on
 %% their own through the release.
 %%
 %% The HTTP API includes writes (add, upload, retire) and has no
@@ -19,7 +19,6 @@ init([]) ->
     {ok, {#{strategy => one_for_one, intensity => 10, period => 10},
           [http_listener(),
            worker(mcl_rag_mesh_rpc),
-           worker(corpus_git_sync),
            worker(refresh_corpus_scheduler),
            worker(join_federation)]}}.
 

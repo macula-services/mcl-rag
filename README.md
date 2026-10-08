@@ -16,11 +16,14 @@ and answers retrieval over it. It also serves as one shard of the org's
 federated retrieval (`macula_rag`, procedure `mcl-rag/rag.query_shard_v1`).
 
 The data is one barrel database, `rag_chunks`, under `MCL_DATA_DIR`, next to the
-corpus checkouts. `deploy/corpus-repos.json` lists the repos, each pinned to a
-reviewed `commit` on its `branch`. The node fetches the branch and checks out
-exactly that commit (vendored libgit2, HTTPS only), so a push to a corpus repo
-changes nothing until the list moves its pin; it re-embeds whatever changes. The ids in that file are the watermark namespace, so renaming one
-re-embeds that repo from scratch.
+corpus checkouts. `deploy/corpus-repos.json` lists the repos and the `branch`
+each one is followed on; nothing is pinned. Every 2 hours the node fetches each
+branch and checks out its head (vendored libgit2, HTTPS only). When a head has
+moved, it re-ingests the files that changed, retires the files that are gone
+(their chunks with them), and drops everything of a repo that left the list.
+Licence files, `.github` templates and copyright headers are left out, and
+identical text is returned once per query. The ids in that file are the
+watermark namespace, so renaming one re-embeds that repo from scratch.
 To serve your own corpus, see [Run your own corpus](docs/RUN_YOUR_OWN_CORPUS.md).
 
 ## The procedures
@@ -53,11 +56,13 @@ mcl-rag is the reference implementation of the RAG service contract
   `provenance`: `kind` (`corpus` or `deposit`), `path`, `content_sha256` (the
   sha256 of the stored text), plus `repo_id` and `commit` for corpus content,
   the lines for a chunk, and `deposited_by` for a deposit whose depositor is
-  known. `commit` is the pin the content was ingested at. A file unchanged
-  across a pin move keeps it, since its bytes are the same at the new pin.
+  known. `commit` is the branch head the text is present at: the head it was
+  ingested at, or a later head the refresh found the file unchanged at. A hit
+  whose text also occurs in other files names them under `also_in`.
 - **Every answer names its corpus.** `answer_query` replies
   `{corpus_hash, hits}`. `describe_corpus` returns `corpus_hash`, `model`,
-  `dim` and `repos` (id, url, branch, commit). `corpus_hash` is the lowercase
+  `dim` and `repos` (id, url, branch, and the commit each repo is served at; a
+  repo whose first refresh has not finished is left out). `corpus_hash` is the lowercase
   hex sha256 of the RFC 8785 canonical JSON of
   `{"dim", "model", "repos": [{"branch", "commit", "id", "url"}]}`, repos in
   list order, so a caller can recompute it. With no corpus list, the corpus
@@ -117,7 +122,7 @@ copied in; locally, `scripts/build-corpus-sync-nif.sh` builds it into
 | `MACULA_STATION_NODE_IDS` | required | The matching 64-hex station node ids, comma-separated, index-paired with the seeds. The 11.x dial is pinned (D5): mcl_om refuses to boot a pool with an unpinned seed. |
 | `MCL_REALM_NAME` | required | The realm's name. Its `sha256` must be `MCL_REALM`, or joining the federation is refused and `/health` reports down. |
 | `MCL_RAG_OPERATORS` | empty | Node ids (64 hex, comma-separated) allowed to call the operator-only procedures. Empty means nobody. |
-| `MCL_RAG_CORPUS_REPOS` | `/etc/mcl-rag/corpus-repos.json` | The corpus list: every repo pinned to a reviewed commit, in the shape [`schema/corpus-repos.schema.json`](schema/corpus-repos.schema.json) publishes. A list that breaks it is refused whole, naming the entry. See [Run your own corpus](docs/RUN_YOUR_OWN_CORPUS.md). |
+| `MCL_RAG_CORPUS_REPOS` | `/etc/mcl-rag/corpus-repos.json` | The corpus list: every repo and the branch it is followed on, in the shape [`schema/corpus-repos.schema.json`](schema/corpus-repos.schema.json) publishes. A list that breaks it is refused whole, naming the entry. See [Run your own corpus](docs/RUN_YOUR_OWN_CORPUS.md). |
 | `MCL_DATA_DIR` | `/var/lib/mcl-rag` | The store and the corpus checkouts. Mount it on a persistent volume (compose names it `mcl-rag-data`). |
 | `MCL_RAG_IMAGE_DIGEST` | required by the compose file | `sha256:<digest>` of the released image to run: the compose file runs the image by digest, never by tag. |
 | `MCL_RAG_HTTP_PORT` | `8451` | The local HTTP API. Registered in macula-fleet `PORTS.md`, like the health port. |

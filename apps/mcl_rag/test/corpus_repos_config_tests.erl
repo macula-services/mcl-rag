@@ -1,70 +1,63 @@
-%% @doc The corpus list pins every repo to a reviewed commit.
+%% @doc The corpus list names what to follow, never a commit (mcl-rag#24).
 %%
-%% corpus_git_sync ingests exactly the commit an entry names and never the
-%% branch head, so what reaches answers is what a reviewed macula-fleet change
-%% named. An entry with no commit, or one that is not a full 40-hex sha, refuses
-%% the whole list, naming the entry: nothing then moves, and no repo quietly
-%% falls back to following its branch.
+%% Each entry is a repo and the branch its head is ingested from. Knowledge
+%% evolves, so nothing is pinned: a list that still names a `commit' is refused
+%% whole, naming the entry, rather than read as if the pin meant something.
 -module(corpus_repos_config_tests).
 
 -include_lib("eunit/include/eunit.hrl").
 
--define(SHA, <<"7fd1a60b01f91b314f59955a4e4d4e80d8edf11d">>).
-
-a_pinned_entry_reads_back_with_its_commit_test() ->
-    with_list([entry(<<"a">>, ?SHA)], fun() ->
-        ?assertMatch({ok, [#{id := <<"a">>, branch := <<"main">>, commit := ?SHA}]},
-                     corpus_repos_config:read())
+an_entry_reads_back_with_its_branch_test() ->
+    with_list([entry(<<"a">>)], fun() ->
+        ?assertMatch({ok, [#{id := <<"a">>, branch := <<"main">>, url := <<"https://github.com/x/a.git">>}]},
+                     corpus_repos_config:read()),
+        {ok, [Repo]} = corpus_repos_config:read(),
+        ?assertNot(maps:is_key(commit, Repo))
     end).
 
-an_entry_without_a_commit_refuses_the_list_test() ->
-    with_list([entry(<<"a">>, ?SHA), maps:remove(<<"commit">>, entry(<<"b">>, ?SHA))], fun() ->
-        ?assertEqual({error, {unpinned_repo, <<"b">>}}, corpus_repos_config:read())
+an_entry_that_still_names_a_commit_refuses_the_list_test() ->
+    Pinned = (entry(<<"b">>))#{<<"commit">> => <<"7fd1a60b01f91b314f59955a4e4d4e80d8edf11d">>},
+    with_list([entry(<<"a">>), Pinned], fun() ->
+        ?assertEqual({error, {unknown_key, <<"b">>, <<"commit">>}}, corpus_repos_config:read())
     end).
-
-a_malformed_commit_refuses_the_list_test() ->
-    [with_list([entry(<<"a">>, Bad)], fun() ->
-         ?assertEqual({error, {malformed_commit, <<"a">>, Bad}}, corpus_repos_config:read())
-     end)
-     || Bad <- [<<"7fd1a60">>, <<"main">>, <<"7FD1A60B01F91B314F59955A4E4D4E80D8EDF11D">>, 42]].
 
 an_entry_without_a_branch_refuses_the_list_test() ->
-    with_list([maps:remove(<<"branch">>, entry(<<"a">>, ?SHA))], fun() ->
+    with_list([maps:remove(<<"branch">>, entry(<<"a">>))], fun() ->
         ?assertEqual({error, {missing_branch, <<"a">>}}, corpus_repos_config:read())
     end).
 
 %% The id names the checkout directory (corpus/<id>): one that could leave it,
 %% or collide with another, is refused.
 a_malformed_id_refuses_the_list_test() ->
-    [with_list([entry(Bad, ?SHA)], fun() ->
+    [with_list([entry(Bad)], fun() ->
          ?assertEqual({error, {malformed_id, Bad}}, corpus_repos_config:read())
      end)
      || Bad <- [<<"../etc">>, <<"Macula">>, <<"-x">>, <<"a/b">>, <<>>]].
 
 a_duplicate_id_refuses_the_list_test() ->
-    with_list([entry(<<"a">>, ?SHA), entry(<<"a">>, ?SHA)], fun() ->
+    with_list([entry(<<"a">>), entry(<<"a">>)], fun() ->
         ?assertEqual({error, {duplicate_id, <<"a">>}}, corpus_repos_config:read())
     end).
 
 %% https, or an absolute path on the box (a local mirror); nothing that
 %% needs credentials and nothing relative.
 an_unsupported_url_refuses_the_list_test() ->
-    [with_list([(entry(<<"a">>, ?SHA))#{<<"url">> => Bad}], fun() ->
+    [with_list([(entry(<<"a">>))#{<<"url">> => Bad}], fun() ->
          ?assertEqual({error, {unsupported_url, <<"a">>, Bad}}, corpus_repos_config:read())
      end)
      || Bad <- [<<"http://github.com/x/a.git">>, <<"git@github.com:x/a.git">>, <<"srv/a">>,
                <<"file:///srv/a">>]].
 
 an_unknown_key_refuses_the_list_test() ->
-    with_list([(entry(<<"a">>, ?SHA))#{<<"tag">> => <<"v1">>}], fun() ->
+    with_list([(entry(<<"a">>))#{<<"tag">> => <<"v1">>}], fun() ->
         ?assertEqual({error, {unknown_key, <<"a">>, <<"tag">>}}, corpus_repos_config:read())
     end).
 
 %% MCL_RAG_CORPUS_REPOS names the list first, then the app env, then the
 %% default mount.
 the_env_var_names_the_list_first_test() ->
-    with_list([entry(<<"from-app-env">>, ?SHA)], fun() ->
-        Path = write_list([entry(<<"from-env">>, ?SHA)]),
+    with_list([entry(<<"from-app-env">>)], fun() ->
+        Path = write_list([entry(<<"from-env">>)]),
         os:putenv("MCL_RAG_CORPUS_REPOS", Path),
         try
             ?assertMatch({ok, [#{id := <<"from-env">>}]}, corpus_repos_config:read())
@@ -76,7 +69,7 @@ the_env_var_names_the_list_first_test() ->
     end).
 
 a_local_mirror_is_a_source_test() ->
-    with_list([(entry(<<"a">>, ?SHA))#{<<"url">> => <<"/srv/mirrors/a.git">>}], fun() ->
+    with_list([(entry(<<"a">>))#{<<"url">> => <<"/srv/mirrors/a.git">>}], fun() ->
         ?assertMatch({ok, [#{url := <<"/srv/mirrors/a.git">>}]}, corpus_repos_config:read())
     end).
 
@@ -100,9 +93,9 @@ the_published_schema_is_the_rules_read_enforces_test() ->
     [?assertEqual(Pattern, maps:get(<<"pattern">>, maps:get(Key, maps:get(<<"properties">>, Repo))))
      || {Key, Pattern} <- maps:to_list(Patterns)].
 
-entry(Id, Commit) ->
+entry(Id) ->
     #{<<"id">> => Id, <<"url">> => <<"https://github.com/x/", Id/binary, ".git">>,
-      <<"branch">> => <<"main">>, <<"commit">> => Commit}.
+      <<"branch">> => <<"main">>}.
 
 with_list(Entries, Test) ->
     Path = write_list(Entries),

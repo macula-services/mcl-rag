@@ -44,8 +44,8 @@ stop_mcl_rag() ->
     ok.
 
 %% @doc Writes a `corpus_repos_config'-shaped JSON fixture at `Path'.
-%% Each repo map needs `id'/`url'; `branch' and `commit' default to a fixture
-%% branch and sha (the suites' repos are plain directories, never synced). Shared by any
+%% Each repo map needs `id'/`url'; `branch' defaults to `main' (the suites'
+%% repos are plain directories unless a case builds a git fixture). Shared by any
 %% suite that needs `corpus_git_sync'/`refresh_corpus_scheduler' to see
 %% a specific repo list, since both read the exact same file shape.
 -spec write_repos_config(file:filename_all(), [map()]) -> ok | {error, term()}.
@@ -54,9 +54,7 @@ write_repos_config(Path, Repos) ->
     file:write_file(Path, Json).
 
 repo_json(#{id := Id, url := Url} = R) ->
-    #{<<"id">> => Id, <<"url">> => Url,
-      <<"branch">> => maps:get(branch, R, <<"main">>),
-      <<"commit">> => maps:get(commit, R, binary:copy(<<"0">>, 40))}.
+    #{<<"id">> => Id, <<"url">> => Url, <<"branch">> => maps:get(branch, R, <<"main">>)}.
 
 %% @doc Put an mcl_rag env key back the way a test found it. Unsetting is not
 %% that: an unset `data_dir' falls to the release default, which is not

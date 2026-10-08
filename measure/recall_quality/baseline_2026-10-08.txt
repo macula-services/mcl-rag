@@ -1,0 +1,31 @@
+r01 lesson learned by an agent while working on the fleet or a release
+   0.8415 36e371a boilerplate          erlang-otp/lib/syntax_tools/doc/guides/chapter.md
+   0.8413 36e371a boilerplate          erlang-otp/lib/edoc/doc/guides/chapter.md
+   0.8410 36e371a boilerplate          erlang-otp/lib/eunit/doc/guides/chapter.md
+   0.8344 f4fcc3b boilerplate          freertos/.github/pull_request_template.md
+   0.8343 f9a1a80 boilerplate          librepcb/.github/pull_request_template.md
+r02 macula station realm fleet gotcha
+   0.8805 a2de9c2 -                    macula-mcp/plans/PLAN_MACULA_12.md
+   0.8705 a2de9c2 -                    macula-mcp/plans/PLAN_MACULA_12.md
+   0.8661 151c045 -                    macula-ts/SECURITY.md
+   0.8661 0d98370 duplicate            macula-py/SECURITY.md
+   0.8661 a08b7ec duplicate            mcl-bookclub/SECURITY.md
+r03 how does a caller seal a call to a provider's KEM key
+   0.9272 a2de9c2 -                    macula-mcp/CHANGELOG.md
+   0.9241 5370915 -                    macula/plans/DESIGN_E2E_PAYLOAD_CONFIDENTIALITY.md
+   0.9166 5370915 -                    macula/docs/guides/rpc/RPC_PROTOCOL.md
+   0.9122 450ccab -                    macula-dotnet/README.md
+   0.9122 0d98370 duplicate            macula-py/README.md
+r04 how is a new release deployed to the boxes after a v tag
+   0.8646 a2de9c2 -                    macula-mcp/CONTRIBUTING.md
+   0.8640 73b3325 -                    elixir/lib/elixir/pages/mix-and-otp/releases.md
+   0.8619 5370915 -                    macula/plans/CHECKLIST_MACULA_12_RELEASE.md
+   0.8592 f9a1a80 -                    librepcb/dev/doxygen/pages/release_workflow.md
+   0.8587 4a695c5 stale                mcl-corpus/guides/FAQ_JOIN_THE_MESH.md
+r05 why are status fields bit flags in an aggregate
+   0.9167 4a695c5 stale                mcl-corpus/roles/architect.md
+   0.9164 4a695c5 stale                mcl-corpus/skills/codegen/erlang/BIT_FLAGS_STATUS_PROJECTION.md
+   0.9140 4a695c5 stale                mcl-corpus/skills/EVOQ_BIT_FLAGS.md
+   0.9074 4a695c5 stale                mcl-corpus/examples/BIT_FLAGS_STATUS.md
+   0.9040 4a695c5 stale                mcl-corpus/philosophy/AGGREGATE_LIFECYCLE_SLICES.md
+totals: {"boilerplate": 5, "duplicate": 3, "stale": 6}

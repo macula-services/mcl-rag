@@ -1,78 +1,49 @@
-%%% @doc Closes the loop `detect_corpus_change'/`schedule_reembed' left
-%%% open: something has to actually walk the corpus and call them.
-%%% Ticks every `?POLL_INTERVAL_MS', re-reads
-%%% `corpus_repos_config:read/0' (the same config `corpus_git_sync'
-%%% reads, independently -- see that module's own doc for why these
-%%% two loops don't coordinate), and for every configured repo, hashes
-%%% every file under its local path. For each one whose hash differs
-%%% from its last-known watermark:
+%%% @doc Keeps the corpus current: every `?POLL_INTERVAL_MS', for every repo
+%%% `corpus_repos_config:read/0' lists, follows its branch head and makes the
+%%% store hold exactly that head's files (mcl-rag#24, #25).
 %%%
-%%%   1. Calls `maybe_schedule_reembed:schedule/1' to durably record the
-%%%      request (the queue `schedule_reembed_v1' already exists for,
-%%%      per its own module doc -- kept for the observability/audit
-%%%      trail it gives, even though this same tick also does step 2).
-%%%   2. Refreshes it immediately: `rag_store:upsert_source/1' with the
-%%%      file's current bytes, then `maybe_embed_document:embed/1' --
-%%%      which re-reads whatever `upsert_source' just wrote and
-%%%      re-chunks/re-embeds from there. Works identically for a file
-%%%      that already existed and one that never has (`upsert_source'
-%%%      creates it either way), so there is no separate "new file"
-%%%      branch.
+%%% Per repo: `mcl_rag_corpus_sync_nif:sync_to_head/3' fetches the branch and
+%%% checks its head out, and says which commit that is. A repo the store
+%%% already serves at that head, under this index generation, is done. Else
+%%% every ingestible file of the checkout is compared with its watermark:
+%%%
+%%%   - changed (or new): its old chunks are dropped, then it is re-ingested
+%%%     and re-embedded, stamped with the head. Dropping first matters: chunk
+%%%     ids are position-derived, so a file that changed shape would otherwise
+%%%     keep the chunks of positions it no longer has.
+%%%   - unchanged: its source record is verified at the head (one small write,
+%%%     no re-embed); a hit reads its commit from there.
+%%%   - gone (a watermark with no file any more): chunks, source and
+%%%     watermark are dropped.
+%%%
+%%% Once every file is through, the repo is recorded as served at the head,
+%%% which is what describe_corpus names. A file that failed keeps its retry
+%%% watermark and the repo stays unserved at the head, so the next tick tries
+%%% again. A repo that has left the list loses everything it ever stored.
+%%%
+%%% `?INDEX_GENERATION' salts every hash. Bump it when what a refresh WRITES
+%%% changes shape, so every file re-ingests exactly once on the next tick and
+%%% a store built by the old code catches up without anyone touching the
+%%% corpus. A repo first refreshed under a new generation also has every chunk
+%%% no current file leads to swept: the one-off clean-up of chunks older code
+%%% left behind.
 %%%
 %%% `document_id'/`source_path' are `<<RepoId/binary, "/",
-%%% RelPath/binary>>', not the bare relative path: `rag_store''s source
-%%% storage keys on `document_id' alone with no repo-scoping of its
-%%% own, so two configured repos sharing a same-named file (both have
-%%% a `README.md', say) would silently overwrite each other's record
-%%% without this. `maybe_schedule_reembed:schedule/1' looks its target
-%%% up by this same `source_path' value (via
-%%% `rag_store:find_source_by_path/1'), so it must match exactly what
-%%% `upsert_source' stored under -- both call sites use the same
-%%% namespaced id for that reason, not just for the storage-collision
-%%% one. Contract-visible: `mcl-rag.get_document_verbatim' now needs
-%%% `"<repo-id>/<relative-path>"', e.g. `"macula/README.md"'.
+%%% RelPath/binary>>', not the bare relative path: two repos that both have a
+%%% README.md must not overwrite each other's record. Contract-visible:
+%%% `mcl-rag.get_document_verbatim' takes `"<repo-id>/<relative-path>"'.
 %%%
-%%% Deliberately immediate, not a separately-scheduled async drain: a
-%%% markdown-sized re-ingest is cheap (a handful of embedder calls per
-%%% file, made in this process by `rag_chunk_embedder' underneath
-%%% `maybe_embed_document', then one vector-carrying write per chunk),
-%%% so there is no real workload here that needs decoupling detection
-%%% from processing across a durable backlog. If that changes, a
-%%% consumer reading `type = reembed_request' records back out of
-%%% `rag_store' is a natural, separate addition -- not built ahead of
-%%% actually needing it.
-%%%
-%%% A refresh that fails (embedder unreachable, store error) does not
-%%% stay failed until the file next changes: `detect_corpus_change' has
-%%% already recorded the file's new hash by then, so this module resets
-%%% that watermark to `?RETRY_WATERMARK' and the next tick sees the
-%%% file as changed again.
-%%%
-%%% `?INDEX_GENERATION' salts every hash. Bump it when what a refresh
-%%% WRITES changes shape (2026-09-02: chunks gained their vector; 0.2.0:
-%%% chunks and sources gained their provenance), so
-%%% every file re-ingests exactly once on the next tick and a store
-%%% built by the old code catches up without anyone touching the corpus.
-%%%
-%%% Lives here (service-level infrastructure, per `mcl_rag_sup''s
-%%% own module doc), not inside `refresh_corpus' despite otherwise
-%%% being that app's own concern: it calls `corpus_repos_config', a
-%%% top-level app module (shared with `corpus_git_sync', so both loops
-%%% read the exact same repo list and path derivation), and this
-%%% umbrella's dependency direction runs from the top app into the
-%%% sub-apps, never the reverse. A standing poller spanning every
-%%% configured repo is also a different shape from `refresh_corpus''s
-%%% other modules, which are single-RPC desks (`detect_corpus_change',
-%%% `schedule_reembed') this one happens to call in a loop.
+%%% Which files are ingested, and what is stripped from them, is
+%%% `corpus_boilerplate''s (mcl-rag#26).
 -module(refresh_corpus_scheduler).
 -behaviour(gen_server).
 
--export([start_link/0, scan/0, attempt/1, relative_path/2, sanitise_utf8/1]).
+-export([start_link/0, scan/0, refresh_repo/2, attempt/1, relative_path/2, sanitise_utf8/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
--define(POLL_INTERVAL_MS, 120000).
+-define(POLL_INTERVAL_MS, 7200000).
 -define(GLOB, "**/*.md").
--define(INDEX_GENERATION, <<"provenance-v2:">>).
+-define(INDEX_GENERATION, <<"heads-v3:">>).
 -define(RETRY_WATERMARK, <<"retry">>).
 
 -spec start_link() -> {ok, pid()}.
@@ -105,70 +76,145 @@ schedule_tick(Delay) ->
     erlang:send_after(Delay, self(), tick).
 
 %% Synchronous and exported: the timer calls it every tick, an operator
-%% or a test can call it directly to force an immediate rescan.
+%% or a test can call it directly to force an immediate refresh.
 -spec scan() -> ok.
 scan() ->
     scan_config(corpus_repos_config:read()).
 
-%% A missing/invalid config file means nothing to scan -- report it,
-%% don't crash the gen_server over it (mirrors corpus_git_sync's own
-%% posture: stay up and do nothing until the config is actually there).
+%% A missing/invalid config file means nothing to follow -- report it,
+%% don't crash the gen_server over it: stay up, serve what is stored, and do
+%% nothing until the list is there.
 scan_config({error, Reason}) ->
     logger:warning("[refresh_corpus_scheduler] config unreadable: ~p", [Reason]);
 scan_config({ok, Repos}) ->
-    lists:foreach(fun scan_repo/1, Repos).
+    lists:foreach(fun follow_repo/1, Repos),
+    prune_removed([Id || #{id := Id} <- Repos]).
 
-%% corpus_repos_config's path is a binary (the NIF side needs it as
-%% one); filelib:wildcard/1 and this module's own relative_path/2
-%% (which uses list ++) both require a list, unlike filelib:is_dir/1,
-%% which happens to accept either -- convert once, here, rather than
-%% at every call site downstream.
-scan_repo(#{id := RepoId, commit := Pin, path := Root}) ->
-    RootList = binary_to_list(Root),
-    scan_root(RepoId, Pin, filelib:is_dir(RootList), RootList).
-
-%% Not every configured repo is necessarily cloned yet (corpus_git_sync
-%% hasn't reached it on its own independent tick) -- skip quietly
-%% rather than erroring on a missing directory.
-scan_root(_RepoId, _Pin, false, _Root) ->
-    ok;
-scan_root(RepoId, Pin, true, Root) ->
-    Files = filelib:wildcard(filename:join(Root, ?GLOB)),
-    lists:foreach(fun(P) -> scan_file(RepoId, Pin, Root, P) end, Files).
-
-scan_file(RepoId, Pin, Root, AbsPath) ->
-    Scan = fun() -> scan_one(RepoId, Pin, Root, AbsPath) end,
-    case attempt(Scan) of
-        {ok, _} ->
-            ok;
-        {crash, Class, Reason, Stack} ->
-            %% The whole per-file scan is contained, path derivation included:
-            %% the first wrap covered only the refresh step, and
-            %% relative_path/2 still cost a scan (issue #7).
-            logger:error("[refresh_corpus_scheduler] ~s: scan crashed path=~ts ~p:~p ~p",
-                         [RepoId, AbsPath, Class, Reason, Stack]),
-            ok
+%% ensure_dir(Path) creates Path's PARENT chain, deliberately not Path
+%% itself: a fresh clone needs its own leaf directory not to exist yet.
+follow_repo(#{id := Id, url := Url, branch := Branch, path := Path} = Repo) ->
+    ok = filelib:ensure_dir(Path),
+    case mcl_rag_corpus_sync_nif:sync_to_head(Url, Path, Branch) of
+        {ok, Head, _Moved}           -> refresh_repo(Repo, Head);
+        {error, {git_error, Msg}}    -> logger:warning("[refresh_corpus_scheduler] ~s: git error: ~ts", [Id, Msg])
     end.
 
-scan_one(RepoId, Pin, Root, AbsPath) ->
-    RelPath = relative_path(Root, AbsPath),
+%% @doc Make the store hold exactly the files of `Repo''s checkout, which is
+%% at `Head'. Exported for the suites, whose checkouts are plain directories.
+-spec refresh_repo(#{id := binary(), path := binary(), _ => _}, binary()) -> ok.
+refresh_repo(#{id := RepoId, path := Root}, Head) ->
+    refresh_unless_served(rag_store:get_served(RepoId), RepoId, binary_to_list(Root), Head).
+
+refresh_unless_served({ok, #{commit := Head, generation := ?INDEX_GENERATION}}, _RepoId, _Root, Head) ->
+    ok;
+refresh_unless_served({error, store_opening}, _RepoId, _Root, _Head) ->
+    ok;
+refresh_unless_served(Served, RepoId, Root, Head) ->
+    refresh_checkout(filelib:is_dir(Root), Served, RepoId, Root, Head).
+
+refresh_checkout(false, _Served, RepoId, Root, _Head) ->
+    logger:warning("[refresh_corpus_scheduler] ~s: no checkout at ~ts", [RepoId, Root]);
+refresh_checkout(true, Served, RepoId, Root, Head) ->
+    Files = [{relative_path(Root, P), P} || P <- filelib:wildcard(filename:join(Root, ?GLOB)),
+                                          corpus_boilerplate:ingestible(relative_path(Root, P))],
+    Current = [namespaced_id(RepoId, Rel) || {Rel, _} <- Files],
+    Results = [scan_file(RepoId, Head, Rel, Abs) || {Rel, Abs} <- Files],
+    Failed = [R || R <- Results, R =:= failed],
+    Vanished = drop_vanished(RepoId, Current),
+    Swept = swept(Served, RepoId, Current),
+    served(Failed, Vanished, Swept, RepoId, Head).
+
+%% Every watermark with no file behind it any more: the file left the repo,
+%% or became something corpus_boilerplate does not ingest.
+drop_vanished(RepoId, Current) ->
+    case rag_store:watermarked_paths(RepoId) of
+        {ok, Known} -> all_dropped(RepoId, Known -- Current);
+        {error, Reason} ->
+            logger:warning("[refresh_corpus_scheduler] ~s: watermarks unreadable ~p", [RepoId, Reason]),
+            false
+    end.
+
+all_dropped(RepoId, DocIds) ->
+    lists:all(fun(Result) -> Result =:= ok end, [dropped(RepoId, D) || D <- DocIds]).
+
+dropped(RepoId, DocId) ->
+    case {rag_store:forget_chunks_of_source(DocId), rag_store:forget_source(DocId),
+          rag_store:forget_watermark(RepoId, DocId)} of
+        {{ok, _}, ok, ok} -> ok;
+        Refused ->
+            logger:warning("[refresh_corpus_scheduler] ~s: could not drop path=~ts ~p", [RepoId, DocId, Refused]),
+            failed
+    end.
+
+%% First refresh under this generation: also drop every chunk of the repo no
+%% current file leads to (chunks older code left with no watermark).
+swept({ok, #{generation := ?INDEX_GENERATION}}, _RepoId, _Current) ->
+    true;
+swept(_OlderOrNone, RepoId, Current) ->
+    case rag_store:forget_chunks_of_repo_except(RepoId, Current) of
+        {ok, N} ->
+            logger:info("[refresh_corpus_scheduler] ~s: swept ~b chunks no file leads to", [RepoId, N]),
+            true;
+        {error, Reason} ->
+            logger:warning("[refresh_corpus_scheduler] ~s: sweep failed ~p", [RepoId, Reason]),
+            false
+    end.
+
+served([], true, true, RepoId, Head) ->
+    case rag_store:put_served(RepoId, Head, ?INDEX_GENERATION) of
+        ok -> logger:info("[refresh_corpus_scheduler] ~s: serving ~s", [RepoId, Head]);
+        {error, Reason} -> logger:warning("[refresh_corpus_scheduler] ~s: served record ~p", [RepoId, Reason])
+    end;
+served(Failed, _Vanished, _Swept, RepoId, Head) ->
+    logger:warning("[refresh_corpus_scheduler] ~s: not yet serving ~s (~b files failed), retrying next tick",
+                   [RepoId, Head, length(Failed)]).
+
+%% A repo the store holds anything of (a watermark or a served record) that
+%% the list no longer names loses all of it.
+prune_removed(Listed) ->
+    case {rag_store:watermarked_corpora(), rag_store:served_repos()} of
+        {{ok, Watermarked}, {ok, Served}} ->
+            lists:foreach(fun remove_repo/1, lists:usort(Watermarked ++ maps:keys(Served)) -- Listed);
+        Refused ->
+            logger:warning("[refresh_corpus_scheduler] removed repos not checked: ~p", [Refused])
+    end.
+
+remove_repo(RepoId) ->
+    _ = drop_vanished(RepoId, []),
+    _ = rag_store:forget_chunks_of_repo_except(RepoId, []),
+    ok = rag_store:forget_served(RepoId),
+    logger:info("[refresh_corpus_scheduler] ~s: left the corpus, its chunks are dropped", [RepoId]).
+
+scan_file(RepoId, Head, RelPath, AbsPath) ->
+    Scan = fun() -> scan_one(RepoId, Head, RelPath, AbsPath) end,
+    case attempt(Scan) of
+        {ok, Result} ->
+            Result;
+        {crash, Class, Reason, Stack} ->
+            %% The whole per-file scan is contained (issue #7).
+            logger:error("[refresh_corpus_scheduler] ~s: scan crashed path=~ts ~p:~p ~p",
+                         [RepoId, AbsPath, Class, Reason, Stack]),
+            failed
+    end.
+
+scan_one(RepoId, Head, RelPath, AbsPath) ->
     case file:read_file(AbsPath) of
         {ok, Raw} ->
-            Content = sanitise_utf8(Raw),
-            refresh_file_contained(RepoId, Pin, RelPath, Content);
+            refresh_file_contained(RepoId, Head, RelPath, sanitise_utf8(Raw));
         {error, Reason} ->
             logger:warning("[refresh_corpus_scheduler] ~s: read error path=~ts ~p",
-                            [RepoId, RelPath, Reason])
+                            [RepoId, RelPath, Reason]),
+            failed
     end.
 
 %% One bad file costs one file, not the scan (issue #3): say where, reset its
 %% watermark, carry on with the rest.
-refresh_file_contained(RepoId, Pin, RelPath, Content) ->
+refresh_file_contained(RepoId, Head, RelPath, Content) ->
     DocId = namespaced_id(RepoId, RelPath),
-    Refresh = fun() -> check_and_refresh(RepoId, Pin, RelPath, Content) end,
+    Refresh = fun() -> check_and_refresh(RepoId, Head, RelPath, Content) end,
     case attempt(Refresh) of
-        {ok, _} ->
-            ok;
+        {ok, Result} ->
+            Result;
         {crash, Class, Reason, Stack} ->
             logger:error("[refresh_corpus_scheduler] ~s: refresh crashed path=~ts ~p:~p ~p",
                          [RepoId, RelPath, Class, Reason, Stack]),
@@ -184,33 +230,47 @@ relative_path(RootDir, AbsPath) ->
     Prefix = string:trim(RootDir, trailing, "/") ++ "/",
     unicode:characters_to_binary(string:replace(AbsPath, Prefix, "", leading)).
 
-check_and_refresh(RepoId, Pin, RelPath, Content) ->
+check_and_refresh(RepoId, Head, RelPath, Content) ->
     DocId = namespaced_id(RepoId, RelPath),
     Hash = diff_hash(Content),
     Detect = #{<<"corpus_id">> => RepoId, <<"source_path">> => DocId,
                <<"diff_hash">> => Hash},
     case maybe_detect_corpus_change:detect(Detect) of
-        {ok, #{changed := 1}} -> refresh_changed(RepoId, Pin, DocId, Content);
-        {ok, #{changed := 0}} -> ok;
+        {ok, #{changed := 1}} -> refresh_changed(RepoId, Head, DocId, Content);
+        {ok, #{changed := 0}} -> verified(rag_store:verify_source(DocId, Head), RepoId, DocId);
         {error, Reason} ->
             logger:warning("[refresh_corpus_scheduler] ~s: detect error path=~ts ~p",
-                            [RepoId, DocId, Reason])
+                            [RepoId, DocId, Reason]),
+            failed
     end.
 
-refresh_changed(RepoId, Pin, DocId, Content) ->
+%% Unchanged bytes are present at the head: say so on the source record.
+verified(ok, _RepoId, _DocId) ->
+    ok;
+verified({error, Reason}, RepoId, DocId) ->
+    logger:warning("[refresh_corpus_scheduler] ~s: verify error path=~ts ~p", [RepoId, DocId, Reason]),
+    retry_next_tick(RepoId, DocId).
+
+refresh_changed(RepoId, Head, DocId, Content) ->
     %% Best-effort record; {error, not_ingested} for a brand-new file is
-    %% expected (nothing to schedule against yet) and not itself an error --
-    %% refresh_file below ingests it regardless.
+    %% expected (nothing to schedule against yet) and not itself an error.
     _ = maybe_schedule_reembed:schedule(#{<<"corpus_id">> => RepoId,
                                            <<"source_path">> => DocId}),
-    refresh_file(RepoId, Pin, DocId, Content).
+    cleared(rag_store:forget_chunks_of_source(DocId), RepoId, Head, DocId, Content).
 
-%% Recorded as corpus content: this repo, at the commit its entry pins.
-refresh_file(RepoId, Pin, DocId, Content) ->
+%% The file's old chunks go first, then it is ingested afresh.
+cleared({ok, _}, RepoId, Head, DocId, Content) ->
+    refresh_file(RepoId, Head, DocId, Content);
+cleared({error, Reason}, RepoId, _Head, DocId, _Content) ->
+    logger:warning("[refresh_corpus_scheduler] ~s: old chunks not dropped path=~ts ~p", [RepoId, DocId, Reason]),
+    retry_next_tick(RepoId, DocId).
+
+%% Recorded as corpus content: this repo, at the head it was read at.
+refresh_file(RepoId, Head, DocId, Content) ->
     Source = #{
         document_id => DocId, source_path => DocId,
         source_type => <<"markdown">>, raw_bytes => Content,
-        repo_id => RepoId, commit => Pin
+        repo_id => RepoId, commit => Head
     },
     source_refreshed(rag_store:upsert_source(Source), RepoId, DocId).
 
@@ -232,10 +292,13 @@ embed_refreshed({error, Reason}, RepoId, DocId) ->
 retry_next_tick(RepoId, DocId) ->
     retry_marked(rag_store:put_watermark(RepoId, DocId, ?RETRY_WATERMARK), DocId).
 
+%% Either way the file failed this tick, and its repo is not served at the
+%% head until it succeeds.
 retry_marked(ok, _DocId) ->
-    ok;
+    failed;
 retry_marked({error, Reason}, DocId) ->
-    logger:warning("[refresh_corpus_scheduler] retry watermark error path=~ts ~p", [DocId, Reason]).
+    logger:warning("[refresh_corpus_scheduler] retry watermark error path=~ts ~p", [DocId, Reason]),
+    failed.
 
 %% Wraps one per-file step so an exception becomes a value instead of a
 %% dead scan (issue #3). Exported for its own test.

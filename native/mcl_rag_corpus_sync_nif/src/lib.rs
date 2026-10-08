@@ -1,11 +1,11 @@
 //! mcl_rag_corpus_sync_nif
 //!
-//! Rustler NIF backing the corpus git-sync gen_server. Given a repo's URL, a
-//! local path, a branch and a commit, clones the repo if the path isn't a
-//! checkout yet, fetches the branch, and checks out exactly that commit if the
-//! branch contains it. It never follows the branch head: the corpus list names
-//! the commit, reviewed in macula-fleet, so a push to a corpus repo is ingested
-//! only once the list is advanced to it. Entirely via vendored libgit2
+//! Rustler NIF backing the corpus refresh. Given a repo's URL, a local path and
+//! a branch, clones the repo if the path isn't a checkout yet, fetches the
+//! branch and checks out its head, and says which commit that is. Knowledge
+//! follows its branch (mcl-rag#24): a push to a corpus repo is ingested on the
+//! next refresh, and every chunk names the commit it came from. Entirely via
+//! vendored libgit2
 //! (statically linked at build time), no `git` binary on the host or in the
 //! container.
 //!
@@ -56,11 +56,10 @@ fn ensure_path_trusted(path: &str) -> Result<(), SyncError> {
 
 pub enum Status {
     UpToDate,
-    Moved { from: String, to: String },
+    Moved { from: String },
 }
 
 pub enum SyncError {
-    CommitNotOnBranch,
     Git(String),
 }
 
@@ -70,15 +69,12 @@ impl From<git2::Error> for SyncError {
     }
 }
 
-/// Ensures `path` is a checkout of `url` at exactly `commit`: clones if `path`
-/// has no `.git` yet, fetches `branch` from origin, and checks `commit` out,
-/// detached, only if `branch` contains it. The branch head is never followed:
-/// what the checkout holds is what the corpus list names, so a push to a
-/// corpus repo reaches answers only once a reviewed list names its commit.
-/// A commit the branch does not contain is refused and the checkout is left
-/// where it was. The checkout is this service's own, so a local edit in it is
-/// replaced by the pinned content.
-pub fn sync_to_commit(url: &str, path: &str, branch: &str, commit: &str) -> Result<Status, SyncError> {
+/// Ensures `path` is a checkout of `url` at the head of `branch`: clones if
+/// `path` has no `.git` yet, fetches `branch` from origin and checks its head
+/// out, detached. Returns that head's sha with whether the checkout moved
+/// (`from` is the sha it left, empty on a fresh clone). The checkout is this
+/// service's own, so a local edit in it is replaced by the head's content.
+pub fn sync_to_head(url: &str, path: &str, branch: &str) -> Result<(String, Status), SyncError> {
     ensure_path_trusted(path)?;
     let existing = Path::new(path).join(".git").is_dir();
     let repo = if existing {
@@ -86,25 +82,17 @@ pub fn sync_to_commit(url: &str, path: &str, branch: &str, commit: &str) -> Resu
     } else {
         git2::build::RepoBuilder::new().branch(branch).clone(url, Path::new(path))?
     };
-    let target = Oid::from_str(commit)?;
     let tip = fetch_branch_tip(&repo, branch)?;
-    if !on_branch(&repo, tip, target) {
-        return Err(SyncError::CommitNotOnBranch);
-    }
-    // A fresh clone had nothing checked out: it always moves to the pin.
+    // A fresh clone had nothing checked out: it always moves.
     let before = if existing { repo.head().ok().and_then(|h| h.target()) } else { None };
-    // A checkout already at the pin (one a branch-following release left on
-    // its branch, too) holds the pinned content: detach it, nothing moved.
-    if before == Some(target) && clean(&repo)? {
-        repo.set_head_detached(target)?;
-        return Ok(Status::UpToDate);
+    if before == Some(tip) && clean(&repo)? {
+        repo.set_head_detached(tip)?;
+        return Ok((tip.to_string(), Status::UpToDate));
     }
-    repo.set_head_detached(target)?;
+    repo.set_head_detached(tip)?;
     repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
-    Ok(Status::Moved {
-        from: before.map(|o| o.to_string()).unwrap_or_default(),
-        to: target.to_string(),
-    })
+    let from = before.map(|o| o.to_string()).unwrap_or_default();
+    Ok((tip.to_string(), Status::Moved { from }))
 }
 
 fn fetch_branch_tip(repo: &Repository, branch: &str) -> Result<Oid, SyncError> {
@@ -114,13 +102,6 @@ fn fetch_branch_tip(repo: &Repository, branch: &str) -> Result<Oid, SyncError> {
     let tip = repo.find_reference(&format!("refs/remotes/origin/{branch}"))?;
     tip.target()
         .ok_or_else(|| SyncError::Git(format!("origin/{branch} is not a direct reference")))
-}
-
-/// Whether `branch`'s tip is `target` or descends from it. A sha the fetch did
-/// not bring (another branch, a fork, a typo) is not on the branch either.
-fn on_branch(repo: &Repository, tip: Oid, target: Oid) -> bool {
-    repo.find_commit(target).is_ok()
-        && (tip == target || repo.graph_descendant_of(tip, target).unwrap_or(false))
 }
 
 fn clean(repo: &Repository) -> Result<bool, SyncError> {
@@ -147,17 +128,15 @@ mod nif {
             error,
             up_to_date,
             moved,
-            commit_not_on_branch,
             git_error,
         }
     }
 
     #[rustler::nif(schedule = "DirtyIo")]
-    fn sync_to_commit<'a>(env: Env<'a>, url: String, path: String, branch: String, commit: String) -> NifResult<Term<'a>> {
-        Ok(match super::sync_to_commit(&url, &path, &branch, &commit) {
-            Ok(Status::UpToDate) => (atoms::ok(), atoms::up_to_date()).encode(env),
-            Ok(Status::Moved { from, to }) => (atoms::ok(), (atoms::moved(), from, to)).encode(env),
-            Err(SyncError::CommitNotOnBranch) => (atoms::error(), atoms::commit_not_on_branch()).encode(env),
+    fn sync_to_head<'a>(env: Env<'a>, url: String, path: String, branch: String) -> NifResult<Term<'a>> {
+        Ok(match super::sync_to_head(&url, &path, &branch) {
+            Ok((head, Status::UpToDate)) => (atoms::ok(), head, atoms::up_to_date()).encode(env),
+            Ok((head, Status::Moved { from })) => (atoms::ok(), head, (atoms::moved(), from)).encode(env),
             Err(SyncError::Git(msg)) => (atoms::error(), (atoms::git_error(), msg)).encode(env),
         })
     }
@@ -272,101 +251,94 @@ mod tests {
         fs::read_to_string(dir.path().join("corpus.md")).unwrap()
     }
 
-    // The HTTPS transport, against GitHub's own long-stable smoke-test repo at
-    // its long-stable commit: `default-features = false' on git2 once dropped
-    // the TLS backend and only a real https URL showed it.
+    // The HTTPS transport, against GitHub's own long-stable smoke-test repo:
+    // `default-features = false' on git2 once dropped the TLS backend and only
+    // a real https URL showed it.
     #[test]
-    fn clones_a_real_repo_over_https_at_its_pinned_commit() {
+    fn clones_a_real_repo_over_https_at_its_branch_head() {
         let local_dir = TempDir::new("https-clone-target");
         fs::remove_dir(local_dir.path()).unwrap();
         let path = local_dir.path().to_str().unwrap().to_string();
-        let pin = "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d";
-        match sync_to_commit("https://github.com/octocat/Hello-World.git", &path, "master", pin) {
-            Ok(Status::Moved { to, .. }) => assert_eq!(to, pin),
-            Ok(Status::UpToDate) => panic!("expected a fresh checkout"),
+        match sync_to_head("https://github.com/octocat/Hello-World.git", &path, "master") {
+            Ok((head, Status::Moved { from })) => {
+                assert_eq!(head.len(), 40);
+                assert_eq!(from, "");
+            }
+            Ok((_, Status::UpToDate)) => panic!("expected a fresh checkout"),
             Err(SyncError::Git(msg)) => panic!("HTTPS clone failed: {msg}"),
-            Err(SyncError::CommitNotOnBranch) => panic!("the pin is on master"),
         }
     }
 
     #[test]
-    fn a_fresh_clone_is_checked_out_at_the_pinned_commit() {
+    fn a_fresh_clone_is_checked_out_at_the_branch_head() {
         let (remote, origin) = setup_remote_with_content();
-        let pin = head_of(&origin);
-        push_new_commit(&origin, "# v2\n");
+        let head = push_new_commit(&origin, "# v2\n");
         let local = TempDir::new("fresh-clone-target");
         fs::remove_dir(local.path()).unwrap();
         let url = remote.path().to_str().unwrap().to_string();
         let path = local.path().to_str().unwrap().to_string();
-        match sync_to_commit(&url, &path, "master", &pin) {
-            Ok(Status::Moved { to, .. }) => assert_eq!(to, pin),
-            _ => panic!("expected the checkout to move to the pin"),
-        }
-        assert_eq!(read(&local), "# v1\n");
-    }
-
-    // THE POINT OF THE PIN: a push to the branch is not ingested.
-    #[test]
-    fn a_moved_branch_head_is_not_followed() {
-        let (remote, origin, local) = setup();
-        let pin = head_of(&origin);
-        let url = remote.path().to_str().unwrap().to_string();
-        let path = local.path().to_str().unwrap().to_string();
-        push_new_commit(&origin, "# pushed, not reviewed\n");
-        match sync_to_commit(&url, &path, "master", &pin) {
-            Ok(Status::UpToDate) => {}
-            _ => panic!("expected the checkout to stay on the pin"),
-        }
-        assert_eq!(read(&local), "# v1\n");
-    }
-
-    #[test]
-    fn a_new_pin_moves_the_checkout() {
-        let (remote, origin, local) = setup();
-        let old = head_of(&origin);
-        let new = push_new_commit(&origin, "# v2\n");
-        let url = remote.path().to_str().unwrap().to_string();
-        let path = local.path().to_str().unwrap().to_string();
-        match sync_to_commit(&url, &path, "master", &new) {
-            Ok(Status::Moved { from, to }) => {
-                assert_eq!(from, old);
-                assert_eq!(to, new);
+        match sync_to_head(&url, &path, "master") {
+            Ok((at, Status::Moved { from })) => {
+                assert_eq!(at, head);
+                assert_eq!(from, "");
             }
-            _ => panic!("expected the checkout to move to the new pin"),
+            _ => panic!("expected a fresh checkout at the head"),
         }
         assert_eq!(read(&local), "# v2\n");
-        match sync_to_commit(&url, &path, "master", &new) {
-            Ok(Status::UpToDate) => {}
-            _ => panic!("expected UpToDate on the second sync"),
-        }
     }
 
-    // A commit the branch does not contain (another branch, a fork, a typo
-    // of a real sha) is refused, and the checkout stays where it was.
+    // THE POINT (mcl-rag#24): a push to the branch is followed, and the sha it
+    // reached is reported so every chunk can name it.
     #[test]
-    fn a_commit_not_on_the_branch_is_refused() {
+    fn a_moved_branch_head_is_followed() {
         let (remote, origin, local) = setup();
+        let old = head_of(&origin);
         let url = remote.path().to_str().unwrap().to_string();
         let path = local.path().to_str().unwrap().to_string();
-        let stray = "0123456789abcdef0123456789abcdef01234567";
-        let _ = origin;
-        match sync_to_commit(&url, &path, "master", stray) {
-            Err(SyncError::CommitNotOnBranch) => {}
-            _ => panic!("expected CommitNotOnBranch"),
+        let new = push_new_commit(&origin, "# pushed\n");
+        match sync_to_head(&url, &path, "master") {
+            Ok((at, Status::Moved { from })) => {
+                assert_eq!(at, new);
+                assert_eq!(from, old);
+            }
+            _ => panic!("expected the checkout to move to the new head"),
         }
-        assert_eq!(read(&local), "# v1\n");
+        assert_eq!(read(&local), "# pushed\n");
+    }
+
+    #[test]
+    fn an_unmoved_head_is_up_to_date() {
+        let (remote, origin, local) = setup();
+        let head = head_of(&origin);
+        let url = remote.path().to_str().unwrap().to_string();
+        let path = local.path().to_str().unwrap().to_string();
+        match sync_to_head(&url, &path, "master") {
+            Ok((at, Status::UpToDate)) => assert_eq!(at, head),
+            _ => panic!("expected UpToDate at the head"),
+        }
     }
 
     // A local edit in the checkout (it is ours, not a working copy) is
-    // replaced by the pinned commit's content.
+    // replaced by the head's content.
     #[test]
-    fn a_local_edit_is_replaced_by_the_pinned_content() {
-        let (remote, origin, local) = setup();
-        let pin = head_of(&origin);
+    fn a_local_edit_is_replaced_by_the_head_content() {
+        let (remote, _origin, local) = setup();
         fs::write(local.path().join("corpus.md"), "# edited in place\n").unwrap();
         let url = remote.path().to_str().unwrap().to_string();
         let path = local.path().to_str().unwrap().to_string();
-        let _ = sync_to_commit(&url, &path, "master", &pin);
+        let _ = sync_to_head(&url, &path, "master");
+        assert_eq!(read(&local), "# v1\n");
+    }
+
+    #[test]
+    fn a_branch_the_remote_lacks_is_a_git_error() {
+        let (remote, _origin, local) = setup();
+        let url = remote.path().to_str().unwrap().to_string();
+        let path = local.path().to_str().unwrap().to_string();
+        match sync_to_head(&url, &path, "no-such-branch") {
+            Err(SyncError::Git(_)) => {}
+            _ => panic!("expected a git error"),
+        }
         assert_eq!(read(&local), "# v1\n");
     }
 }

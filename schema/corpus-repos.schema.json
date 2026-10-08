@@ -2,19 +2,27 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/macula-services/mcl-rag/blob/main/schema/corpus-repos.schema.json",
   "title": "RAG corpus list",
-  "description": "The repos a RAG provider ingests, each pinned to a reviewed commit on its branch. The provider checks out exactly that commit and never follows the branch head. Ids must also be unique in the list, which JSON Schema cannot state; mcl-rag refuses a duplicate (duplicate_id).",
+  "description": "The repos a RAG provider ingests. The provider follows each entry's branch head and every chunk names the commit it came from; nothing is pinned (mcl-rag#24). Ids must also be unique in the list, which JSON Schema cannot state; mcl-rag refuses a duplicate (duplicate_id).",
   "type": "object",
-  "required": ["repos"],
+  "required": [
+    "repos"
+  ],
   "properties": {
     "repos": {
       "type": "array",
-      "items": { "$ref": "#/$defs/repo" }
+      "items": {
+        "$ref": "#/$defs/repo"
+      }
     }
   },
   "$defs": {
     "repo": {
       "type": "object",
-      "required": ["id", "url", "branch", "commit"],
+      "required": [
+        "id",
+        "url",
+        "branch"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -28,14 +36,9 @@
           "pattern": "^(https://|/)"
         },
         "branch": {
-          "description": "The branch that must contain commit. A commit not on it is refused (commit_not_on_branch).",
+          "description": "The branch whose head is followed.",
           "type": "string",
           "minLength": 1
-        },
-        "commit": {
-          "description": "The reviewed commit to ingest: 40 lowercase hex.",
-          "type": "string",
-          "pattern": "^[0-9a-f]{40}$"
         }
       }
     }

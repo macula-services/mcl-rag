@@ -3,308 +3,257 @@
     {
       "id": "mcl-corpus",
       "url": "https://github.com/macula-services/mcl-corpus.git",
-      "branch": "main",
-      "commit": "71bd74564f65248303ce95b1366436c235d3121c"
+      "branch": "main"
     },
     {
       "id": "faber-ecosystem",
       "url": "https://github.com/rgfaber/faber-ecosystem.git",
-      "branch": "master",
-      "commit": "04e78f9cf3c9046840293fc4f4a14c49be726707"
+      "branch": "master"
     },
     {
       "id": "macula",
       "url": "https://github.com/macula-io/macula.git",
-      "branch": "main",
-      "commit": "5370915f7e53c477c69c37ccde27478345dfd939"
+      "branch": "main"
     },
     {
       "id": "macula-cli",
       "url": "https://github.com/macula-io/macula-cli.git",
-      "branch": "master",
-      "commit": "fd74bfbe94b81e61f66e5f000b86f7cf8c78b529"
+      "branch": "master"
     },
     {
       "id": "macula-dotnet",
       "url": "https://github.com/macula-io/macula-dotnet.git",
-      "branch": "main",
-      "commit": "450ccab3535db9bcc88e83982586f6175756e811"
+      "branch": "main"
     },
     {
       "id": "macula-ecosystem",
       "url": "https://github.com/macula-io/macula-ecosystem.git",
-      "branch": "main",
-      "commit": "7251a354f941cff07ca8e73f7751c15a90982005"
+      "branch": "main"
     },
     {
       "id": "macula-go",
       "url": "https://github.com/macula-io/macula-go.git",
-      "branch": "master",
-      "commit": "a26b90a8bb8e3aec45a42c7efdea34e03c987d50"
+      "branch": "master"
     },
     {
       "id": "macula-mcp",
       "url": "https://github.com/macula-io/macula-mcp.git",
-      "branch": "main",
-      "commit": "a2de9c24fafd5f693ce3b0ce71b58d904110d5dd"
+      "branch": "main"
     },
     {
       "id": "macula-php",
       "url": "https://github.com/macula-io/macula-php.git",
-      "branch": "main",
-      "commit": "516688cebcb9c7ca377ac560fcb79419c676ac33"
+      "branch": "main"
     },
     {
       "id": "macula-py",
       "url": "https://github.com/macula-io/macula-py.git",
-      "branch": "main",
-      "commit": "0d98370547a7ec0c6065696e17dfc5c6d432327b"
+      "branch": "main"
     },
     {
       "id": "macula-rust",
       "url": "https://github.com/macula-io/macula-rust.git",
-      "branch": "master",
-      "commit": "048237e6dc18758a692a6c6854efc4b9d97a49ef"
+      "branch": "master"
     },
     {
       "id": "macula-ts",
       "url": "https://github.com/macula-io/macula-ts.git",
-      "branch": "main",
-      "commit": "151c0451a49eaef71ff06f51f9cca43bc48dd665"
+      "branch": "main"
     },
     {
       "id": "mcl-corpus-beam",
       "url": "https://github.com/macula-services/mcl-corpus-beam.git",
-      "branch": "main",
-      "commit": "89bde2d69d9a49eb5038644eed4463551e7f942f"
+      "branch": "main"
     },
     {
       "id": "mcl-corpus-infra",
       "url": "https://github.com/macula-services/mcl-corpus-infra.git",
-      "branch": "main",
-      "commit": "aaaf0d13e612ce76e13604bd9aa2ad27f14c0baf"
+      "branch": "main"
     },
     {
       "id": "mcl-corpus-security",
       "url": "https://github.com/macula-services/mcl-corpus-security.git",
-      "branch": "main",
-      "commit": "5e9d071d88e00fbda699facf642748f97bc473b3"
+      "branch": "main"
     },
     {
       "id": "reckon-ecosystem",
       "url": "https://github.com/reckon-db-org/reckon-ecosystem.git",
-      "branch": "main",
-      "commit": "143b1300fb14dbd5eba14ac1f33e688d589bfbcb"
+      "branch": "main"
     },
     {
       "id": "mcl-bookclub",
       "url": "https://github.com/macula-services/mcl-bookclub.git",
-      "branch": "main",
-      "commit": "a08b7ec53e5edb4a5f46e350b51d8f7087d35712"
+      "branch": "main"
     },
     {
       "id": "mcl-bookclub-gleam",
       "url": "https://github.com/macula-services/mcl-bookclub-gleam.git",
-      "branch": "main",
-      "commit": "d909332a25e9f69d3dad5a1462a65af44877d175"
+      "branch": "main"
     },
     {
       "id": "mcl-bookclub-phoenix",
       "url": "https://github.com/macula-services/mcl-bookclub-phoenix.git",
-      "branch": "main",
-      "commit": "b22bb3eae89412b831545ce5f1fbe5c366f0c50e"
+      "branch": "main"
     },
     {
       "id": "gleam",
       "url": "https://github.com/gleam-lang/gleam.git",
-      "branch": "main",
-      "commit": "acbdbe880f3d26fb52e8ba5ba55d5e6d246b4706"
+      "branch": "main"
     },
     {
       "id": "erlang-otp",
       "url": "https://github.com/erlang/otp.git",
-      "branch": "master",
-      "commit": "36e371a4ef0fde8b5be31d683ba8dc1db50e2607"
+      "branch": "master"
     },
     {
       "id": "elixir",
       "url": "https://github.com/elixir-lang/elixir.git",
-      "branch": "main",
-      "commit": "73b33255188c2e658b90543a97e3b591711cf667"
+      "branch": "main"
     },
     {
       "id": "phoenix",
       "url": "https://github.com/phoenixframework/phoenix.git",
-      "branch": "main",
-      "commit": "32e9c83b61054f6f1666192c50e3d26225dfb6db"
+      "branch": "main"
     },
     {
       "id": "public-apis",
       "url": "https://github.com/public-apis/public-apis.git",
-      "branch": "master",
-      "commit": "dfb5690f7fdd4073a54290f499a76c71cd9e5ba8"
+      "branch": "master"
     },
     {
       "id": "awesome-tuis",
       "url": "https://github.com/rothgar/awesome-tuis.git",
-      "branch": "main",
-      "commit": "e9bf2e94bf08a517ece9ca611836d009358c3ce6"
+      "branch": "main"
     },
     {
       "id": "awesome-cli-apps",
       "url": "https://github.com/agarrharr/awesome-cli-apps.git",
-      "branch": "master",
-      "commit": "9e37b9e54eabe82f74fac622c71ca5236601d00f"
+      "branch": "master"
     },
     {
       "id": "awesome-security",
       "url": "https://github.com/sbilly/awesome-security.git",
-      "branch": "master",
-      "commit": "51b613c02b8801d23c0d2b8d9dc7b40d15c1b16e"
+      "branch": "master"
     },
     {
       "id": "kicad",
       "url": "https://github.com/KiCad/kicad-source-mirror.git",
-      "branch": "master",
-      "commit": "b097898cf8aef1ecf3e3a0f61ab9a3ce21f10269"
+      "branch": "master"
     },
     {
       "id": "librepcb",
       "url": "https://github.com/LibrePCB/LibrePCB.git",
-      "branch": "master",
-      "commit": "f9a1a80111d72009d15e5d924c72b79599422248"
+      "branch": "master"
     },
     {
       "id": "atopile",
       "url": "https://github.com/atopile/atopile.git",
-      "branch": "main",
-      "commit": "619eda7f777558a3e500dbad9cc2941712881495"
+      "branch": "main"
     },
     {
       "id": "awesome-electronics",
       "url": "https://github.com/kitspace/awesome-electronics.git",
-      "branch": "master",
-      "commit": "9522f17da23bab2993d3e75f0f6ffcb60164f95d"
+      "branch": "master"
     },
     {
       "id": "gnuradio",
       "url": "https://github.com/gnuradio/gnuradio.git",
-      "branch": "main",
-      "commit": "aee9fd3f79389c4282a98e8d62c8405c73fd91df"
+      "branch": "main"
     },
     {
       "id": "sdrangel",
       "url": "https://github.com/f4exb/sdrangel.git",
-      "branch": "master",
-      "commit": "dc57c25fa4fafb7d91803b6802313217af5b55d8"
+      "branch": "master"
     },
     {
       "id": "sdrplusplus",
       "url": "https://github.com/AlexandreRouma/SDRPlusPlus.git",
-      "branch": "master",
-      "commit": "8c9f5ee8fe405775bfcd62c8c8f8c0fc928a64af"
+      "branch": "master"
     },
     {
       "id": "hackrf",
       "url": "https://github.com/greatscottgadgets/hackrf.git",
-      "branch": "main",
-      "commit": "7f96cc8e3fa625c4263a71ba8dd44d1f6110e4fa"
+      "branch": "main"
     },
     {
       "id": "rtl-433",
       "url": "https://github.com/merbanan/rtl_433.git",
-      "branch": "master",
-      "commit": "ca5a4fd31f71149a6380300a6e8b02a680eb9bfa"
+      "branch": "master"
     },
     {
       "id": "librtlsdr",
       "url": "https://github.com/librtlsdr/librtlsdr.git",
-      "branch": "master",
-      "commit": "cd36c28815592af4080d71181964909125a74f44"
+      "branch": "master"
     },
     {
       "id": "gqrx",
       "url": "https://github.com/gqrx-sdr/gqrx.git",
-      "branch": "master",
-      "commit": "08f84f513a6c7a8ba33b149a48b45cb37ab985ab"
+      "branch": "master"
     },
     {
       "id": "soapysdr",
       "url": "https://github.com/pothosware/SoapySDR.git",
-      "branch": "master",
-      "commit": "1551ea0d39ce546b32a15808b9b1241018a89fc8"
+      "branch": "master"
     },
     {
       "id": "libsigrok",
       "url": "https://github.com/sigrokproject/libsigrok.git",
-      "branch": "master",
-      "commit": "0bc2487778e660f4d3116729b6f4aee2b1996bb0"
+      "branch": "master"
     },
     {
       "id": "pulseview",
       "url": "https://github.com/sigrokproject/pulseview.git",
-      "branch": "master",
-      "commit": "af02198741b4e57c9f9b796bd5e6c0f2ae9f2f2b"
+      "branch": "master"
     },
     {
       "id": "pico-sdk",
       "url": "https://github.com/raspberrypi/pico-sdk.git",
-      "branch": "master",
-      "commit": "079c6f39023649b154152db30f1d781e884879bc"
+      "branch": "master"
     },
     {
       "id": "esp-idf",
       "url": "https://github.com/espressif/esp-idf.git",
-      "branch": "master",
-      "commit": "4d59230ddff16327812782151ef0afef202dc6d7"
+      "branch": "master"
     },
     {
       "id": "micropython",
       "url": "https://github.com/micropython/micropython.git",
-      "branch": "master",
-      "commit": "a129b2fba1a3348088c94d0462eef16d20874dea"
+      "branch": "master"
     },
     {
       "id": "circuitpython",
       "url": "https://github.com/adafruit/circuitpython.git",
-      "branch": "main",
-      "commit": "35210c2e318797a36fdfd7dd50f5cd3884f13f91"
+      "branch": "main"
     },
     {
       "id": "platformio",
       "url": "https://github.com/platformio/platformio-core.git",
-      "branch": "develop",
-      "commit": "ff26956ecf0cdd44f6599894f11a83a93189e07f"
+      "branch": "develop"
     },
     {
       "id": "arduino-cli",
       "url": "https://github.com/arduino/arduino-cli.git",
-      "branch": "master",
-      "commit": "bd5929b061491d478a71fe19fb2a3d231394fee9"
+      "branch": "master"
     },
     {
       "id": "zephyr",
       "url": "https://github.com/zephyrproject-rtos/zephyr.git",
-      "branch": "main",
-      "commit": "d65f1e67ae74336fe9317d29d8064a2a9d824593"
+      "branch": "main"
     },
     {
       "id": "freertos",
       "url": "https://github.com/FreeRTOS/FreeRTOS.git",
-      "branch": "main",
-      "commit": "f4fcc3b228643144727e9257ba12db1cb632b6e6"
+      "branch": "main"
     },
     {
       "id": "rt-thread",
       "url": "https://github.com/RT-Thread/rt-thread.git",
-      "branch": "master",
-      "commit": "c3e94f7b5fd533763a8e577fea0dfbc982eb20e5"
+      "branch": "master"
     },
     {
       "id": "embassy",
       "url": "https://github.com/embassy-rs/embassy.git",
-      "branch": "main",
-      "commit": "ae258ddd1b2a45715aef5ac12a70434b94e96139"
+      "branch": "main"
     }
   ]
 }

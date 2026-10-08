@@ -9,14 +9,13 @@ callers find you through your realm and decide for themselves whether to trust y
 
 ## 1. Write the list
 
-A corpus list names git repos, each pinned to one reviewed commit on its branch:
+A corpus list names git repos and the branch each one is followed on. Knowledge evolves, so
+nothing is pinned: the service follows each branch head.
 
 ```json
 {"repos": [
-  {"id": "handbook", "url": "https://github.com/example-org/handbook.git",
-   "branch": "main", "commit": "0123456789abcdef0123456789abcdef01234567"},
-  {"id": "runbooks", "url": "/srv/mirrors/runbooks.git",
-   "branch": "main", "commit": "89abcdef0123456789abcdef0123456789abcdef"}
+  {"id": "handbook", "url": "https://github.com/example-org/handbook.git", "branch": "main"},
+  {"id": "runbooks", "url": "/srv/mirrors/runbooks.git", "branch": "main"}
 ]}
 ```
 
@@ -27,29 +26,25 @@ and the service refuses a list that breaks them, naming the entry:
 |---|---|---|
 | `id` | lowercase letters, digits and dashes, unique in the list. It names the checkout directory and the ingest namespace (`<id>/<path>`), so renaming one re-ingests that repo | `malformed_id`, `duplicate_id` |
 | `url` | `https://`, or an absolute path to a git repo on your own box (a local mirror). No credentials are ever used | `unsupported_url` |
-| `branch` | non-empty; it must contain `commit` | `missing_branch`, then `commit_not_on_branch` at sync |
-| `commit` | 40 lowercase hex | `unpinned_repo`, `malformed_commit` |
-| anything else | not allowed | `unknown_key` |
+| `branch` | non-empty; its head is what is served | `missing_branch` |
+| anything else, `commit` included | not allowed | `unknown_key` |
 
 Validate the list before you ship it with any JSON Schema 2020-12 validator, for example
 `check-jsonschema --schemafile schema/corpus-repos.schema.json corpus-repos.json`.
 
-## 2. Pin the commits
+## 2. What the service does with it
 
-Take each branch head and review it before you pin it:
-
-```bash
-git ls-remote https://github.com/example-org/handbook.git refs/heads/main
-```
-
-The service checks out exactly the listed commit and never follows the branch. A push to one of
-your repos reaches answers only when you move its pin. Moving a pin is the review step.
+Every 2 hours the service fetches each branch and checks out its head. When a head has moved, it
+re-ingests the files that changed, retires the files that are gone, and drops everything of a
+repo that left the list. Each answer names the commit its text is present at, and
+`describe_corpus` names the commit each repo is served at. A push to one of your repos reaches
+answers on the next refresh.
 
 ## 3. Point the service at it
 
 Set `MCL_RAG_CORPUS_REPOS` to the list's path inside the container, or mount the list at the
 default, `/etc/mcl-rag/corpus-repos.json` (as `deploy/docker-compose.yml` does). The file is
-re-read every sync tick (120 s), so a changed list takes effect without a restart.
+re-read every refresh (2 h), so a changed list takes effect without a restart.
 
 Everything else is in the README's Configuration table: your realm (`MCL_REALM`,
 `MCL_REALM_NAME`, `MCL_REALM_KEY`), stations to dial, and the data volume.

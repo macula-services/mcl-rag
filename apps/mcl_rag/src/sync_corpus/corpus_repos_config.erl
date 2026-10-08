@@ -1,10 +1,6 @@
 %%% @doc Reads the corpus-repos config file: which git repos
-%%% `corpus_git_sync' clones/fast-forwards and `refresh_corpus_scheduler'
-%%% walks for content changes. Shared by both (rather than each parsing
-%%% its own copy) since they need the exact same repo list and the exact
-%%% same id -> clone-path derivation, and a mismatch between the two
-%%% would silently point them at different directories for "the same"
-%%% repo.
+%%% `refresh_corpus_scheduler' follows, and where each one's checkout lives
+%%% (the id -> clone-path derivation lives here, once).
 %%%
 %%% Deliberately re-read from disk on every call, not cached: re-reading a
 %%% small JSON file each poll tick is cheap, and it's what makes a repo list
@@ -15,33 +11,27 @@
 %%% msi00's unit uses. deploy/corpus-repos.json is the list this repo ships.
 %%%
 %%% File shape:
-%%%   {"repos": [{"id": "macula", "url": "https://...",
-%%%               "branch": "main", "commit": "<40 hex>"}, ...]}
-%%% EVERY ENTRY IS PINNED: `commit' is the reviewed commit corpus_git_sync
-%%% checks out, and `branch' the branch that must contain it. The branch head
-%%% is never followed, so a push to a corpus repo reaches answers only once a
-%%% reviewed macula-fleet change names its commit here.
+%%%   {"repos": [{"id": "macula", "url": "https://...", "branch": "main"}, ...]}
+%%% NOTHING IS PINNED (mcl-rag#24): knowledge evolves, so the node follows each
+%%% entry's branch head, and every chunk names the commit it came from.
 %%%
 %%% The rules are published as schema/corpus-repos.schema.json (a test holds
-%%% the two together): exactly the keys id, url, branch and commit; an id of
+%%% the two together): exactly the keys id, url and branch; an id of
 %%% lowercase letters, digits and dashes (it names the checkout directory, so
 %%% it can neither leave it nor collide with another); an https url or an
 %%% absolute path on the box (a local mirror; no credentials either way); a
-%%% non-empty branch; a commit of 40 lowercase hex. A list breaking any of
-%%% them is refused whole, naming the entry: nothing moves, and no repo falls
-%%% back to following its branch.
+%%% non-empty branch. A list breaking any of them, a leftover `commit'
+%%% included, is refused whole, naming the entry.
 -module(corpus_repos_config).
 
 -export([read/0, path/0, rules/0]).
 
--type repo() :: #{id := binary(), url := binary(), branch := binary(), commit := binary(),
-                  path := binary()}.
+-type repo() :: #{id := binary(), url := binary(), branch := binary(), path := binary()}.
 -export_type([repo/0]).
 
--define(KEYS, [<<"id">>, <<"url">>, <<"branch">>, <<"commit">>]).
+-define(KEYS, [<<"id">>, <<"url">>, <<"branch">>]).
 -define(ID, <<"^[a-z0-9][a-z0-9-]*$">>).
 -define(URL, <<"^(https://|/)">>).
--define(COMMIT, <<"^[0-9a-f]{40}$">>).
 
 %% @doc The file the list is read from: `MCL_RAG_CORPUS_REPOS', else the app
 %% env `corpus_repos_config' (a test's fixture), else the default mount.
@@ -59,7 +49,7 @@ path(Env) ->
 -spec rules() -> #{required := [binary()], patterns := #{binary() => binary()}}.
 rules() ->
     #{required => ?KEYS,
-      patterns => #{<<"id">> => ?ID, <<"url">> => ?URL, <<"commit">> => ?COMMIT}}.
+      patterns => #{<<"id">> => ?ID, <<"url">> => ?URL}}.
 
 -spec read() -> {ok, [repo()]} | {error, term()}.
 read() ->
@@ -83,12 +73,12 @@ decode(Bin) ->
     end.
 
 repos_from(#{<<"repos">> := Repos}) when is_list(Repos) ->
-    pinned(Repos, []);
+    listed(Repos, []);
 repos_from(_) ->
     {error, missing_repos_key}.
 
-pinned([], Acc) -> {ok, lists:reverse(Acc)};
-pinned([R | Rest], Acc) ->
+listed([], Acc) -> {ok, lists:reverse(Acc)};
+listed([R | Rest], Acc) ->
     case entry(R) of
         {ok, Repo} -> unique(seen(Repo, Acc), Repo, Rest, Acc);
         {error, _} = E -> E
@@ -97,7 +87,7 @@ pinned([R | Rest], Acc) ->
 seen(#{id := Id}, Acc) -> lists:member(Id, [I || #{id := I} <- Acc]).
 
 unique(true, #{id := Id}, _Rest, _Acc) -> {error, {duplicate_id, Id}};
-unique(false, Repo, Rest, Acc)         -> pinned(Rest, [Repo | Acc]).
+unique(false, Repo, Rest, Acc)         -> listed(Rest, [Repo | Acc]).
 
 entry(R) when is_map(R) ->
     keys(maps:keys(R) -- ?KEYS, R);
@@ -116,17 +106,12 @@ id(true, Id, R) ->
 
 url(false, Id, Url, _R) -> {error, {unsupported_url, Id, Url}};
 url(true, Id, Url, R) ->
-    checked(Id, Url, maps:get(<<"branch">>, R, <<>>), maps:find(<<"commit">>, R)).
+    checked(Id, Url, maps:get(<<"branch">>, R, <<>>)).
 
-checked(Id, _Url, Branch, _Commit) when not is_binary(Branch); Branch =:= <<>> ->
+checked(Id, _Url, Branch) when not is_binary(Branch); Branch =:= <<>> ->
     {error, {missing_branch, Id}};
-checked(Id, _Url, _Branch, error) -> {error, {unpinned_repo, Id}};
-checked(Id, Url, Branch, {ok, Commit}) ->
-    sha(Id, Commit, matches(Commit, ?COMMIT),
-        #{id => Id, url => Url, branch => Branch, commit => Commit, path => clone_path(Id)}).
-
-sha(_Id, _Commit, true, Repo) -> {ok, Repo};
-sha(Id, Commit, false, _Repo) -> {error, {malformed_commit, Id, Commit}}.
+checked(Id, Url, Branch) ->
+    {ok, #{id => Id, url => Url, branch => Branch, path => clone_path(Id)}}.
 
 %% `$' must end the value: PCRE's also matches before a trailing newline.
 matches(V, Pattern) when is_binary(V) -> re:run(V, Pattern, [dollar_endonly]) =/= nomatch;

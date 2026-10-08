@@ -1,6 +1,9 @@
 %%% @doc Query desk: describe_corpus. What this provider serves: every repo
-%%% of its corpus list at its pinned commit, and the embedding it serves them
-%%% in, named by one hash.
+%%% of its corpus list at the branch head the store serves it at, and the
+%%% embedding it serves them in, named by one hash. The list pins nothing
+%%% (mcl-rag#24); the commit is what refresh_corpus_scheduler last brought the
+%%% repo to, in full. A listed repo whose first refresh has not finished is
+%%% left out: no commit is claimed for it.
 %%%
 %%% The corpus hash and the operator's signature are the RAG service
 %%% contract's (macula_rag, guides/rag_service_contract.md): this provider and
@@ -28,7 +31,7 @@ corpus_hash() ->
     hashed(unsigned()).
 
 unsigned() ->
-    described(listed(corpus_repos_config:read()), rag_embedder:embedding()).
+    described(served(listed(corpus_repos_config:read())), rag_embedder:embedding()).
 
 identity() ->
     identity_key(mcl_om:identity_key()).
@@ -48,9 +51,23 @@ signed(_Unsigned, Described) ->
 hashed({ok, #{corpus_hash := Hash}}) -> {ok, Hash};
 hashed({error, _} = E)              -> E.
 
-listed({ok, Repos})                            -> {ok, [maps:with([id, url, branch, commit], R) || R <- Repos]};
+listed({ok, Repos})                            -> {ok, [maps:with([id, url, branch], R) || R <- Repos]};
 listed({error, {config_read_failed, enoent}}) -> {ok, []};
 listed({error, Reason})                        -> {error, {corpus_list_refused, Reason}}.
+
+%% Each listed repo at the head it is served at, in list order. No list asks
+%% the store nothing: a deposits-only node is described while its store opens.
+served({ok, []}) ->
+    {ok, []};
+served({ok, Repos}) ->
+    at_heads(rag_store:served_repos(), Repos);
+served({error, _} = E) ->
+    E.
+
+at_heads({ok, Heads}, Repos) ->
+    {ok, [R#{commit => maps:get(Id, Heads)} || #{id := Id} = R <- Repos, maps:is_key(Id, Heads)]};
+at_heads({error, _} = E, _Repos) ->
+    E.
 
 described({ok, Repos}, #{model := Model, dim := Dim}) when is_binary(Model) ->
     Described = #{model => Model, dim => Dim, repos => Repos},

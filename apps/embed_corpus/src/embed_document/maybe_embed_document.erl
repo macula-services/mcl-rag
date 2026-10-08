@@ -49,8 +49,18 @@ do_embed(Cmd) ->
 chunk_and_store(Id, #{source_path := SourcePath, raw_bytes := RawBytes} = Source) ->
     Path = source_path_or_id(SourcePath, Id),
     Origin = origin(maps:get(provenance, Source, #{})),
-    Chunks = [maps:merge(C, Origin) || C <- markdown_chunker:chunk_text(RawBytes, Path, ?MAX_CHUNK_CHARS)],
+    Chunks = [maps:merge(C, Origin) || C <- kept(Origin, markdown_chunker:chunk_text(text(Origin, RawBytes), Path,
+                                                                                     ?MAX_CHUNK_CHARS))],
     stored(Id, rag_chunk_embedder:embed_and_store(Chunks)).
+
+%% Corpus text loses its licence and copyright headers before chunking, and
+%% keeps only chunks that say something (mcl-rag#26, corpus_boilerplate). A
+%% deposit is what an agent chose to remember, so it is kept whole.
+text(#{repo_id := _}, RawBytes) -> corpus_boilerplate:stripped(RawBytes);
+text(_Deposit, RawBytes)        -> RawBytes.
+
+kept(#{repo_id := _}, Chunks) -> [C || #{content := Content} = C <- Chunks, corpus_boilerplate:substantive(Content)];
+kept(_Deposit, Chunks)        -> Chunks.
 
 %% Every chunk carries where its document came from: the corpus repo and the
 %% commit it was ingested at, or who deposited it. A re-embed keeps it, since

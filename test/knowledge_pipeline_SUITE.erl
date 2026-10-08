@@ -185,8 +185,11 @@ store_stays_responsive_during_embed(_Config) ->
 put_chunk_with_vector_round_trip(_Config) ->
     ChunkId = fresh_id(<<"pv-rt">>),
     Content = <<"Test content for vector round trip.">>,
+    %% Shaped as every stored chunk is (rag_chunk_embedder): with the sha of
+    %% its text, which every hit's provenance names.
     Meta = #{source_path => <<"vector-test.md">>, kind => prose,
-             start_line => 1, end_line => 1},
+             start_line => 1, end_line => 1,
+             content_sha256 => binary:encode_hex(crypto:hash(sha256, Content), lowercase)},
     %% A vector of the configured dimension (what the store's index expects)
     Vector = [0.1 || _ <- lists:seq(1, rag_embedder:dimension())],
     ok = rag_store:put_chunk_with_vector(ChunkId, Content, Meta, Vector),
