@@ -76,10 +76,11 @@ capabilities() ->
                            <<"get_document_verbatim">>, <<"detect_corpus_change">>,
                            <<"schedule_reembed">>, <<"describe_corpus">>]].
 
-%% Each names the KEM key (#16, kem_advertise in sys.config): a caller that can
-%% seal does, one that cannot is still answered.
+%% Each names the KEM key (#16, kem_advertise in sys.config) and refuses a call
+%% in the clear: a query, a deposit or an operator write crosses a station only
+%% as ciphertext.
 cap(Name) ->
-    #{name => Name, version => 1, confidential => preferred,
+    #{name => Name, version => 1, confidential => required,
       handler => {mcl_om_simple_handler,
                   {mcl_rag_mesh_rpc, binary_to_atom(<<"handle_", Name/binary>>)}}}.
 

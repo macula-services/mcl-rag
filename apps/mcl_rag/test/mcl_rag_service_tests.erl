@@ -86,14 +86,17 @@ every_procedure_routes_to_its_handler_test() ->
      || #{handler := {_, {_, F}}} <- ?SERVICE:capabilities(),
         {module, _} <- [code:ensure_loaded(mcl_rag_mesh_rpc)]].
 
-%% Every procedure names the KEM key (#16): `preferred' seals every caller that
-%% can seal and still answers one that cannot. Explicit, not mcl_om's default,
-%% so the move to `required' is one visible word per procedure. mcl_om accepts
-%% the set under the shipped kem_advertise switch, as it does at boot.
-every_procedure_is_sealed_when_the_caller_can_test() ->
+%% Every procedure is `required' (#16): a caller seals to the advertised KEM key
+%% or is refused, so no query, deposit or operator write crosses a station in
+%% the clear. mcl_om accepts the set under the shipped kem_advertise switch, as
+%% it does at boot, and refuses it without the switch: `required' with no key
+%% to name would be unreachable, so the two settings stand or fall together.
+every_procedure_refuses_a_clear_call_test() ->
     Caps = ?SERVICE:capabilities(),
-    ?assertEqual([preferred], lists:usort([maps:get(confidential, C, absent) || C <- Caps])),
-    ?assertEqual(ok, mcl_om_capabilities:confidentiality_verdict(Caps, enabled)).
+    ?assertEqual([required], lists:usort([maps:get(confidential, C, absent) || C <- Caps])),
+    ?assertEqual(ok, mcl_om_capabilities:confidentiality_verdict(Caps, enabled)),
+    ?assertMatch({error, {mcl_om_confidential_required_without_kem_advertise, _}},
+                 mcl_om_capabilities:confidentiality_verdict(Caps, disabled)).
 
 the_shipped_config_names_the_org_test() ->
     {ok, Text} = file:read_file(alongside("config/sys.config.src")),
