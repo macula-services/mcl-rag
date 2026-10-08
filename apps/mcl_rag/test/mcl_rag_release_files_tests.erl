@@ -94,6 +94,21 @@ barrel_system_db_is_on_the_data_volume_test() ->
                  re:run(read("config/sys.config.src"),
                         <<"\\{barrel_docdb, \\[\\{data_dir, +\"\\$\\{MCL_DATA_DIR\\}\"\\}\\]\\}">>)).
 
+%% mcl-rag names its KEM key (#16): callers seal queries and deposits to it, so
+%% a station on the path relays only ciphertext. A release that dropped the
+%% line would answer every call in the clear and look healthy, so the baked
+%% config is parsed (every ${VAR} filled with a dummy) and asserted.
+kem_advertise_is_enabled_test() ->
+    Macula = proplists:get_value(macula, parsed_sys_config()),
+    ?assertEqual(enabled, proplists:get_value(kem_advertise, Macula)).
+
+parsed_sys_config() ->
+    Substituted = re:replace(read("config/sys.config.src"), <<"\\$\\{[A-Z_]+\\}">>, <<"0">>,
+                             [global, {return, list}]),
+    {ok, Tokens, _} = erl_scan:string(Substituted),
+    {ok, Config} = erl_parse:parse_term(Tokens),
+    Config.
+
 %% Every node that claims on the realm shows its host and service on the
 %% Providers desk: mcl_om reads MCL_SERVICE_NAME and MCL_BOX. The service
 %% name is ours; the box is the deploying host's to say.

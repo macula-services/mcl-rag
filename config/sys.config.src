@@ -120,8 +120,16 @@
     %% and REFUSES a `{macula, puzzle_difficulty, _}' setting at
     %% application start whatever the value: a node that set one would
     %% believe it had chosen a difficulty that nothing reads.
+    %%
+    %% NAMES ITS KEM KEY (#16): every advertisement, the eighteen procedures
+    %% and macula_rag's rag.query_shard_v1 alike, carries an ML-KEM key, so a
+    %% caller seals its query or deposit end to end and a station relays only
+    %% ciphertext. A property of the service, so a literal here and not a
+    %% per-box variable. Capabilities are `preferred': a caller that cannot
+    %% seal is still answered.
     {macula, [
-        {crypto_profile, pq_hybrid}
+        {crypto_profile, pq_hybrid},
+        {kem_advertise, enabled}
     ]},
     %% barrel_docdb's system database (`_barrel_system') lives under this
     %% data_dir, whose default is data/barrel_docdb relative to the working

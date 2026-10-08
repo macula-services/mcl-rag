@@ -86,6 +86,15 @@ every_procedure_routes_to_its_handler_test() ->
      || #{handler := {_, {_, F}}} <- ?SERVICE:capabilities(),
         {module, _} <- [code:ensure_loaded(mcl_rag_mesh_rpc)]].
 
+%% Every procedure names the KEM key (#16): `preferred' seals every caller that
+%% can seal and still answers one that cannot. Explicit, not mcl_om's default,
+%% so the move to `required' is one visible word per procedure. mcl_om accepts
+%% the set under the shipped kem_advertise switch, as it does at boot.
+every_procedure_is_sealed_when_the_caller_can_test() ->
+    Caps = ?SERVICE:capabilities(),
+    ?assertEqual([preferred], lists:usort([maps:get(confidential, C, absent) || C <- Caps])),
+    ?assertEqual(ok, mcl_om_capabilities:confidentiality_verdict(Caps, enabled)).
+
 the_shipped_config_names_the_org_test() ->
     {ok, Text} = file:read_file(alongside("config/sys.config.src")),
     ?assertNotEqual(nomatch, binary:match(Text, <<"{org,               <<\"mcl-rag\">>}">>)).
