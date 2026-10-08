@@ -5,6 +5,15 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-10-08
+
+### Changed
+
+- **Sealed: every procedure names its KEM key** (`{macula, [{kem_advertise, enabled}]}`, `confidential =>
+  preferred` on all eighteen). A caller that can seal, such as macula-mcp's `mesh_recall` and `mesh_remember`,
+  seals its query or deposit to the provider's ML-KEM key, so a station on the path relays only ciphertext. The
+  federated `rag.query_shard_v1` is keyed by the same switch. A caller that cannot seal is still answered. (#16)
+
 ## [0.4.0] - 2026-10-07
 
 ### Changed
