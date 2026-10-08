@@ -5,6 +5,14 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-10-08
+
+### Fixed
+
+- **A restart no longer leaves the corpus unnamed for two hours** (#27). A repo the boot refresh reached while
+  the store was still opening was passed over in silence until the next tick, 2 hours later; it is logged now,
+  and the refresh is retried a minute later.
+
 ## [0.7.0] - 2026-10-08
 
 ### Changed
