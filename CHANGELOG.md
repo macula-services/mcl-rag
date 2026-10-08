@@ -5,6 +5,30 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-10-08
+
+### Changed
+
+- **The corpus follows branch heads; nothing is pinned** (#24). The corpus list is `{id, url, branch}`;
+  a list that still names a `commit` is refused (`unknown_key`). Every 2 hours the node fetches each branch,
+  checks out its head and, when it moved, re-ingests changed files at that head. A hit names the commit its
+  text is present at (the head it was ingested at, or a later head the file was found unchanged at), and
+  `describe_corpus` names each repo at the head it is served at, leaving out a repo not served yet. One loop
+  (`refresh_corpus_scheduler`) replaces the separate git-sync loop; the NIF's `sync_to_head/3` replaces
+  `sync_to_commit/4`.
+- **Stale chunks are pruned** (#25). A changed file's old chunks are dropped before it is re-ingested (chunk ids
+  are position-derived, so a reshaped file used to keep chunks of positions it no longer has); a file that is
+  gone loses its chunks, source and watermark; a repo that leaves the list loses everything it stored. The new
+  index generation re-ingests the corpus once and sweeps every chunk no current file leads to.
+- **Recall surfaces answers, not boilerplate** (#26). `.github/` templates and LICENSE / LICENCE / COPYING /
+  NOTICE files are not ingested; `%CopyrightBegin%` blocks and licence comments are stripped before chunking;
+  corpus chunks that are only links or markup are not stored. Identical text is returned once per query,
+  naming the other sources under `also_in`, and a query still gets `top_k` distinct hits.
+- `list_chunks_by_source` returns chunks only (a file's source, watermark and re-embed requests no longer
+  take slots of its limit).
+- `measure/recall_quality/`: a fixed 5-query set and a script counting boilerplate, duplicate and stale hits
+  on a live node, kept as a regression check.
+
 ## [0.6.1] - 2026-10-08
 
 ### Changed

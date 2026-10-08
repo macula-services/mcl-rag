@@ -1,7 +1,7 @@
 {application, mcl_rag, [
     {description, "The mesh shared memory: retrieval over a realm-bound corpus, and the deposits agents remember into it"},
-    {vsn, "0.6.1"},
-    {registered, [mcl_rag_sup, mcl_rag_mesh_rpc, corpus_git_sync, refresh_corpus_scheduler]},
+    {vsn, "0.7.0"},
+    {registered, [mcl_rag_sup, mcl_rag_mesh_rpc, refresh_corpus_scheduler]},
     {mod, {mcl_rag_app, []}},
     {applications, [
         kernel,
