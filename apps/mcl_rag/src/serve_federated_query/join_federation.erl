@@ -95,7 +95,10 @@ options() ->
     #{org        => application:get_env(mcl_om, org, undefined),
       shard_id   => maps:get(shard_id, Federation, atom_to_binary(node())),
       realm_name => to_bin(maps:get(realm_name, Federation, undefined)),
-      embedding  => rag_embedder:embedding()}.
+      embedding  => rag_embedder:embedding(),
+      %% rag.query_shard_v1 refuses a peer's query in the clear, as every
+      %% other procedure refuses a clear call (#16); needs kem_advertise.
+      confidential => required}.
 
 to_bin(L) when is_list(L) -> unicode:characters_to_binary(L);
 to_bin(Other) -> Other.

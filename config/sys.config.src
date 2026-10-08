@@ -125,10 +125,9 @@
     %% and macula_rag's rag.query_shard_v1 alike, carries an ML-KEM key, so a
     %% caller seals its query or deposit end to end and a station relays only
     %% ciphertext. A property of the service, so a literal here and not a
-    %% per-box variable. The eighteen procedures are `required' and refuse a
-    %% clear call, which needs this switch (mcl_om refuses to boot without it).
-    %% macula_rag advertises rag.query_shard_v1 with no mode, read as
-    %% `preferred': keyed, and a clear peer query is still answered.
+    %% per-box variable. The eighteen procedures and macula_rag's
+    %% rag.query_shard_v1 are `required' and refuse a clear call, which needs
+    %% this switch (mcl_om and macula_rag both refuse `required' without it).
     {macula, [
         {crypto_profile, pq_hybrid},
         {kem_advertise, enabled}

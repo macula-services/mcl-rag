@@ -86,7 +86,10 @@ joining_configures_answers_and_summarizes_test() ->
         ?assertEqual({?POOL, ?REALM}, {Pool, Realm}),
         ?assertEqual(#{org => <<"mcl-rag">>, shard_id => atom_to_binary(node()),
                        realm_name => ?REALM_NAME,
-                       embedding => #{model => <<"macula/multilingual-e5-small:f16">>, dim => 384}},
+                       embedding => #{model => <<"macula/multilingual-e5-small:f16">>, dim => 384},
+                       %% A peer's query to this shard is sealed or refused, as
+                       %% every other procedure's call is (#16).
+                       confidential => required},
                      Opts),
         ?assertEqual(1, meck:num_calls(macula_rag, register_responder,
                                        [fun answer_federated_query:answer/2])),
