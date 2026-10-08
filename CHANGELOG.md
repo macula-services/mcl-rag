@@ -5,6 +5,14 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-10-08
+
+### Changed
+
+- **The federated shard procedure refuses clear calls too.** On macula_rag 0.5 (`~> 0.5`), mcl-rag configures
+  `rag.query_shard_v1` as `confidential => required`, so a peer shard's query is sealed or refused, like every
+  other mcl-rag procedure since 0.6.0. (#16)
+
 ## [0.6.0] - 2026-10-08
 
 ### Changed
