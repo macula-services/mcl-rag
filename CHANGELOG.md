@@ -5,6 +5,16 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-10-08
+
+### Changed
+
+- **Clear calls are now refused.** All eighteen procedures are `confidential => required`: a caller must seal to
+  the advertised ML-KEM key, and a call in the clear is refused instead of answered, so no query, deposit or
+  operator write crosses a station as plaintext. Callers on macula-mcp and macula-cli seal already; an older client
+  that cannot seal is refused. mcl_om's own `info` and `get_limits`, and macula_rag's `rag.query_shard_v1`, stay
+  keyed but still answer a clear call. (#16)
+
 ## [0.5.0] - 2026-10-08
 
 ### Changed
