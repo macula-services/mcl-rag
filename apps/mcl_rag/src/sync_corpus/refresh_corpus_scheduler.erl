@@ -38,10 +38,12 @@
 -module(refresh_corpus_scheduler).
 -behaviour(gen_server).
 
--export([start_link/0, scan/0, refresh_repo/2, attempt/1, relative_path/2, sanitise_utf8/1]).
+-export([start_link/0, scan/0, refresh_repo/2, next_tick/1, attempt/1, relative_path/2, sanitise_utf8/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 -define(POLL_INTERVAL_MS, 7200000).
+%% How soon a tick that met the store still opening is retried (mcl-rag#27).
+-define(STORE_OPENING_RETRY_MS, 60000).
 -define(GLOB, "**/*.md").
 -define(INDEX_GENERATION, <<"heads-v3:">>).
 -define(RETRY_WATERMARK, <<"retry">>).
@@ -55,8 +57,7 @@ init([]) ->
     {ok, #{}}.
 
 handle_info(tick, State) ->
-    scan(),
-    schedule_tick(?POLL_INTERVAL_MS),
+    schedule_tick(next_tick(scan_results())),
     {noreply, State};
 handle_info(_Msg, State) ->
     {noreply, State}.
@@ -79,16 +80,31 @@ schedule_tick(Delay) ->
 %% or a test can call it directly to force an immediate refresh.
 -spec scan() -> ok.
 scan() ->
+    _ = scan_results(),
+    ok.
+
+scan_results() ->
     scan_config(corpus_repos_config:read()).
+
+%% @doc The delay to the next tick: a minute when any repo met the store still
+%% opening (the boot tick, while the index is rebuilt), else the interval.
+-spec next_tick([ok | store_opening]) -> pos_integer().
+next_tick(Results) ->
+    case lists:member(store_opening, Results) of
+        true  -> ?STORE_OPENING_RETRY_MS;
+        false -> ?POLL_INTERVAL_MS
+    end.
 
 %% A missing/invalid config file means nothing to follow -- report it,
 %% don't crash the gen_server over it: stay up, serve what is stored, and do
 %% nothing until the list is there.
 scan_config({error, Reason}) ->
-    logger:warning("[refresh_corpus_scheduler] config unreadable: ~p", [Reason]);
+    logger:warning("[refresh_corpus_scheduler] config unreadable: ~p", [Reason]),
+    [];
 scan_config({ok, Repos}) ->
-    lists:foreach(fun follow_repo/1, Repos),
-    prune_removed([Id || #{id := Id} <- Repos]).
+    Results = [follow_repo(R) || R <- Repos],
+    prune_removed([Id || #{id := Id} <- Repos]),
+    Results.
 
 %% ensure_dir(Path) creates Path's PARENT chain, deliberately not Path
 %% itself: a fresh clone needs its own leaf directory not to exist yet.
@@ -96,19 +112,20 @@ follow_repo(#{id := Id, url := Url, branch := Branch, path := Path} = Repo) ->
     ok = filelib:ensure_dir(Path),
     case mcl_rag_corpus_sync_nif:sync_to_head(Url, Path, Branch) of
         {ok, Head, _Moved}           -> refresh_repo(Repo, Head);
-        {error, {git_error, Msg}}    -> logger:warning("[refresh_corpus_scheduler] ~s: git error: ~ts", [Id, Msg])
+        {error, {git_error, Msg}}    -> logger:warning("[refresh_corpus_scheduler] ~s: git error: ~ts", [Id, Msg]), ok
     end.
 
 %% @doc Make the store hold exactly the files of `Repo''s checkout, which is
 %% at `Head'. Exported for the suites, whose checkouts are plain directories.
--spec refresh_repo(#{id := binary(), path := binary(), _ => _}, binary()) -> ok.
+-spec refresh_repo(#{id := binary(), path := binary(), _ => _}, binary()) -> ok | store_opening.
 refresh_repo(#{id := RepoId, path := Root}, Head) ->
     refresh_unless_served(rag_store:get_served(RepoId), RepoId, binary_to_list(Root), Head).
 
 refresh_unless_served({ok, #{commit := Head, generation := ?INDEX_GENERATION}}, _RepoId, _Root, Head) ->
     ok;
-refresh_unless_served({error, store_opening}, _RepoId, _Root, _Head) ->
-    ok;
+refresh_unless_served({error, store_opening}, RepoId, _Root, Head) ->
+    logger:info("[refresh_corpus_scheduler] ~s: store still opening, ~s retried shortly", [RepoId, Head]),
+    store_opening;
 refresh_unless_served(Served, RepoId, Root, Head) ->
     refresh_checkout(filelib:is_dir(Root), Served, RepoId, Root, Head).
 

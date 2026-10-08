@@ -39,3 +39,22 @@ sanitise_utf8_replaces_an_invalid_byte_test() ->
 sanitise_utf8_replaces_a_truncated_sequence_test() ->
     ?assertEqual(<<"fine", 16#FFFD/utf8, 16#FFFD/utf8>>,
                  refresh_corpus_scheduler:sanitise_utf8(<<"fine", 16#E4, 16#B8>>)).
+
+%% mcl-rag#27: a repo the boot tick reaches while the store still opens is
+%% reported, not passed over in silence, and the next tick comes in a minute
+%% rather than after the full 2-hour interval.
+a_repo_met_while_the_store_opens_is_reported_test() ->
+    ok = meck:new(rag_store, [no_link]),
+    ok = meck:expect(rag_store, get_served, fun(_) -> {error, store_opening} end),
+    try
+        ?assertEqual(store_opening,
+                     refresh_corpus_scheduler:refresh_repo(#{id => <<"r">>, path => <<"/nonexistent">>},
+                                                           binary:copy(<<"1">>, 40)))
+    after
+        meck:unload(rag_store)
+    end.
+
+the_next_tick_is_soon_after_an_opening_store_test() ->
+    ?assertEqual(60000, refresh_corpus_scheduler:next_tick([ok, store_opening, ok])),
+    ?assertEqual(7200000, refresh_corpus_scheduler:next_tick([ok, ok])),
+    ?assertEqual(7200000, refresh_corpus_scheduler:next_tick([])).
