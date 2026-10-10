@@ -5,6 +5,15 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Paging past barrel's per-call chunk cap** (#9). One `find/3` call answers at most one chunk (1,000 rows) and
+  hands the rest to `has_more`/`continuation`; the store read only that first chunk, so on a corpus over 1,000
+  sources every page at `offset >= 1000` came back empty and "how far is ingestion" could not be counted
+  through the public procedure. `list_sources_page` walks the cursor now, dropping the offset across chunks.
+
 ## [0.7.2] - 2026-10-10
 
 ### Changed

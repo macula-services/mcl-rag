@@ -816,24 +816,76 @@ find_doc(Doc)                 -> Doc.
 %% that paged through the sources saw only the first page and reported
 %% itself complete.
 %%
-%% Paging is therefore done here: fetch `Offset + Limit' and drop the
-%% first `Offset'. Linear in the offset, which is honest for a corpus of
-%% a few hundred documents and the reason `list_sources_page' caps
-%% `limit' at 200. barrel's own chunk_size/continuation cursor is the
-%% answer if this ever pages through a corpus large enough for that to
-%% matter -- it needs a cursor on the wire, not an integer offset.
+%% One find/3 call also answers at most one chunk -- 1,000 rows by default
+%% -- and hands the rest to `has_more'/`continuation' in its meta; the
+%% store used to read that first chunk as if it were the whole result, so
+%% every page at `Offset >= 1000' came back empty on a corpus over 1,000
+%% sources (mcl-rag#9). Paging walks the cursor instead: drop `Offset'
+%% rows across chunks, take `Limit', and ask each call for only what the
+%% page still needs. Memory stays bounded by the page; time is linear in
+%% the offset, which is honest for a corpus of a few hundred documents
+%% and the reason `list_sources_page' caps `limit' at 200.
 list_sources_page(Db, Offset, Limit) ->
     Query = #{where => [{path, [<<"type">>], <<"source">>}]},
-    case barrel:find(Db, Query, #{limit => Offset + Limit}) of
-        {ok, Docs, _Meta} -> {ok, [source_row(find_doc(D)) || D <- drop(Offset, Docs)]};
-        {error, _} = E    -> E
+    case collect_sources(Db, Query, Offset, Limit, none, []) of
+        {ok, Docs}     -> {ok, [source_row(find_doc(D)) || D <- Docs]};
+        {error, _} = E -> E
     end.
 
-%% lists:nthtail/2 fails when the list is shorter than N; a page past the
-%% end is an empty page, not a crash.
-drop(0, L)                          -> L;
-drop(N, L) when length(L) =< N      -> [];
-drop(N, L)                          -> lists:nthtail(N, L).
+%% One call of the walk: skip what is left of `Offset', take what is
+%% left of `Limit', then follow the cursor while both are outstanding.
+collect_sources(Db, Query, Skip, Take, Cursor, Acc) ->
+    case barrel:find(Db, Query, fetch_opts(Skip + Take, Cursor)) of
+        {ok, Docs, Meta} ->
+            {Left, Got} = take_skipping(Skip, Take, Docs),
+            Acc2 = lists:reverse(Got) ++ Acc,
+            walk_on(Db, Query, Left, Take - length(Got), Meta, Acc2);
+        {error, _} = E ->
+            E
+    end.
+
+%% barrel's own default for one answer; asking for no more than what the
+%% page still needs keeps a small page the small read it always was.
+-define(FETCH_CHUNK, 1000).
+
+fetch_opts(Want, none) ->
+    #{chunk_size => min(Want, ?FETCH_CHUNK)};
+fetch_opts(Want, Token) ->
+    #{chunk_size => min(Want, ?FETCH_CHUNK), continuation => Token}.
+
+%% The walk stops when `Limit' rows are in hand or the cursor is.
+walk_on(_Db, _Query, _Left, Need, _Meta, Acc) when Need =< 0 ->
+    {ok, lists:reverse(Acc)};
+walk_on(Db, Query, Left, Need, Meta, Acc) ->
+    case next_chunk(Meta) of
+        {ok, Token} -> collect_sources(Db, Query, Left, Need, Token, Acc);
+        none        -> {ok, lists:reverse(Acc)}
+    end.
+
+%% The chunk that follows this one, when there is one: `has_more' says so
+%% and the token fetches it. A meta that claims more without a token is
+%% not walkable -- the page served so far is returned rather than looping.
+next_chunk(Meta) ->
+    case {maps:get(has_more, Meta, false), maps:get(continuation, Meta, undefined)} of
+        {true, Token} when is_binary(Token) -> {ok, Token};
+        _                                   -> none
+    end.
+
+%% Drops up to `Skip' rows from the head of a chunk, then takes up to
+%% `Take' of what remains. Returns the skip still outstanding (a chunk
+%% smaller than the skip consumes none of the take) and the rows taken.
+take_skipping(0, Take, Docs) ->
+    {0, take_up_to(Take, Docs)};
+take_skipping(Skip, _Take, []) ->
+    {Skip, []};
+take_skipping(Skip, Take, [_ | Rest]) ->
+    take_skipping(Skip - 1, Take, Rest).
+
+%% A page past the end is short (or empty), not a crash: lists:nthtail/2
+%% would fail on a list shorter than N.
+take_up_to(0, _Docs)   -> [];
+take_up_to(_N, [])     -> [];
+take_up_to(N, [H | T]) -> [H | take_up_to(N - 1, T)].
 
 %% Chunks are the documents with no `type': a source, its watermark and its
 %% re-embed requests share its `source_path', and would otherwise take slots
