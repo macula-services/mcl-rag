@@ -26,6 +26,23 @@ relative_path_keeps_unicode_paths_test() ->
     ?assertEqual(<<"目录/文档.md"/utf8>>,
                  refresh_corpus_scheduler:relative_path("/root", "/root/目录/文档.md")).
 
+%% mcl-rag#5: an entry's paths bound what the walk reads. Prefix matching is
+%% on whole path segments, so "docs" never matches "docsx".
+in_paths_matches_on_whole_segments_test() ->
+    ?assert(refresh_corpus_scheduler:in_paths(<<"docs/a.md">>, [<<"docs">>])),
+    ?assert(refresh_corpus_scheduler:in_paths(<<"docs">>, [<<"docs/">>])),
+    ?assert(refresh_corpus_scheduler:in_paths(<<"Documentation/guides/x.md">>,
+                                              [<<"Documentation/guides">>])),
+    ?assertNot(refresh_corpus_scheduler:in_paths(<<"docsx/a.md">>, [<<"docs">>])),
+    ?assertNot(refresh_corpus_scheduler:in_paths(<<"src/a.md">>, [<<"docs">>])),
+    ?assertNot(refresh_corpus_scheduler:in_paths(<<"a/docs.md">>, [<<"docs">>])).
+
+%% An empty list is the whole checkout, and several paths are a union.
+in_paths_empty_means_everything_test() ->
+    ?assert(refresh_corpus_scheduler:in_paths(<<"src/a.md">>, [])),
+    ?assert(refresh_corpus_scheduler:in_paths(<<"docs/a.md">>, [<<"other">>, <<"docs">>])),
+    ?assertNot(refresh_corpus_scheduler:in_paths(<<"src/a.md">>, [<<"other">>, <<"docs">>])).
+
 sanitise_utf8_keeps_valid_text_test() ->
     Text = <<"ok 目录/文档.md"/utf8>>,
     ?assertEqual(Text, refresh_corpus_scheduler:sanitise_utf8(Text)).

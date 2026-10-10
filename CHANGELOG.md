@@ -7,6 +7,18 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **A corpus entry can bound its history and its paths** (mcl-rag#5). `depth` bounds the first
+  clone's fetch to that many commits, a shallow checkout: kicad's `.git` drops from 4.3 GB to
+  288 MB at depth 1 and zephyr's from 1.0 GB to 142 MB, and the refresh reads only the worktree
+  at the head. `paths` materialises and ingests only the listed prefixes: kicad ingests 0.9 MB
+  of markdown out of a 5.7 GB tree. Both are optional; absent means full history and the whole
+  tree. `depth` applies at the first clone (delete a checkout to pick it up); `paths` on every
+  sync. Neither is a partial clone: the fetch still brings the branch's objects (bound it with
+  `depth`), and `paths` shields the disk and the walk. The measurements are in
+  [Run your own corpus](docs/RUN_YOUR_OWN_CORPUS.md#2-what-the-service-does-with-it).
+
 ### Fixed
 
 - **Paging past barrel's per-call chunk cap** (#9). One `find/3` call answers at most one chunk (1,000 rows) and

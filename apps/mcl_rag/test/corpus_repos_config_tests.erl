@@ -53,6 +53,45 @@ an_unknown_key_refuses_the_list_test() ->
         ?assertEqual({error, {unknown_key, <<"a">>, <<"tag">>}}, corpus_repos_config:read())
     end).
 
+%% An entry may bound its history and its paths (mcl-rag#5).
+a_depth_and_paths_read_back_test() ->
+    Bounded = (entry(<<"a">>))#{<<"depth">> => 5,
+                                <<"paths">> => [<<"docs">>, <<"Documentation/guides">>, <<"docs/">>]},
+    with_list([Bounded], fun() ->
+        {ok, [Repo]} = corpus_repos_config:read(),
+        ?assertEqual(5, maps:get(depth, Repo)),
+        ?assertEqual([<<"docs">>, <<"Documentation/guides">>, <<"docs/">>], maps:get(paths, Repo))
+    end).
+
+%% Absent bounds mean full history and the whole tree, not "none".
+an_absent_depth_and_paths_default_to_full_test() ->
+    with_list([entry(<<"a">>)], fun() ->
+        {ok, [Repo]} = corpus_repos_config:read(),
+        ?assertEqual(0, maps:get(depth, Repo)),
+        ?assertEqual([], maps:get(paths, Repo))
+    end).
+
+a_depth_that_is_not_a_positive_integer_refuses_the_list_test() ->
+    [with_list([(entry(<<"a">>))#{<<"depth">> => Bad}], fun() ->
+         ?assertEqual({error, {malformed_depth, <<"a">>, Bad}}, corpus_repos_config:read())
+     end)
+     || Bad <- [0, -1, <<"5">>, 2.5]].
+
+%% An empty list is refused: it has no meaning distinct from absent, and
+%% reading it as "nothing" would silently ingest an empty corpus.
+a_paths_that_is_not_a_non_empty_list_refuses_the_list_test() ->
+    [with_list([(entry(<<"a">>))#{<<"paths">> => Bad}], fun() ->
+         ?assertEqual({error, {malformed_paths, <<"a">>, Bad}}, corpus_repos_config:read())
+     end)
+     || Bad <- [[], <<"docs">>, #{}, 5]].
+
+%% A path can never name its way out of the checkout.
+a_path_that_could_leave_the_checkout_refuses_the_list_test() ->
+    [with_list([(entry(<<"a">>))#{<<"paths">> => [<<"docs">>, Bad]}], fun() ->
+         ?assertEqual({error, {malformed_path, <<"a">>, Bad}}, corpus_repos_config:read())
+     end)
+     || Bad <- [<<"/etc">>, <<"../x">>, <<"a/../b">>, <<".hidden">>, <<>>, 5]].
+
 %% MCL_RAG_CORPUS_REPOS names the list first, then the app env, then the
 %% default mount.
 the_env_var_names_the_list_first_test() ->
@@ -81,17 +120,22 @@ the_default_is_the_mount_test() ->
     end.
 
 %% The published schema and the refusals above are one set of rules: the
-%% schema's required keys, closed key set and patterns are the ones read/0
-%% enforces.
+%% schema's required and optional keys, closed key set, patterns, depth floor
+%% and paths pattern are the ones read/0 enforces.
 the_published_schema_is_the_rules_read_enforces_test() ->
     {ok, Bin} = file:read_file(schema_path()),
     #{<<"$defs">> := #{<<"repo">> := Repo}} = jsx:decode(Bin, [return_maps]),
-    #{required := Required, patterns := Patterns} = corpus_repos_config:rules(),
+    #{required := Required, optional := Optional, patterns := Patterns,
+      path_pattern := PathPattern, depth_minimum := DepthMinimum} = corpus_repos_config:rules(),
+    Props = maps:get(<<"properties">>, Repo),
     ?assertEqual(lists:sort(Required), lists:sort(maps:get(<<"required">>, Repo))),
     ?assertEqual(false, maps:get(<<"additionalProperties">>, Repo)),
-    ?assertEqual(lists:sort(Required), lists:sort(maps:keys(maps:get(<<"properties">>, Repo)))),
-    [?assertEqual(Pattern, maps:get(<<"pattern">>, maps:get(Key, maps:get(<<"properties">>, Repo))))
-     || {Key, Pattern} <- maps:to_list(Patterns)].
+    ?assertEqual(lists:sort(Required ++ Optional), lists:sort(maps:keys(Props))),
+    [?assertEqual(Pattern, maps:get(<<"pattern">>, maps:get(Key, Props)))
+     || {Key, Pattern} <- maps:to_list(Patterns)],
+    ?assertEqual(DepthMinimum, maps:get(<<"minimum">>, maps:get(<<"depth">>, Props))),
+    ?assertEqual(PathPattern, maps:get(<<"pattern">>, maps:get(<<"items">>, maps:get(<<"paths">>, Props)))),
+    ?assertEqual(1, maps:get(<<"minItems">>, maps:get(<<"paths">>, Props))).
 
 entry(Id) ->
     #{<<"id">> => Id, <<"url">> => <<"https://github.com/x/", Id/binary, ".git">>,

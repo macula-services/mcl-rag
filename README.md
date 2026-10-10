@@ -17,7 +17,11 @@ federated retrieval (`macula_rag`, procedure `mcl-rag/rag.query_shard_v1`).
 
 The data is one barrel database, `rag_chunks`, under `MCL_DATA_DIR`, next to the
 corpus checkouts. `deploy/corpus-repos.json` lists the repos and the `branch`
-each one is followed on; nothing is pinned. Every 2 hours the node fetches each
+each one is followed on; nothing is pinned, and an entry may bound its history
+(`depth`, a shallow first clone) and the files it ingests (`paths`) so a big code repo
+does not cost its whole history and tree (mcl-rag#5; the
+[measurements](docs/RUN_YOUR_OWN_CORPUS.md#2-what-the-service-does-with-it)
+picked those bounds). Every 2 hours the node fetches each
 branch and checks out its head (vendored libgit2, HTTPS only). When a head has
 moved, it re-ingests the files that changed, retires the files that are gone
 (their chunks with them), and drops everything of a repo that left the list.

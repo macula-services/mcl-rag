@@ -39,6 +39,21 @@
           "description": "The branch whose head is followed.",
           "type": "string",
           "minLength": 1
+        },
+        "depth": {
+          "description": "Bound the fetch of this repo's first clone to this many commits (a shallow checkout, so it holds far less history; 1 is usually all the refresh reads). Absent or 0 fetches the full history. It applies at the first clone only: a checkout that already exists full is not converted (delete it to have it re-cloned), a shallow one stays shallow and its later fetches bring only new commits.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "paths": {
+          "description": "Materialise and ingest only these repo-root-relative prefixes; the ingest walker reads nothing outside them, and files outside them that an earlier full checkout left on disk are not touched, pruned or read. Absent means the whole tree. This bounds the working tree; the fetch still brings the branch's objects, so bound the download with depth.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "description": "A file or directory prefix, like `docs' or `Documentation/guides'; a trailing slash is ignored. Letters, digits and . _ - / beyond the first character, and no `..' segment.",
+            "type": "string",
+            "pattern": "^(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9][A-Za-z0-9._/-]*$"
+          }
         }
       }
     }

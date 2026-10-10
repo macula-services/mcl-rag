@@ -2,10 +2,12 @@
 %%% `corpus_repos_config:read/0' lists, follows its branch head and makes the
 %%% store hold exactly that head's files (mcl-rag#24, #25).
 %%%
-%%% Per repo: `mcl_rag_corpus_sync_nif:sync_to_head/3' fetches the branch and
-%%% checks its head out, and says which commit that is. A repo the store
-%%% already serves at that head, under this index generation, is done. Else
-%%% every ingestible file of the checkout is compared with its watermark:
+%%% Per repo: `mcl_rag_corpus_sync_nif:sync_to_head/5' fetches the branch
+%%% (bounded by the entry's optional `depth') and checks its head out
+%%% (bounded by its optional `paths'), and says which commit that is. A repo
+%%% the store already serves at that head, under this index generation, is
+%%% done. Else every ingestible file of the checkout is compared with its
+%%% watermark:
 %%%
 %%%   - changed (or new): its old chunks are dropped, then it is re-ingested
 %%%     and re-embedded, stamped with the head. Dropping first matters: chunk
@@ -15,6 +17,14 @@
 %%%     no re-embed); a hit reads its commit from there.
 %%%   - gone (a watermark with no file any more): chunks, source and
 %%%     watermark are dropped.
+%%%
+%%% An entry naming `paths' (mcl-rag#5) narrows the walk to those prefixes:
+%%% the NIF materialises only them, this walk reads only them (`in_paths/2'),
+%%% and files outside them, left on disk by an earlier full checkout, are
+%%% neither updated, pruned nor read (their watermarks, if any, go with the
+%%% vanished-file drop below). An absent `depth' is full history; a positive
+%%% one keeps the checkout shallow, which is where the clone's size win is
+%%% (the NIF's own doc has the numbers and the caveats).
 %%%
 %%% Once every file is through, the repo is recorded as served at the head,
 %%% which is what describe_corpus names. A file that failed keeps its retry
@@ -44,7 +54,8 @@
 -module(refresh_corpus_scheduler).
 -behaviour(gen_server).
 
--export([start_link/0, scan/0, progress/0, progress_start/0, refresh_repo/2, next_tick/1, attempt/1, relative_path/2, sanitise_utf8/1]).
+-export([start_link/0, scan/0, progress/0, progress_start/0, refresh_repo/2, next_tick/1,
+         attempt/1, relative_path/2, in_paths/2, sanitise_utf8/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 -define(POLL_INTERVAL_MS, 7200000).
@@ -128,7 +139,8 @@ scan_config({ok, Repos}) ->
 follow_repo(#{id := Id, url := Url, branch := Branch, path := Path} = Repo) ->
     ok = filelib:ensure_dir(Path),
     progress_set(current_repo, Id),
-    case mcl_rag_corpus_sync_nif:sync_to_head(Url, Path, Branch) of
+    case mcl_rag_corpus_sync_nif:sync_to_head(Url, Path, Branch,
+                                             maps:get(depth, Repo, 0), maps:get(paths, Repo, [])) of
         {ok, Head, _Moved}           -> Result = refresh_repo(Repo, Head),
                                         progress_bump(repos_done, 1),
                                         Result;
@@ -140,22 +152,25 @@ follow_repo(#{id := Id, url := Url, branch := Branch, path := Path} = Repo) ->
 %% @doc Make the store hold exactly the files of `Repo''s checkout, which is
 %% at `Head'. Exported for the suites, whose checkouts are plain directories.
 -spec refresh_repo(#{id := binary(), path := binary(), _ => _}, binary()) -> ok | store_opening.
-refresh_repo(#{id := RepoId, path := Root}, Head) ->
-    refresh_unless_served(rag_store:get_served(RepoId), RepoId, binary_to_list(Root), Head).
+refresh_repo(#{id := RepoId, path := Root} = Repo, Head) ->
+    refresh_unless_served(rag_store:get_served(RepoId), RepoId, binary_to_list(Root),
+                          maps:get(paths, Repo, []), Head).
 
-refresh_unless_served({ok, #{commit := Head, generation := ?INDEX_GENERATION}}, _RepoId, _Root, Head) ->
+refresh_unless_served({ok, #{commit := Head, generation := ?INDEX_GENERATION}}, _RepoId, _Root, _Paths, Head) ->
     ok;
-refresh_unless_served({error, store_opening}, RepoId, _Root, Head) ->
+refresh_unless_served({error, store_opening}, RepoId, _Root, _Paths, Head) ->
     logger:info("[refresh_corpus_scheduler] ~s: store still opening, ~s retried shortly", [RepoId, Head]),
     store_opening;
-refresh_unless_served(Served, RepoId, Root, Head) ->
-    refresh_checkout(filelib:is_dir(Root), Served, RepoId, Root, Head).
+refresh_unless_served(Served, RepoId, Root, Paths, Head) ->
+    refresh_checkout(filelib:is_dir(Root), Served, RepoId, Root, Paths, Head).
 
-refresh_checkout(false, _Served, RepoId, Root, _Head) ->
+refresh_checkout(false, _Served, RepoId, Root, _Paths, _Head) ->
     logger:warning("[refresh_corpus_scheduler] ~s: no checkout at ~ts", [RepoId, Root]);
-refresh_checkout(true, Served, RepoId, Root, Head) ->
-    Files = [{relative_path(Root, P), P} || P <- filelib:wildcard(filename:join(Root, ?GLOB)),
-                                          corpus_boilerplate:ingestible(relative_path(Root, P))],
+refresh_checkout(true, Served, RepoId, Root, Paths, Head) ->
+    Files = [{Rel, P} || P <- filelib:wildcard(filename:join(Root, ?GLOB)),
+                         Rel <- [relative_path(Root, P)],
+                         corpus_boilerplate:ingestible(Rel),
+                         in_paths(Rel, Paths)],
     progress_set(files_total, length(Files)),
     Current = [namespaced_id(RepoId, Rel) || {Rel, _} <- Files],
     Results = [scan_file(RepoId, Head, Rel, Abs) || {Rel, Abs} <- Files],
@@ -273,6 +288,22 @@ refresh_file_contained(RepoId, Head, RelPath, Content) ->
 relative_path(RootDir, AbsPath) ->
     Prefix = string:trim(RootDir, trailing, "/") ++ "/",
     unicode:characters_to_binary(string:replace(AbsPath, Prefix, "", leading)).
+
+%% @doc Whether a repo-relative path is under one of the entry's `paths'
+%% (mcl-rag#5). An empty list means the whole checkout. A path names a file
+%% or a directory prefix, matched on whole path segments: "docs" matches
+%% "docs" and "docs/a.md", never "docsx/a.md", and a trailing slash is
+%% ignored. The config refuses anything that could name its way out of the
+%% checkout, so a prefix match is all this has to be. Exported for its own
+%% test.
+-spec in_paths(binary(), [binary()]) -> boolean().
+in_paths(_RelPath, []) -> true;
+in_paths(RelPath, Paths) -> lists:any(fun(P) -> under(trim_path(P), RelPath) end, Paths).
+
+trim_path(Path) -> string:trim(Path, trailing, "/").
+
+under(Path, RelPath) when RelPath =:= Path -> true;
+under(Path, RelPath) -> binary:longest_common_prefix([RelPath, <<Path/binary, "/">>]) =:= byte_size(Path) + 1.
 
 check_and_refresh(RepoId, Head, RelPath, Content) ->
     DocId = namespaced_id(RepoId, RelPath),
