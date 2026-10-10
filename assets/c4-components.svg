@@ -84,13 +84,15 @@
 <rect class="b-cmp" x="48" y="344" width="440" height="88" rx="8"/>
 <text class="t-code" x="62" y="368">refresh_corpus_scheduler</text>
 <text class="t-type" x="476" y="368" text-anchor="end">[every 120 s]</text>
-<text class="t-desc" x="62" y="390">Hashes **/*.md in each checkout. On a change: detect,</text>
-<text class="t-desc" x="62" y="406">schedule_reembed, upsert_source, embed_document</text>
+<text class="t-desc" x="62" y="390">Follows each repo's branch head via the NIF, then</text>
+<text class="t-desc" x="62" y="406">hashes **/*.md; on a change: detect, schedule_reembed,</text>
+<text class="t-desc" x="62" y="422">upsert_source, embed_document</text>
 <rect class="b-cmp" x="504" y="344" width="440" height="88" rx="8"/>
-<text class="t-code" x="518" y="368">corpus_git_sync</text>
-<text class="t-type" x="932" y="368" text-anchor="end">[every 120 s]</text>
-<text class="t-desc" x="518" y="390">Rust NIF, vendored libgit2, HTTPS only: clones or</text>
-<text class="t-desc" x="518" y="406">fast-forwards each repo; a diverged one is left alone</text>
+<text class="t-code" x="518" y="368">mcl_rag_corpus_sync_nif</text>
+<text class="t-type" x="932" y="368" text-anchor="end">[Rust NIF]</text>
+<text class="t-desc" x="518" y="390">Vendored libgit2, HTTPS only: fetches the branch</text>
+<text class="t-desc" x="518" y="406">(depth-bounded) and checks out its head (paths-bounded);</text>
+<text class="t-desc" x="518" y="422">nothing is pinned</text>
 <rect class="b-cmp" x="48" y="448" width="290" height="88" rx="8"/>
 <text class="t-code" x="62" y="472">mcl_rag_mesh_rpc</text>
 <text class="t-type" x="326" y="472" text-anchor="end">[Router]</text>

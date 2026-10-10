@@ -297,11 +297,13 @@ def components():
     # The service's own processes (mcl_rag_sup)
     s.bound("bound-in", 32, 312, 928, 236, "apps/mcl_rag [the service's processes, under mcl_rag_sup]")
     s.component("b-cmp", 48, 344, 440, 88, "refresh_corpus_scheduler", "[every 120 s]",
-                ["Hashes **/*.md in each checkout. On a change: detect,",
-                 "schedule_reembed, upsert_source, embed_document"])
-    s.component("b-cmp", 504, 344, 440, 88, "corpus_git_sync", "[every 120 s]",
-                ["Rust NIF, vendored libgit2, HTTPS only: clones or",
-                 "fast-forwards each repo; a diverged one is left alone"])
+                ["Follows each repo's branch head via the NIF, then",
+                 "hashes **/*.md; on a change: detect, schedule_reembed,",
+                 "upsert_source, embed_document"])
+    s.component("b-cmp", 504, 344, 440, 88, "mcl_rag_corpus_sync_nif", "[Rust NIF]",
+                ["Vendored libgit2, HTTPS only: fetches the branch",
+                 "(depth-bounded) and checks out its head (paths-bounded);",
+                 "nothing is pinned"])
     s.component("b-cmp", 48, 448, 290, 88, "mcl_rag_mesh_rpc", "[Router]",
                 ["The 17 handlers. rag_operators gate:",
                  "8 procedures need a verified operator"])
