@@ -35,10 +35,16 @@
 %%%
 %%% Which files are ingested, and what is stripped from them, is
 %%% `corpus_boilerplate''s (mcl-rag#26).
+%%%
+%%% The scan's live state is reported as it goes (mcl-rag#8): counters and
+%%% timestamps in a public ETS table this process owns, read through
+%%% `progress/0' and served by the `ingest_status' read desk. The table never
+%%% outlives the scheduler: it is recreated on start, so a restart begins a
+%%% fresh, honest view rather than a stale one.
 -module(refresh_corpus_scheduler).
 -behaviour(gen_server).
 
--export([start_link/0, scan/0, refresh_repo/2, next_tick/1, attempt/1, relative_path/2, sanitise_utf8/1]).
+-export([start_link/0, scan/0, progress/0, progress_start/0, refresh_repo/2, next_tick/1, attempt/1, relative_path/2, sanitise_utf8/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 -define(POLL_INTERVAL_MS, 7200000).
@@ -48,11 +54,18 @@
 -define(INDEX_GENERATION, <<"heads-v3:">>).
 -define(RETRY_WATERMARK, <<"retry">>).
 
+%% The table `progress/0' reads. Public and owned by this process.
+-define(PROGRESS, refresh_corpus_progress).
+%% The per-scan counters, reset at the top of every scan.
+-define(SCAN_COUNTERS, [files_seen, files_changed, files_unchanged, files_embedded,
+                        files_failed, chunks_written, repos_done]).
+
 -spec start_link() -> {ok, pid()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 init([]) ->
+    init_progress(),
     schedule_tick(0),
     {ok, #{}}.
 
@@ -84,7 +97,10 @@ scan() ->
     ok.
 
 scan_results() ->
-    scan_config(corpus_repos_config:read()).
+    progress_start(),
+    Results = scan_config(corpus_repos_config:read()),
+    progress_finish(Results),
+    Results.
 
 %% @doc The delay to the next tick: a minute when any repo met the store still
 %% opening (the boot tick, while the index is rebuilt), else the interval.
@@ -102,6 +118,7 @@ scan_config({error, Reason}) ->
     logger:warning("[refresh_corpus_scheduler] config unreadable: ~p", [Reason]),
     [];
 scan_config({ok, Repos}) ->
+    progress_set(repos_total, length(Repos)),
     Results = [follow_repo(R) || R <- Repos],
     prune_removed([Id || #{id := Id} <- Repos]),
     Results.
@@ -110,9 +127,14 @@ scan_config({ok, Repos}) ->
 %% itself: a fresh clone needs its own leaf directory not to exist yet.
 follow_repo(#{id := Id, url := Url, branch := Branch, path := Path} = Repo) ->
     ok = filelib:ensure_dir(Path),
+    progress_set(current_repo, Id),
     case mcl_rag_corpus_sync_nif:sync_to_head(Url, Path, Branch) of
-        {ok, Head, _Moved}           -> refresh_repo(Repo, Head);
-        {error, {git_error, Msg}}    -> logger:warning("[refresh_corpus_scheduler] ~s: git error: ~ts", [Id, Msg]), ok
+        {ok, Head, _Moved}           -> Result = refresh_repo(Repo, Head),
+                                        progress_bump(repos_done, 1),
+                                        Result;
+        {error, {git_error, Msg}}    -> logger:warning("[refresh_corpus_scheduler] ~s: git error: ~ts", [Id, Msg]),
+                                        progress_bump(repos_done, 1),
+                                        ok
     end.
 
 %% @doc Make the store hold exactly the files of `Repo''s checkout, which is
@@ -134,6 +156,7 @@ refresh_checkout(false, _Served, RepoId, Root, _Head) ->
 refresh_checkout(true, Served, RepoId, Root, Head) ->
     Files = [{relative_path(Root, P), P} || P <- filelib:wildcard(filename:join(Root, ?GLOB)),
                                           corpus_boilerplate:ingestible(relative_path(Root, P))],
+    progress_set(files_total, length(Files)),
     Current = [namespaced_id(RepoId, Rel) || {Rel, _} <- Files],
     Results = [scan_file(RepoId, Head, Rel, Abs) || {Rel, Abs} <- Files],
     Failed = [R || R <- Results, R =:= failed],
@@ -203,6 +226,8 @@ remove_repo(RepoId) ->
     logger:info("[refresh_corpus_scheduler] ~s: left the corpus, its chunks are dropped", [RepoId]).
 
 scan_file(RepoId, Head, RelPath, AbsPath) ->
+    progress_bump(files_seen, 1),
+    progress_set(current_path, RelPath),
     Scan = fun() -> scan_one(RepoId, Head, RelPath, AbsPath) end,
     case attempt(Scan) of
         {ok, Result} ->
@@ -211,6 +236,7 @@ scan_file(RepoId, Head, RelPath, AbsPath) ->
             %% The whole per-file scan is contained (issue #7).
             logger:error("[refresh_corpus_scheduler] ~s: scan crashed path=~ts ~p:~p ~p",
                          [RepoId, AbsPath, Class, Reason, Stack]),
+            progress_bump(files_failed, 1),
             failed
     end.
 
@@ -221,6 +247,7 @@ scan_one(RepoId, Head, RelPath, AbsPath) ->
         {error, Reason} ->
             logger:warning("[refresh_corpus_scheduler] ~s: read error path=~ts ~p",
                             [RepoId, RelPath, Reason]),
+            progress_bump(files_failed, 1),
             failed
     end.
 
@@ -253,11 +280,16 @@ check_and_refresh(RepoId, Head, RelPath, Content) ->
     Detect = #{<<"corpus_id">> => RepoId, <<"source_path">> => DocId,
                <<"diff_hash">> => Hash},
     case maybe_detect_corpus_change:detect(Detect) of
-        {ok, #{changed := 1}} -> refresh_changed(RepoId, Head, DocId, Content);
-        {ok, #{changed := 0}} -> verified(rag_store:verify_source(DocId, Head), RepoId, DocId);
+        {ok, #{changed := 1}} ->
+            progress_bump(files_changed, 1),
+            refresh_changed(RepoId, Head, DocId, Content);
+        {ok, #{changed := 0}} ->
+            progress_bump(files_unchanged, 1),
+            verified(rag_store:verify_source(DocId, Head), RepoId, DocId);
         {error, Reason} ->
             logger:warning("[refresh_corpus_scheduler] ~s: detect error path=~ts ~p",
                             [RepoId, DocId, Reason]),
+            progress_bump(files_failed, 1),
             failed
     end.
 
@@ -297,7 +329,10 @@ source_refreshed({error, Reason}, RepoId, DocId) ->
     logger:warning("[refresh_corpus_scheduler] source store error path=~ts ~p", [DocId, Reason]),
     retry_next_tick(RepoId, DocId).
 
-embed_refreshed({ok, _}, _RepoId, _DocId) ->
+embed_refreshed({ok, #{chunks := Chunks}}, _RepoId, _DocId) ->
+    progress_bump(files_embedded, 1),
+    progress_bump(chunks_written, Chunks),
+    progress_set(last_embedded_ms, now_ms()),
     ok;
 embed_refreshed({error, Reason}, RepoId, DocId) ->
     logger:warning("[refresh_corpus_scheduler] embed error path=~ts ~p", [DocId, Reason]),
@@ -312,9 +347,11 @@ retry_next_tick(RepoId, DocId) ->
 %% Either way the file failed this tick, and its repo is not served at the
 %% head until it succeeds.
 retry_marked(ok, _DocId) ->
+    progress_bump(files_failed, 1),
     failed;
 retry_marked({error, Reason}, DocId) ->
     logger:warning("[refresh_corpus_scheduler] retry watermark error path=~ts ~p", [DocId, Reason]),
+    progress_bump(files_failed, 1),
     failed.
 
 %% Wraps one per-file step so an exception becomes a value instead of a
@@ -346,6 +383,103 @@ sanitise_tail(<<_Bad, Rest/binary>>) ->
     <<Replacement/binary, Tail/binary>>;
 sanitise_tail(<<>>) ->
     <<>>.
+
+%%% Live scan progress (mcl-rag#8): what `ingest_status' serves.
+%%%
+%%% The table is public and this process owns it; the scan writes it (a tick
+%%% runs in this gen_server, a direct scan() runs in its caller) and the read
+%%% desk reads it from the RPC process. Counters are best-effort and monotone
+%%% within a scan; a scan that dies leaves its last values visible, with the
+%%% state it died in, rather than a stuck table.
+
+init_progress() ->
+    ensure_progress_table(),
+    progress_start(),
+    progress_set(last_embedded_ms, undefined).
+
+%% Create-or-clear, on start only: a restart begins a fresh view rather than
+%% a stale one.
+ensure_progress_table() ->
+    case ets:whereis(?PROGRESS) of
+        undefined ->
+            _ = ets:new(?PROGRESS, [named_table, public, set, {read_concurrency, true}]),
+            ok;
+        _ ->
+            ets:delete_all_objects(?PROGRESS),
+            ok
+    end.
+
+%% Reset the per-scan counters and mark a scan running. The server calls it
+%% at the top of every scan; exported for its own test.
+-spec progress_start() -> ok.
+progress_start() ->
+    ensure_progress_table(),
+    lists:foreach(fun(K) -> ets:insert(?PROGRESS, {K, 0}) end, ?SCAN_COUNTERS),
+    progress_set(state, scanning),
+    progress_set(started_ms, now_ms()),
+    progress_set(finished_ms, undefined),
+    progress_set(current_repo, undefined),
+    progress_set(current_path, undefined),
+    progress_set(files_total, 0),
+    progress_set(repos_total, 0),
+    progress_set(store_opening, false),
+    ok.
+
+progress_finish(Results) ->
+    progress_set(state, idle),
+    progress_set(finished_ms, now_ms()),
+    progress_set(store_opening, lists:member(store_opening, Results)),
+    progress_set(next_tick_ms, next_tick(Results)),
+    ok.
+
+progress_bump(Key, Increment) ->
+    case ets:whereis(?PROGRESS) of
+        undefined -> ok;
+        _ -> ets:update_counter(?PROGRESS, Key, Increment, {Key, 0}), ok
+    end.
+
+progress_set(Key, Value) ->
+    case ets:whereis(?PROGRESS) of
+        undefined -> ok;
+        _ -> ets:insert(?PROGRESS, {Key, Value}), ok
+    end.
+
+now_ms() ->
+    erlang:system_time(millisecond).
+
+%% @doc The scan's live state, as `ingest_status' serves it. No table (the
+%% scheduler never started) is one honest unknown.
+-spec progress() -> map().
+progress() ->
+    case ets:whereis(?PROGRESS) of
+        undefined -> #{state => unknown};
+        _ -> progress_map()
+    end.
+
+progress_map() ->
+    #{state => progress_get(state, unknown),
+      started_ms => progress_get(started_ms, undefined),
+      finished_ms => progress_get(finished_ms, undefined),
+      current_repo => progress_get(current_repo, undefined),
+      current_path => progress_get(current_path, undefined),
+      repos_total => progress_get(repos_total, 0),
+      repos_done => progress_get(repos_done, 0),
+      files_total => progress_get(files_total, 0),
+      files_seen => progress_get(files_seen, 0),
+      files_changed => progress_get(files_changed, 0),
+      files_unchanged => progress_get(files_unchanged, 0),
+      files_embedded => progress_get(files_embedded, 0),
+      files_failed => progress_get(files_failed, 0),
+      chunks_written => progress_get(chunks_written, 0),
+      last_embedded_ms => progress_get(last_embedded_ms, undefined),
+      store_opening => progress_get(store_opening, false),
+      next_tick_ms => progress_get(next_tick_ms, undefined)}.
+
+progress_get(Key, Default) ->
+    case ets:lookup(?PROGRESS, Key) of
+        [{_, Value}] -> Value;
+        [] -> Default
+    end.
 
 namespaced_id(RepoId, RelPath) ->
     <<RepoId/binary, "/", RelPath/binary>>.

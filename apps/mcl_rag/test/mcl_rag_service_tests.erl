@@ -63,11 +63,11 @@ info_version_matches_the_application_test() ->
         [<<"add_knowledge">>, <<"answer_query">>, <<"classify_topics">>,
          <<"describe_corpus">>, <<"detect_corpus_change">>, <<"embed_document">>, <<"get_chunk_by_id">>,
          <<"get_document_verbatim">>, <<"get_source_by_id">>, <<"ingest_document">>,
-         <<"list_chunks_by_source">>, <<"list_sources_page">>, <<"prune_chunks">>,
-         <<"rerank_results">>, <<"retire_document">>, <<"schedule_reembed">>,
-         <<"search_chunks_semantic">>, <<"upload_knowledge">>]).
+         <<"ingest_status">>, <<"list_chunks_by_source">>, <<"list_sources_page">>,
+         <<"prune_chunks">>, <<"rerank_results">>, <<"retire_document">>,
+         <<"schedule_reembed">>, <<"search_chunks_semantic">>, <<"upload_knowledge">>]).
 
-%% The eighteen procedures, org-qualified the way mcl_om registers them:
+%% The nineteen procedures, org-qualified the way mcl_om registers them:
 %% `mcl-rag/<name>'. macula-mcp's mesh_recall/mesh_remember, macula-cli and
 %% macula-lazymesh are built against these. A change is a new name.
 the_procedures_are_the_published_contract_test() ->
@@ -153,7 +153,7 @@ health_is_degraded_while_the_store_opens_test() ->
 
 %% Once the store serves, the verdict is whether the org can reach this shard
 %% (join_federation:health/0, macula_rag's own grant): its procedure is not one
-%% of mcl_om's eighteen, so mcl_om's provider_grants never lists it.
+%% of mcl_om's nineteen, so mcl_om's provider_grants never lists it.
 health_names_a_shard_the_org_cannot_reach_test() ->
     Unreachable = {degraded, #{federation => {waiting, no_client}}},
     with_store_status(open, Unreachable, fun() ->

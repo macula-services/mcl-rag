@@ -29,7 +29,7 @@ info_round_trip_test_() ->
           %% Floors, not exact minors: mcl_om 0.39 or later WITH macula 14.2 or
           %% later, the SDK base every deployed service runs on. mcl_om 0.38
           %% keeps 0.33.3's fix (register/1 replies at once and advertises after,
-          %% which eighteen procedures need to boot).
+          %% which nineteen procedures need to boot).
           ?_assert(at_least(maps:get(mcl_om_version, Reply), [0, 39, 0])),
           ?_assert(at_least(maps:get(macula_version, Reply), [14, 2, 0]))]
      end}.

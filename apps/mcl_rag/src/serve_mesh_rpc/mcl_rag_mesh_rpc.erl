@@ -43,7 +43,8 @@
     handle_get_document_verbatim/1,
     handle_detect_corpus_change/1,
     handle_schedule_reembed/1,
-    handle_describe_corpus/1
+    handle_describe_corpus/1,
+    handle_ingest_status/1
 ]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
@@ -93,6 +94,7 @@ handle_get_document_verbatim(P)  -> route(<<"mcl-rag.get_document_verbatim">>, P
 handle_detect_corpus_change(P)   -> route(<<"mcl-rag.detect_corpus_change">>, P).
 handle_schedule_reembed(P)       -> route(<<"mcl-rag.schedule_reembed">>, P).
 handle_describe_corpus(P)        -> route(<<"mcl-rag.describe_corpus">>, P).
+handle_ingest_status(P)          -> route(<<"mcl-rag.ingest_status">>, P).
 
 %%% Internal: method → slice handler → mesh wire shape
 
@@ -157,6 +159,8 @@ desk(<<"mcl-rag.answer_query">>, P) ->
     answer_query_result(describe_corpus:corpus_hash(), maybe_answer_query:retrieve(P));
 desk(<<"mcl-rag.describe_corpus">>, _P) ->
     describe_corpus:describe();
+desk(<<"mcl-rag.ingest_status">>, _P) ->
+    ingest_status:status();
 desk(<<"mcl-rag.rerank_results">>, P) ->
     rerank_result(maybe_rerank_results:rerank(P));
 desk(<<"mcl-rag.get_chunk_by_id">>, P) ->

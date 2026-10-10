@@ -58,3 +58,90 @@ the_next_tick_is_soon_after_an_opening_store_test() ->
     ?assertEqual(60000, refresh_corpus_scheduler:next_tick([ok, store_opening, ok])),
     ?assertEqual(7200000, refresh_corpus_scheduler:next_tick([ok, ok])),
     ?assertEqual(7200000, refresh_corpus_scheduler:next_tick([])).
+
+%%==============================================================================
+%% Live scan progress (mcl-rag#8)
+%%==============================================================================
+
+%% progress_start/0 resets the counters and marks the scan running, so a
+%% reader can tell a running scan apart from its idle aftermath.
+progress_reports_a_running_scan_test() ->
+    ok = refresh_corpus_scheduler:progress_start(),
+    P = refresh_corpus_scheduler:progress(),
+    ?assertEqual(scanning, maps:get(state, P)),
+    ?assert(is_integer(maps:get(started_ms, P))),
+    ?assertEqual(undefined, maps:get(finished_ms, P)),
+    ?assertEqual(0, maps:get(files_seen, P)),
+    ?assertEqual(0, maps:get(files_total, P)),
+    ?assertEqual(0, maps:get(chunks_written, P)),
+    ?assertEqual(0, maps:get(repos_done, P)).
+
+%% A refresh feeds the counters: the file seen and changed, embedded with its
+%% chunks counted, and the last-ingest timestamp set.
+progress_counts_a_refresh_test() ->
+    ok = refresh_corpus_scheduler:progress_start(),
+    Root = progress_tmp_root(),
+    _ = progress_write_doc(Root, "doc.md", <<"# Hi\n\nSome text.\n">>),
+    Head = binary:copy(<<"a">>, 40),
+    ok = meck:new([rag_store, maybe_detect_corpus_change, maybe_schedule_reembed, maybe_embed_document], [no_link]),
+    ok = meck:expect(rag_store, get_served, fun(_) -> {error, not_found} end),
+    ok = meck:expect(rag_store, watermarked_paths, fun(_) -> {ok, []} end),
+    ok = meck:expect(rag_store, forget_chunks_of_source, fun(_) -> {ok, 0} end),
+    ok = meck:expect(rag_store, upsert_source, fun(_) -> ok end),
+    ok = meck:expect(rag_store, forget_chunks_of_repo_except, fun(_, _) -> {ok, 0} end),
+    ok = meck:expect(rag_store, put_served, fun(_, _, _) -> ok end),
+    ok = meck:expect(maybe_detect_corpus_change, detect, fun(_) -> {ok, #{changed => 1}} end),
+    ok = meck:expect(maybe_schedule_reembed, schedule, fun(_) -> ok end),
+    ok = meck:expect(maybe_embed_document, embed,
+                     fun(_) -> {ok, #{document_id => <<"repo/doc.md">>, chunks => 3}} end),
+    try
+        ?assertEqual(ok, refresh_corpus_scheduler:refresh_repo(#{id => <<"repo">>, path => Root}, Head)),
+        P = refresh_corpus_scheduler:progress(),
+        ?assertEqual(1, maps:get(files_seen, P)),
+        ?assertEqual(1, maps:get(files_total, P)),
+        ?assertEqual(1, maps:get(files_changed, P)),
+        ?assertEqual(1, maps:get(files_embedded, P)),
+        ?assertEqual(3, maps:get(chunks_written, P)),
+        ?assertEqual(0, maps:get(files_failed, P)),
+        ?assert(is_integer(maps:get(last_embedded_ms, P))),
+        %% current_repo is set by follow_repo (the NIF boundary); the per-file
+        %% path is set by the scan itself.
+        ?assertEqual(<<"doc.md">>, maps:get(current_path, P))
+    after
+        meck:unload([rag_store, maybe_detect_corpus_change, maybe_schedule_reembed, maybe_embed_document]),
+        _ = file:del_dir_r(Root)
+    end.
+
+%% A file that fails is counted, not hidden.
+progress_counts_a_failure_test() ->
+    ok = refresh_corpus_scheduler:progress_start(),
+    Root = progress_tmp_root(),
+    _ = progress_write_doc(Root, "bad.md", <<"# Bad\n">>),
+    Head = binary:copy(<<"b">>, 40),
+    ok = meck:new([rag_store, maybe_detect_corpus_change], [no_link]),
+    ok = meck:expect(rag_store, get_served, fun(_) -> {error, not_found} end),
+    ok = meck:expect(rag_store, watermarked_paths, fun(_) -> {ok, []} end),
+    ok = meck:expect(rag_store, forget_chunks_of_repo_except, fun(_, _) -> {ok, 0} end),
+    ok = meck:expect(rag_store, put_served, fun(_, _, _) -> ok end),
+    ok = meck:expect(maybe_detect_corpus_change, detect, fun(_) -> {error, refused} end),
+    try
+        ?assertEqual(ok, refresh_corpus_scheduler:refresh_repo(#{id => <<"repo">>, path => Root}, Head)),
+        P = refresh_corpus_scheduler:progress(),
+        ?assertEqual(1, maps:get(files_seen, P)),
+        ?assertEqual(1, maps:get(files_failed, P)),
+        ?assertEqual(0, maps:get(files_changed, P)),
+        ?assertEqual(0, maps:get(files_embedded, P))
+    after
+        meck:unload([rag_store, maybe_detect_corpus_change]),
+        _ = file:del_dir_r(Root)
+    end.
+
+progress_tmp_root() ->
+    Dir = filename:join(["/tmp", "mcl-rag-progress-" ++ integer_to_list(erlang:unique_integer([positive]))]),
+    ok = filelib:ensure_dir(filename:join(Dir, "x")),
+    unicode:characters_to_binary(Dir).
+
+progress_write_doc(Root, Name, Content) ->
+    Path = filename:join(binary_to_list(Root), Name),
+    ok = file:write_file(Path, Content),
+    Path.
