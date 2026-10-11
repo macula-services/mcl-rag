@@ -7,6 +7,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- **Rebuilt on macula 14.8.2** (refused dials back off further each time, macula#95).
+
 ### Added
 
 - **A corpus entry can bound its history and its paths** (mcl-rag#5). `depth` bounds the first
