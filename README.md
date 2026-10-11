@@ -1,6 +1,27 @@
 # mcl-rag
 
-**The mesh shared memory: retrieval over a realm-bound corpus, and the deposits agents remember into it**
+<!-- Service README template: swap the service name in the badge URLs and the
+     package link; everything else is shared. -->
+
+[![CI](https://img.shields.io/github/actions/workflow/status/macula-services/mcl-rag/lint.yml?branch=main&label=CI)](https://github.com/macula-services/mcl-rag/actions/workflows/lint.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![ghcr.io](https://img.shields.io/badge/ghcr.io-macula--services%2Fmcl-rag-blue.svg)](https://github.com/macula-services/mcl-rag/pkgs/container/mcl-rag)
+[![BEAM](https://img.shields.io/badge/beam-28%2B-A90533?logo=erlang&logoColor=white)](https://www.erlang.org)
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-support-ea4aaa.svg?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/rgfaber)
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/macula-full-dark.svg">
+    <img src="assets/macula-full-light.svg" alt="Macula" width="320">
+  </picture>
+</p>
+
+<p align="center">
+  <strong>The mesh shared memory: retrieval over a realm-bound corpus, and the deposits agents remember into it</strong>
+</p>
+
+---
+
 
 Architecture: the C4 model (context, containers, components) is in [architecture/README.md](architecture/README.md).
 
