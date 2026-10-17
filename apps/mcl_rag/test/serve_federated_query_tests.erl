@@ -21,16 +21,16 @@
 %% The resolved library
 %%------------------------------------------------------------------------------
 
-%% 0.4 (the RAG service contract, corpus hash and signature, on macula 14) or a
-%% later 0.x is what this service is written against. A floor, not a string
-%% match: `~> 0.4' floats to 0.5, and a test pinned to "0.4." would break the day
-%% that ships.
-the_resolved_macula_rag_is_0_4_or_later_test() ->
+%% 1.0 (the RAG service contract, corpus hash and signature, on macula 15) or a
+%% later 1.x is what this service is written against. A floor, not a string
+%% match: `~> 1.0' floats to 2.0, and a test pinned to a minor would break the
+%% day that ships.
+the_resolved_macula_rag_is_1_0_or_later_test() ->
     ok = loaded(application:load(macula_rag)),
     {ok, Vsn} = application:get_key(macula_rag, vsn),
     [Major, Minor | _] = [list_to_integer(P) || P <- string:split(Vsn, ".", all)],
-    ?assertEqual(0, Major),
-    ?assert(Minor >= 4),
+    ?assertEqual(1, Major),
+    ?assert(Minor >= 0),
     {module, _} = code:ensure_loaded(macula_rag),
     [?assert(erlang:function_exported(macula_rag, F, A))
      || {F, A} <- [{configure, 3}, {register_responder, 1}, {advertise, 2}, {status, 0},

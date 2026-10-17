@@ -220,9 +220,9 @@ def containers():
     s.edge("M665 320V350")                     # corpus list
 
     s.element("b-sys", 260, 100, 480, 220, "mcl-rag service",
-              "[Container: OCI image, OTP 28 release, mcl_om 0.33.3]",
+              "[Container: OCI image, OTP 28 release, mcl_om 1.0]",
               ["Eighteen procedures as mcl-rag/<name>, and rag.query_shard_v1",
-               "through macula_rag 0.2 (macula 13.0.1). From mcl-om: node",
+               "through macula_rag 1.0 (macula 15.6). From mcl-om: node",
                "identity, pinned outbound station dial, realm identity claim,",
                "provider grants, mcl-rag/info, /health on 8450.",
                "Local HTTP API on 8451, loopback, no authentication.",
@@ -281,7 +281,7 @@ def components():
                  "identity_spec/0: scope mcl-rag, no actions or resources, 30 days. No store_id/0 or data_dir/0: storeless."])
 
     # What mcl-om provides
-    s.bound("bound-in", 32, 180, 928, 112, "mcl_om 0.33.3 [library: what every mcl-om service gets]")
+    s.bound("bound-in", 32, 180, 928, 112, "mcl_om 1.0 [library: what every mcl-om service gets]")
     om = [("b-cmp", "identity key", ["/etc/mcl/secrets; the node", "id survives a recreate"]),
           ("b-cmp", "station dial", ["pinned seed + node id;", "{mesh, required} at boot"]),
           ("b-cmp", "realm claim", ["boot claim; a D25 grant", "per procedure"]),
