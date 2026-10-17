@@ -158,7 +158,8 @@ copied in; locally, `scripts/build-corpus-sync-nif.sh` builds it into
 | (none) | `/run/mcl/health.sock` | `/health` is served on this Unix socket inside the container (mcl_om `health_socket`); no health port is bound. `scripts/health.sh` asks it. |
 | `MCL_NODE_NAME` | `mcl_rag` | Erlang node name. |
 | `MCL_NODE_HOST` | `127.0.0.1` | Erlang node host. |
-| `MCL_COOKIE` | `mcl_rag` | Erlang cookie. |
+| `MCL_COOKIE` | none, required | Erlang cookie. Nothing ships a default (mcl-rag#32): `deploy/docker-compose.yml` refuses to start without one. Under Quadlet or a plain `podman run` it is not enforced: relx substitutes an empty value, the start script does not refuse, and `erl` mints a random cookie into `/app/.erlang.cookie` on each start, so the node starts with a cookie nobody chose. Set it from your own secret file either way. |
+| `ERL_EPMD_ADDRESS` | `127.0.0.1` | Binds epmd to loopback, beside the node's own distribution listener, which `-kernel inet_dist_use_interface {127,0,0,1}` in `config/vm.args.src` keeps on loopback too (mcl-rag#32). |
 
 `deploy/docker-compose.yml` runs it, and carries what the service knows about
 itself. If you deploy through something else, let that carry **placement**: which

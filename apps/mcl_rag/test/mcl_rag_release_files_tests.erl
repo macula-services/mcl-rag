@@ -154,7 +154,7 @@ the_distribution_listener_is_bound_to_loopback_test() ->
 %% epmd is a listener the VM starts, separate from the node's own port, so
 %% binding distribution leaves it exposed unless it is bounded too.
 epmd_is_bound_to_loopback_test() ->
-    ?assertEqual({ok, <<"127.0.0.1">>}, image_value(<<"ERL_EPMD_ADDRESS">>)).
+    ?assertEqual({ok, [<<"127.0.0.1">>]}, image_value(<<"ERL_EPMD_ADDRESS">>)).
 
 %% No cookie ships in the image. A baked-in default is a public secret: a
 %% deployment that forgets to override it runs distribution with a cookie

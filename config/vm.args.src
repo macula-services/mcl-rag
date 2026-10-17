@@ -1,6 +1,12 @@
 ## Node identity and runtime flags for mcl_rag.
 -name ${MCL_NODE_NAME}@${MCL_NODE_HOST}
 -setcookie ${MCL_COOKIE}
+## Distribution is bound to loopback (mcl-rag#32). The node name above says who
+## this node is, not where it listens: under host networking an unbound node
+## listens on every interface, and the lab measured this one on 0.0.0.0.
+## Nothing off the box uses distribution, the mesh is QUIC, and epmd is bounded
+## beside this by ERL_EPMD_ADDRESS in the image.
+-kernel inet_dist_use_interface {127,0,0,1}
 
 +K true
 

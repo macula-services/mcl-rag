@@ -74,7 +74,18 @@ ENV RELX_REPLACE_OS_VARS=true
 
 ENV MCL_NODE_NAME=mcl_rag
 ENV MCL_NODE_HOST=127.0.0.1
-ENV MCL_COOKIE=mcl_rag
+# epmd is a listener the VM starts beside the node's own port. Bounding
+# distribution alone leaves epmd on every interface (mcl-rag#32).
+ENV ERL_EPMD_ADDRESS=127.0.0.1
+# NO COOKIE IS BAKED IN, on purpose (mcl-rag#32). A default here is a public
+# secret: a deployment that forgets to override it runs distribution with a
+# cookie anyone can read in this repository. What replaces it depends on how
+# you start the image. Compose demands the cookie, so there a missing one is a
+# start failure. Under Quadlet or a plain podman run nothing refuses: relx
+# substitutes an empty value for the unset variable and erl mints a random
+# cookie into /app/.erlang.cookie on each start, so the node starts with a
+# cookie nobody chose. That is fail-safe, not fail-closed. Supply MCL_COOKIE
+# from your own secret file either way.
 # The local HTTP API: loopback only, because it has writes and no
 # authentication. The mesh procedures are the public surface.
 ENV MCL_RAG_HTTP_PORT=8451

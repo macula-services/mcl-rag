@@ -76,7 +76,10 @@ services:
       - MCL_BOX=${MCL_BOX:-}
       - MCL_NODE_NAME=mcl_rag
       - MCL_NODE_HOST=127.0.0.1
-      - MCL_COOKIE=mcl_rag
+      # Demanded, not defaulted (mcl-rag#32): the image ships no cookie either,
+      # so a missing one stops the node at start instead of running distribution
+      # with a public secret.
+      - MCL_COOKIE=${MCL_COOKIE:?set MCL_COOKIE to this node's distribution cookie}
       # The local HTTP API, loopback only (writes, no authentication). Its
       # number is registered in macula-fleet PORTS.md.
       - MCL_RAG_HTTP_PORT=8451
