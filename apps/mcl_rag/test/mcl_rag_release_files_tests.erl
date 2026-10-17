@@ -141,6 +141,36 @@ the_versions_agree_test() ->
                                 [{capture, all_but_first, binary}]),
     ?assertEqual({Reported, Reported}, {list_to_binary(App), Release}).
 
+%% The distribution listener is bound to loopback (mcl-rag#32). Under host
+%% networking an unbound `-name' listens on every interface: the lab measured
+%% epmd and this node's distribution port on 0.0.0.0. Nothing off the box uses
+%% distribution; the mesh is QUIC. Naming the node's host does not bind it,
+%% which is why this is a VM flag and not a config value.
+the_distribution_listener_is_bound_to_loopback_test() ->
+    ?assertMatch({match, _},
+                 re:run(read("config/vm.args.src"),
+                        <<"-kernel inet_dist_use_interface \\{127,0,0,1\\}">>)).
+
+%% epmd is a listener the VM starts, separate from the node's own port, so
+%% binding distribution leaves it exposed unless it is bounded too.
+epmd_is_bound_to_loopback_test() ->
+    ?assertEqual({ok, <<"127.0.0.1">>}, image_value(<<"ERL_EPMD_ADDRESS">>)).
+
+%% No cookie ships in the image. A baked-in default is a public secret: a
+%% deployment that forgets to override it runs distribution with a cookie
+%% anyone can read from this repository. With the default gone, a missing
+%% cookie is a start failure rather than a quiet exposure.
+the_image_ships_no_cookie_test() ->
+    ?assertEqual(false, lists:member(<<"MCL_COOKIE">>, image_env())).
+
+%% Compose carries no cookie of its own either, and refuses to start without
+%% one. Together with the image this is what makes the default fail closed:
+%% the cookie is only ever the operator's.
+compose_demands_the_cookie_test() ->
+    Compose = read("deploy/docker-compose.yml"),
+    ?assertMatch({match, _}, re:run(Compose, <<"- MCL_COOKIE=\\$\\{MCL_COOKIE:\\?">>)),
+    ?assertEqual(nomatch, re:run(Compose, <<"- MCL_COOKIE=mcl_rag">>)).
+
 %%==============================================================================
 
 applications(App) ->
