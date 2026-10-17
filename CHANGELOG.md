@@ -5,6 +5,11 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.9.0 - 2026-10-17
+
+- **Wire 1.0: on macula 15.6 and mcl_om 1.0** (macula-fleet#27). macula 15 neither reads a 14 node's frames nor completes a handshake with it, so the fleet moves across in one flag day rather than node by node. mcl_om 1.0 is this service on the new wire: no function it calls moved or changed arity. `mcl_om ~> 0.x` takes any 0.x, so a 0.43 on macula 15 would have rolled the live 0.10.3 fleet on its next build; it names 1.0, which is outside that range.
+- **`macula_rag ~> 1.0`**, the same contract on macula 15. macula_rag 0.5.0 pinned macula `~> 14.2`, and `~> 0.5` takes any 0.x, so a 0.6 on macula 15 would have been picked up here while this service was still on macula 14.
+
 ## 0.8.2 - 2026-10-15
 
 - **Rebuilt on mcl_om 0.42** (mcl-om#26): advertisement renewals move to a 70 s interval under a 280 s TTL (from 30 s / 120 s), so a station sends far fewer renewal frames; the health windows derive from the interval. Carries macula 14.11.0 (mcl_om 0.42's floor).
