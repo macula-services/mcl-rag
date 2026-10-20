@@ -5,6 +5,16 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+- Every app the release names carries the release version (mcl-rag#33). The desk
+  apps sat at 0.4.0 through v0.9.0 while the release tuple said the tag's
+  version, so the release guard would refuse the next tag and every box would
+  have gone on reporting the older one. `mcl_rag_release_files_tests` now reads the release tuple,
+  every app it names and each app's .app.src, and fails when they disagree.
+
 ## 0.9.0 - 2026-10-17
 
 - **Distribution and epmd are bound to loopback, and the image ships no cookie** (mcl-rag#32, also released on the 0.8 line as 0.8.3). Under host networking the node listened on every interface: the lab measured `epmd` on `0.0.0.0:4369` and `[::]:4369` and this node's distribution port on `0.0.0.0`. `-kernel inet_dist_use_interface {127,0,0,1}` in `config/vm.args.src` and `ERL_EPMD_ADDRESS=127.0.0.1` in the image bound both. The image's `MCL_COOKIE=mcl_rag` default is gone, and `deploy/docker-compose.yml` demands the cookie instead of hardcoding it. What replaces the default depends on how the image is started: compose refuses to start without a cookie, while under Quadlet or a plain `podman run` nothing refuses, relx substitutes an empty value, and `erl` mints a random cookie into `/app/.erlang.cookie` on each start. That is fail-safe rather than fail-closed, and it is why the release scripts' remote shell keeps working while no deployment can be reached with a cookie read from this repository.
