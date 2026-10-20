@@ -171,7 +171,46 @@ compose_demands_the_cookie_test() ->
     ?assertMatch({match, _}, re:run(Compose, <<"- MCL_COOKIE=\\$\\{MCL_COOKIE:\\?">>)),
     ?assertEqual(nomatch, re:run(Compose, <<"- MCL_COOKIE=mcl_rag">>)).
 
+%% EVERY APP THE RELEASE NAMES CARRIES THE RELEASE VERSION. the_versions_agree
+%% above reads the service's own app; relx builds the release out of seven apps,
+%% and the six desk apps sat at 0.4.0 through v0.9.0 while the release said
+%% 0.9.0. The release guard refuses such a tag before it is signed (mcl-rag#33);
+%% this fails sooner, on the eunit run that bumps the release and forgets an app.
+every_release_app_carries_the_release_version_test() ->
+    {Vsn, Apps} = release(),
+    Own = [{App, app_vsn(App)} || App <- Apps, app_vsn(App) =/= not_in_repo],
+    %% A check over an empty list passes for the wrong reason, so it is asserted
+    %% that the release really named this repository's apps.
+    ?assert(length(Own) >= 2),
+    ?assertEqual([], [{App, V} || {App, V} <- Own, V =/= Vsn]).
+
 %%==============================================================================
+
+release() ->
+    {match, [Vsn, List]} =
+        re:run(read("rebar.config"),
+               "\\{release, \\{mcl_rag, \"([^\"]+)\"\}[,\\s]*\\[([^]]*)\\]",
+               [{capture, all_but_first, binary}]),
+    %% The list wraps across lines, so the split is on any whitespace or comma
+    %% rather than on ", " alone: that would leave the newline as a token.
+    {binary_to_list(Vsn),
+     [list_to_atom(binary_to_list(App))
+      || App <- re:split(List, "[,\\s]+", [{return, binary}, trim]),
+         App =/= <<>>]}.
+
+%% An app the release names that lives outside this repository (sasl and the
+%% OTP applications) has no .app.src here; the release guard skips those for the
+%% same reason.
+app_vsn(App) ->
+    Name = atom_to_list(App),
+    case file:read_file(alongside(filename:join(["apps", Name, "src", Name ++ ".app.src"]))) of
+        {ok, Text} ->
+            {match, [V]} = re:run(Text, "\\{vsn, \"([^\"]+)\"",
+                                  [{capture, all_but_first, binary}]),
+            binary_to_list(V);
+        {error, _} ->
+            not_in_repo
+    end.
 
 applications(App) ->
     _ = application:load(App),
