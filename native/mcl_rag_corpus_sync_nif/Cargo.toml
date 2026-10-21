@@ -23,3 +23,8 @@ rustler = "0.34"
 # doc. `vendored-openssl` alongside `vendored-libgit2` keeps the "no
 # OS dependency" goal intact on Alpine/musl (no system OpenSSL needed).
 git2 = { version = "0.19", default-features = false, features = ["vendored-libgit2", "https", "vendored-openssl"] }
+
+[lints.clippy]
+excessive_nesting = "deny"
+cognitive_complexity = "deny"
+too_many_lines = "deny"

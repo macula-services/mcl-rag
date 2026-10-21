@@ -41,6 +41,16 @@ jobs:
                 {<<"28.4.3">>, true} -> halt(0);
                 _                    -> halt(1)
             end.'
+      # The crate's structural floor. clippy.toml sets the nesting, cognitive
+      # complexity and function-length limits and Cargo.toml's [lints.clippy]
+      # denies all three, so this step gates them; `-D warnings` makes any other
+      # clippy finding fatal too. The image pins rustc but ships the minimal
+      # profile, so the matching clippy component is added here -- the same
+      # pinned toolchain, not a floating one.
+      - name: Install clippy for the pinned toolchain
+        run: rustup component add clippy
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: native/mcl_rag_corpus_sync_nif
       # The corpus-sync NIF's own tests: the pinned checkout lives here.
       - run: cargo test --locked
         working-directory: native/mcl_rag_corpus_sync_nif
