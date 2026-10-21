@@ -344,97 +344,109 @@ handle_call(status, _From, #state{db = opening} = S) ->
     {reply, opening, S};
 handle_call(status, _From, S) ->
     {reply, open, S};
+handle_call(Request, _From, S) ->
+    run_db_op(chunk_op(Request), S).
 
-handle_call({put_chunk, Id, Content, Meta}, _From, S0) ->
-    with_db(S0, fun(Db) -> put_chunk_doc(Db, Id, Content, Meta) end);
+run_db_op(unknown_call, S) -> {reply, {error, unknown_call}, S};
+run_db_op(Op, S) -> with_db(S, Op).
 
-handle_call({put_chunk_with_vector, Id, Content, Meta, Vector}, _From, S0) ->
-    with_db(S0, fun(Db) -> put_chunk_with_vector_doc(Db, Id, Content, Meta, Vector) end);
+%% The store's operations, each the fun with_db/2 runs against the open
+%% database: the chunks here, the catalogue (sources, watermarks, served
+%% repos) in catalogue_op/1.
+chunk_op({put_chunk, Id, Content, Meta}) ->
+    fun(Db) -> put_chunk_doc(Db, Id, Content, Meta) end;
 
-handle_call({forget_chunk, Id}, _From, S0) ->
-    with_db(S0, fun(Db) -> normalize_write(barrel:delete_doc(Db, Id)) end);
+chunk_op({put_chunk_with_vector, Id, Content, Meta, Vector}) ->
+    fun(Db) -> put_chunk_with_vector_doc(Db, Id, Content, Meta, Vector) end;
 
-handle_call({tag_chunk, ChunkId, Topics}, _From, S0) ->
-    with_db(S0, fun(Db) -> tag_chunk_doc(Db, ChunkId, Topics) end);
+chunk_op({forget_chunk, Id}) ->
+    fun(Db) -> normalize_write(barrel:delete_doc(Db, Id)) end;
+
+chunk_op({tag_chunk, ChunkId, Topics}) ->
+    fun(Db) -> tag_chunk_doc(Db, ChunkId, Topics) end;
 
 %% Over-fetched and collapsed (mcl-rag#26): identical text (one
 %% content_sha256) comes back once, naming every other source it was found in
 %% under `also_in', and a query still gets `TopK' distinct hits.
-handle_call({search_vector, Vector, TopK}, _From, S0) ->
-    with_db(S0, fun(Db) -> distinct_hits(Db, Vector, TopK) end);
+chunk_op({search_vector, Vector, TopK}) ->
+    fun(Db) -> distinct_hits(Db, Vector, TopK) end;
 
-handle_call({get, Id}, _From, S0) ->
-    with_db(S0, fun(Db) -> chunk_from_doc(barrel:get_doc(Db, Id)) end);
+chunk_op({get, Id}) ->
+    fun(Db) -> chunk_from_doc(barrel:get_doc(Db, Id)) end;
 
-handle_call(size, _From, S0) ->
-    with_db(S0, fun(Db) -> chunk_count(Db) end);
+chunk_op(size) ->
+    fun(Db) -> chunk_count(Db) end;
 
-handle_call({upsert_source, Source}, _From, S0) ->
-    with_db(S0, fun(Db) -> put_source_doc(Db, Source) end);
+chunk_op({list_chunks_by_source, SourcePath, Limit}) ->
+    fun(Db) -> list_chunks_by_source_page(Db, SourcePath, Limit) end;
 
-handle_call({forget_source, Id}, _From, S0) ->
-    with_db(S0, fun(Db) -> normalize_write(barrel:delete_doc(Db, source_id(Id))) end);
+chunk_op({forget_chunks_of_source, SourcePath}) ->
+    fun(Db) -> forget_chunks(Db, [{path, [<<"source_path">>], SourcePath}], fun every_chunk/1) end;
 
-handle_call({get_source, Id}, _From, S0) ->
-    with_db(S0, fun(Db) -> source_from_doc(barrel:get_doc(Db, source_id(Id))) end);
-
-handle_call({get_source_content, Id}, _From, S0) ->
-    with_db(S0, fun(Db) -> source_content_from_doc(barrel:get_doc(Db, source_id(Id))) end);
-
-handle_call({list_sources, Offset, Limit}, _From, S0) ->
-    with_db(S0, fun(Db) -> list_sources_page(Db, Offset, Limit) end);
-
-handle_call({list_chunks_by_source, SourcePath, Limit}, _From, S0) ->
-    with_db(S0, fun(Db) -> list_chunks_by_source_page(Db, SourcePath, Limit) end);
-
-handle_call({find_source_by_path, SourcePath}, _From, S0) ->
-    with_db(S0, fun(Db) -> find_source_by_path_doc(Db, SourcePath) end);
-
-handle_call({get_watermark, CorpusId, SourcePath}, _From, S0) ->
-    with_db(S0, fun(Db) -> watermark_from_doc(barrel:get_doc(Db, watermark_id(CorpusId, SourcePath))) end);
-
-handle_call({put_watermark, CorpusId, SourcePath, DiffHash}, _From, S0) ->
-    with_db(S0, fun(Db) -> put_watermark_doc(Db, CorpusId, SourcePath, DiffHash) end);
-
-handle_call({forget_watermark, CorpusId, SourcePath}, _From, S0) ->
-    with_db(S0, fun(Db) -> deleted(barrel:delete_doc(Db, watermark_id(CorpusId, SourcePath))) end);
-
-handle_call({watermarked_paths, CorpusId}, _From, S0) ->
-    with_db(S0, fun(Db) -> watermark_field(Db, [{path, [<<"corpus_id">>], CorpusId}], <<"source_path">>) end);
-
-handle_call(watermarked_corpora, _From, S0) ->
-    with_db(S0, fun(Db) -> watermark_field(Db, [], <<"corpus_id">>) end);
-
-handle_call({forget_chunks_of_source, SourcePath}, _From, S0) ->
-    with_db(S0, fun(Db) -> forget_chunks(Db, [{path, [<<"source_path">>], SourcePath}], fun every_chunk/1) end);
-
-handle_call({forget_chunks_of_repo_except, RepoId, Keep}, _From, S0) ->
+chunk_op({forget_chunks_of_repo_except, RepoId, Keep}) ->
     Kept = sets:from_list(Keep, [{version, 2}]),
     Doomed = fun(Doc) -> not sets:is_element(maps:get(<<"source_path">>, Doc, <<>>), Kept) end,
-    with_db(S0, fun(Db) -> forget_chunks(Db, [{path, [<<"repo_id">>], RepoId}], Doomed) end);
+    fun(Db) -> forget_chunks(Db, [{path, [<<"repo_id">>], RepoId}], Doomed) end;
 
-handle_call({verify_source, Id, Commit}, _From, S0) ->
-    with_db(S0, fun(Db) -> verified_source(Db, Id, Commit, barrel:get_doc(Db, source_id(Id))) end);
+chunk_op(Request) ->
+    catalogue_op(Request).
 
-handle_call({put_served, RepoId, Commit, Generation}, _From, S0) ->
+catalogue_op({upsert_source, Source}) ->
+    fun(Db) -> put_source_doc(Db, Source) end;
+
+catalogue_op({forget_source, Id}) ->
+    fun(Db) -> normalize_write(barrel:delete_doc(Db, source_id(Id))) end;
+
+catalogue_op({get_source, Id}) ->
+    fun(Db) -> source_from_doc(barrel:get_doc(Db, source_id(Id))) end;
+
+catalogue_op({get_source_content, Id}) ->
+    fun(Db) -> source_content_from_doc(barrel:get_doc(Db, source_id(Id))) end;
+
+catalogue_op({list_sources, Offset, Limit}) ->
+    fun(Db) -> list_sources_page(Db, Offset, Limit) end;
+
+catalogue_op({find_source_by_path, SourcePath}) ->
+    fun(Db) -> find_source_by_path_doc(Db, SourcePath) end;
+
+catalogue_op({get_watermark, CorpusId, SourcePath}) ->
+    fun(Db) -> watermark_from_doc(barrel:get_doc(Db, watermark_id(CorpusId, SourcePath))) end;
+
+catalogue_op({put_watermark, CorpusId, SourcePath, DiffHash}) ->
+    fun(Db) -> put_watermark_doc(Db, CorpusId, SourcePath, DiffHash) end;
+
+catalogue_op({forget_watermark, CorpusId, SourcePath}) ->
+    fun(Db) -> deleted(barrel:delete_doc(Db, watermark_id(CorpusId, SourcePath))) end;
+
+catalogue_op({watermarked_paths, CorpusId}) ->
+    fun(Db) -> watermark_field(Db, [{path, [<<"corpus_id">>], CorpusId}], <<"source_path">>) end;
+
+catalogue_op(watermarked_corpora) ->
+    fun(Db) -> watermark_field(Db, [], <<"corpus_id">>) end;
+
+catalogue_op({verify_source, Id, Commit}) ->
+    fun(Db) -> verified_source(Db, Id, Commit, barrel:get_doc(Db, source_id(Id))) end;
+
+catalogue_op({put_served, RepoId, Commit, Generation}) ->
     Doc = #{<<"id">> => served_id(RepoId), <<"type">> => <<"served">>, <<"repo_id">> => RepoId,
             <<"commit">> => Commit, <<"generation">> => Generation},
-    with_db(S0, fun(Db) -> normalize_write(put_doc_upsert(Db, served_id(RepoId), Doc)) end);
+    fun(Db) -> normalize_write(put_doc_upsert(Db, served_id(RepoId), Doc)) end;
 
-handle_call({get_served, RepoId}, _From, S0) ->
-    with_db(S0, fun(Db) -> served_from_doc(barrel:get_doc(Db, served_id(RepoId))) end);
+catalogue_op({get_served, RepoId}) ->
+    fun(Db) -> served_from_doc(barrel:get_doc(Db, served_id(RepoId))) end;
 
-handle_call({forget_served, RepoId}, _From, S0) ->
-    with_db(S0, fun(Db) -> deleted(barrel:delete_doc(Db, served_id(RepoId))) end);
+catalogue_op({forget_served, RepoId}) ->
+    fun(Db) -> deleted(barrel:delete_doc(Db, served_id(RepoId))) end;
 
-handle_call(served_repos, _From, S0) ->
-    with_db(S0, fun(Db) -> served_map(barrel:find(Db, #{where => [{path, [<<"type">>], <<"served">>}]},
-                                                  #{limit => ?FIND_ALL})) end);
+catalogue_op(served_repos) ->
+    fun(Db) -> served_map(barrel:find(Db, #{where => [{path, [<<"type">>], <<"served">>}]},
+                                      #{limit => ?FIND_ALL})) end;
 
-handle_call({put_reembed_request, Req}, _From, S0) ->
-    with_db(S0, fun(Db) -> put_reembed_request_doc(Db, Req) end);
+catalogue_op({put_reembed_request, Req}) ->
+    fun(Db) -> put_reembed_request_doc(Db, Req) end;
 
-handle_call(_, _From, S) -> {reply, {error, unknown_call}, S}.
+catalogue_op(_) ->
+    unknown_call.
 
 handle_cast(_, S) -> {noreply, S}.
 handle_info({opened, {ok, Db}}, #state{db = opening} = S) ->
