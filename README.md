@@ -54,14 +54,17 @@ To serve your own corpus, see [Run your own corpus](docs/RUN_YOUR_OWN_CORPUS.md)
 
 ## The procedures
 
-Eighteen, each served as `mcl-rag/<name>` (version 1) under the org
+Nineteen, each served as `mcl-rag/<name>` (version 1) under the org
 `mcl-rag`. The realm has to grant this node a provider authorization for each
 one (D25). Until it does, nothing is advertised and `/health` names the
 missing grants.
 
 | Open to any caller the station admits | Operator-only |
 |---|---|
-| `describe_corpus`, `answer_query`, `rerank_results`, `search_chunks_semantic`, `get_chunk_by_id`, `list_chunks_by_source`, `get_source_by_id`, `list_sources_page`, `get_document_verbatim`, `add_knowledge` | `prune_chunks`, `retire_document`, `ingest_document`, `upload_knowledge`, `embed_document`, `classify_topics`, `schedule_reembed`, `detect_corpus_change` |
+| `describe_corpus`, `ingest_status`, `answer_query`, `rerank_results`, `search_chunks_semantic`, `get_chunk_by_id`, `list_chunks_by_source`, `get_source_by_id`, `list_sources_page`, `get_document_verbatim`, `add_knowledge` | `prune_chunks`, `retire_document`, `ingest_document`, `upload_knowledge`, `embed_document`, `classify_topics`, `schedule_reembed`, `detect_corpus_change` |
+
+The loopback HTTP API has no route for `get_document_verbatim`, `describe_corpus`
+or `ingest_status`; those three are mesh only.
 
 **Operators** are the node ids in `MCL_RAG_OPERATORS`. The check reads the
 caller as macula verified it on the wire, never a field the caller wrote. An
