@@ -106,7 +106,7 @@ the_shipped_config_names_the_org_test() ->
 %% follows, checked out under <data_dir>/corpus/<id>, each at its branch head
 %% (nothing is pinned, mcl-rag#24). The ids are the checkout
 %% directories AND the namespace of every stored watermark, so a renamed id
-%% re-embeds that repo from scratch. The list lived only on beam03 and is
+%% re-embeds that repo from scratch. The list lived only on one box and is
 %% rebuilt from the checkouts in the data copy; it must read back through the
 %% real reader.
 the_shipped_corpus_list_reads_back_test() ->
@@ -333,7 +333,7 @@ nothing_moves_latest_test() ->
     ?assertEqual(nomatch, binary:match(Body, <<"imagetools create">>)),
     ?assertEqual(nomatch, binary:match(Body, <<",$img:latest">>)).
 
-%% Raf, 2026-09-29: embeddings from msi00's ollama, the e5 model built there
+%% Raf, 2026-09-29: embeddings from the corpus box's ollama, the e5 model built there
 %% from intfloat's weights (384 dims); the topic classifier on the same local
 %% ollama (its OpenAI-compatible endpoint). No hosted LLM and no API key.
 the_models_are_local_ollama_and_no_key_is_read_test() ->
@@ -350,7 +350,7 @@ the_models_are_local_ollama_and_no_key_is_read_test() ->
                     re:run(Config, W, [caseless]) =/= nomatch],
     ?assertEqual([], Outside).
 
-%% The model msi00 runs embeds with e5's prefixes (measure/e5_prefixes decided
+%% The model the corpus box runs embeds with e5's prefixes (measure/e5_prefixes decided
 %% it), so the configured id must be one rag_embedder knows as e5.
 the_configured_model_embeds_with_e5_prefixes_test() ->
     Model = pinned("config/sys.config.src", "^\\s+\\{embed_model,\\s+<<\"([^\"]+)\">>\\},$"),

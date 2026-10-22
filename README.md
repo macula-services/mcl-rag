@@ -188,8 +188,8 @@ Three things CI cannot do for you:
    the host with a bare `unauthorized` that names nothing. Check it after the
    first build. On ghcr the `org.opencontainers.image.source` label in the
    Containerfile is what links the package to the repository.
-2. The host needs `MCL_REALM`, `MCL_REALM_NAME`, `MCL_REALM_KEY`, the pinned
-   station pair and `MCL_RAG_IMAGE_DIGEST` supplied from its deploy config,
+2. The host needs `MCL_REALM`, `MCL_REALM_NAME`, `MCL_REALM_KEY` and the station
+   seeds, each paired with its station's node id, supplied from its deploy config,
    and its own ollama on `127.0.0.1:11434` holding the embedding model
    (`macula/multilingual-e5-small:f16`) and the classifier's
    (`qwen2.5:7b-instruct-q4_K_M`). No API key: both models are local.
