@@ -62,7 +62,7 @@
         %% listener, no health port on the host.
         {health_socket,     "/run/mcl/health.sock"},
         {capability_topic,  <<"_mesh.cap.">>},
-        %% The org the eighteen procedures are served under: `mcl-rag/<name>'.
+        %% The org the nineteen procedures are served under: `mcl-rag/<name>'.
         %% The realm must have granted THIS node a provider authorization for
         %% each (D25), or nothing is advertised and /health says so.
         {org,               <<"mcl-rag">>},
@@ -121,11 +121,11 @@
     %% application start whatever the value: a node that set one would
     %% believe it had chosen a difficulty that nothing reads.
     %%
-    %% NAMES ITS KEM KEY (#16): every advertisement, the eighteen procedures
+    %% NAMES ITS KEM KEY (#16): every advertisement, the nineteen procedures
     %% and macula_rag's rag.query_shard_v1 alike, carries an ML-KEM key, so a
     %% caller seals its query or deposit end to end and a station relays only
     %% ciphertext. A property of the service, so a literal here and not a
-    %% per-box variable. The eighteen procedures and macula_rag's
+    %% per-box variable. The nineteen procedures and macula_rag's
     %% rag.query_shard_v1 are `required' and refuse a clear call, which needs
     %% this switch (mcl_om and macula_rag both refuse `required' without it).
     {macula, [
