@@ -2,11 +2,11 @@
 
 *This exists so an agent anywhere on the mesh can recall what the org already knows, and deposit what it learns, in one call.*
 
-**Status: 2026-10-22** (mcl_om 1.4, macula 16.0, macula_rag 1.1, release 0.9.0). Everything here describes code that exists; the one thing marked *not used* is an alternative the code keeps but msi00 does not run.
+**Status: 2026-10-22** (mcl_om 1.4, macula 16.0, macula_rag 1.1, release 0.9.0). Everything here describes code that exists; the one thing marked *not used* is an alternative the code keeps but this deployment does not run.
 
 `mcl-rag` holds the mesh's shared memory: documents from a set of git repos plus the knowledge agents deposit, chunked, embedded and searchable by meaning. It answers retrieval over it, and it is one shard of its org's federated retrieval. It is an `mcl-om` service: one OTP release in one OCI container, with its node identity, pinned outbound station dial, realm identity claim, provider grants, `mcl-rag/info` and `/health` coming from [`mcl-om`](https://github.com/macula-services/mcl-om).
 
-Legend used in all three diagrams: the amber box is the element in scope, blue boxes are people, grey boxes are external, and dashed boxes are not used by this deployment: `mcl-embedder` (an embedding provider the code supports, not the one msi00 runs) and mcl-om's event store wiring (which mcl-rag does not take up).
+Legend used in all three diagrams: the amber box is the element in scope, blue boxes are people, grey boxes are external, and dashed boxes are not used by this deployment: `mcl-embedder` (an embedding provider the code supports, not the one this deployment runs) and mcl-om's event store wiring (which mcl-rag does not take up).
 
 ## Level 1: system context
 
@@ -23,8 +23,8 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 | Other mcl-rag shards | The org's federated retrieval (`macula_rag`): a peer asks this shard with `mcl-rag/rag.query_shard_v1`. Scores merge only between shards naming the same model and dimension |
 | macula-station | The pinned home station the service dials out to over QUIC; every call to and from this node goes through it |
 | macula-realm | Takes the boot identity claim and grants a D25 provider authorization for each procedure; its public key (`MCL_REALM_KEY`) is the trust anchor for every advertisement |
-| ollama on msi00 | The node's own model server on loopback `127.0.0.1:11434`: embeddings and the topic classifier. No API key, no hosted LLM, nothing leaves the box |
-| mcl-embedder | Embedding over the mesh (`mcl-embedder/embed`), for a node that cannot embed locally. Supported by the code (`embed_provider mcl_embedder`), not used on msi00 |
+| ollama on the host | The host's own model server on loopback `127.0.0.1:11434`: embeddings and the topic classifier. No API key, no hosted LLM, nothing leaves the box |
+| mcl-embedder | Embedding over the mesh (`mcl-embedder/embed`), for a node that cannot embed locally. Supported by the code (`embed_provider mcl_embedder`), not used here |
 
 **Retrieval, not generation.** `answer_query` embeds the query text and returns the nearest chunks with their scores. No language model writes an answer. The only chat model in the service is the topic classifier, and it only labels chunks.
 
@@ -40,9 +40,9 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 | Data volume | Named volume `mcl-rag-data` at `/var/lib/mcl-rag` | One barrel database, `rag_chunks` (documents, and vectors under `vectors/`), barrel_docdb's `_barrel_system`, and the corpus checkouts under `corpus/<repo-id>`. Removing it wipes the memory and the node re-embeds the whole corpus |
 | Identity key | Named volume `mcl-rag-secrets` at `/etc/mcl/secrets` | The puzzle-hardened node key mcl-om generates on first boot; the node id survives a container recreate |
 | Corpus list | `deploy/corpus-repos.json`, bind-mounted read-only at `/etc/mcl-rag/corpus-repos.json` (or wherever `MCL_RAG_CORPUS_REPOS` names) | Which repos to sync — each named by `id`, `url` and `branch`, with optional `depth`/`paths` bounds — in the shape `schema/corpus-repos.schema.json` publishes; a list breaking it is refused, naming the entry. Each id is the watermark namespace, so renaming one re-embeds that repo |
-| ollama | Its own Quadlet unit on msi00, `127.0.0.1:11434` | `macula/multilingual-e5-small:f16` (built on msi00 from intfloat's weights), 384 dimensions, for every stored vector (as `passage: ` text) and every query (as `query: ` text); `qwen2.5:7b-instruct-q4_K_M` through the OpenAI-compatible endpoint for topics |
+| ollama | Its own Quadlet unit on the host, `127.0.0.1:11434` | `macula/multilingual-e5-small:f16` (built from intfloat's weights), 384 dimensions, for every stored vector (as `passage: ` text) and every query (as `query: ` text); `qwen2.5:7b-instruct-q4_K_M` through the OpenAI-compatible endpoint for topics |
 
-**Placement.** The service runs on msi00, a lab box, with host networking: macula stations are reachable over IPv6 and a default bridge has none. The service's own compose file (`deploy/docker-compose.yml`) carries what the service knows about itself; placement (which box, station, realm, secrets) belongs to macula-fleet.
+**Placement.** The service runs in a container on the host, with host networking: macula stations are reachable over IPv6 and a default bridge has none. The service's own compose file (`deploy/docker-compose.yml`) carries what the service knows about itself; placement (which box, station, realm, secrets) belongs to macula-fleet.
 
 **What mcl-om gives it, and what it leaves.** From mcl-om: the node key on the identity volume, the pinned station dial (`MACULA_STATION_SEEDS` paired index for index with `MACULA_STATION_NODE_IDS`; with `{mesh, required}` a boot missing the realm, its key or the pinned stations stops and names each one), the boot identity claim with `MCL_SERVICE_NAME` and `MCL_BOX` labels, capability adverts gated on the realm's D25 grants, `mcl-rag/info`, and `/health`. mcl-om would also start a reckon-db event store for a service that exports `store_id/0` and `data_dir/0`; mcl-rag exports neither, so no event store runs. Its state is the barrel database.
 
@@ -67,13 +67,13 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 | `get_source_by_id/`, `list_sources_page/`, `get_document_verbatim/` | Read desks (`apps/query_sources`) | One source record; sources paged; a document's raw bytes (mesh only) |
 | `describe_corpus/`, `ingest_status/` | Read desks (`apps/mcl_rag`) | `describe_corpus` names the corpus this shard serves, every repo at the head the store holds it at, as one hash, signed with the node key when there is one; `ingest_status` reports the live scan counters and each repo's watermarks. Both are open to any caller the station admits |
 | `rag_store` | gen_server over barrel (`apps/rag`) | The one database, `rag_chunks`: chunk content, metadata and vectors, source records, watermarks and re-embed requests. Barrel never embeds by itself; callers pass the vector in |
-| `rag_embedder`, `rag_chunk_embedder` | Components (`apps/rag`) | `rag_embedder` decides the provider in one place, so stored vectors and queries always come from the same model: `ollama` on loopback (msi00) or `mcl_embedder` over the mesh. `rag_chunk_embedder` embeds in the caller's process, then writes, so the store's process never waits on the model |
+| `rag_embedder`, `rag_chunk_embedder` | Components (`apps/rag`) | `rag_embedder` decides the provider in one place, so stored vectors and queries always come from the same model: `ollama` on loopback or `mcl_embedder` over the mesh. `rag_chunk_embedder` embeds in the caller's process, then writes, so the store's process never waits on the model |
 
 **No events.** The desks keep the command, handler and desk-per-capability shape, but none emits a domain event: every write goes straight to `rag_store`. A few command modules carry the `evoq_command` behaviour for their `from_map`/`validate` shape; nothing dispatches them through evoq, and no event store runs. So `embed_corpus`, `refresh_corpus` and `serve_retrieval` list `evoq` and not `reckon_db` or `reckon_evoq`; a test holds every app to listing only what its modules use.
 
 ## Open questions
 
-- [ ] macula-fleet `origin/main` (19e27d8, 2026-09-29) declares msi00's `ollama.container` but no mcl-rag unit yet, and records msi00 as installed by `edge/msi00.lab/apply-quadlets.sh` rather than reconciled. Which file carries mcl-rag's placement, and which station does it pin?
+- [ ] macula-fleet `origin/main` (19e27d8, 2026-09-29) declares an `ollama.container` for the box but no mcl-rag unit yet, and records the box as installed by a hand-run script rather than reconciled. Which file carries mcl-rag's placement, and which station does it pin?
 
 ## Editing the diagrams
 

@@ -115,14 +115,14 @@
 <text class="t-desc" x="561" y="526">provider grant for each</text>
 <text class="t-desc" x="561" y="542">procedure</text>
 <rect class="b-ext" x="760" y="440" width="220" height="110" rx="10"/>
-<text class="t-name" x="776" y="468">ollama on msi00</text>
+<text class="t-name" x="776" y="468">ollama on the host</text>
 <text class="t-type" x="776" y="486">[External: loopback 11434]</text>
 <text class="t-desc" x="776" y="510">e5-small embeddings (384)</text>
 <text class="t-desc" x="776" y="526">and qwen2.5 for topics;</text>
 <text class="t-desc" x="776" y="542">no key, no hosted LLM</text>
 <rect class="b-later" x="760" y="576" width="220" height="60" rx="10"/>
 <text class="t-name" x="776" y="604">mcl-embedder</text>
-<text class="t-type" x="776" y="622">[not used on msi00]</text>
+<text class="t-type" x="776" y="622">[not used here]</text>
 <text class="t-rel" x="143" y="170">uses</text>
 <text class="t-rel" x="857" y="170" text-anchor="end">uses</text>
 <text class="t-rel" x="686" y="100" text-anchor="middle">admin, on the box:</text>

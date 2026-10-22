@@ -173,9 +173,9 @@ def context():
               ["Pinned home station; carries", "every call to and from", "this node"])
     s.element("b-ext", 545, 440, 200, 110, "macula-realm", "[External system]",
               ["Boot identity claim; a D25", "provider grant for each", "procedure"])
-    s.element("b-ext", 760, 440, 220, 110, "ollama on msi00", "[External: loopback 11434]",
+    s.element("b-ext", 760, 440, 220, 110, "ollama on the host", "[External: loopback 11434]",
               ["e5-small embeddings (384)", "and qwen2.5 for topics;", "no key, no hosted LLM"])
-    s.element("b-later", 760, 576, 220, 60, "mcl-embedder", "[not used on msi00]", [])
+    s.element("b-later", 760, 576, 220, 60, "mcl-embedder", "[not used here]", [])
 
     s.text("t-rel", 143, 170, "uses")
     s.text("t-rel", 857, 170, "uses", anchor="end")
@@ -204,7 +204,7 @@ def context():
 def containers():
     s = Svg(1000, 700, "mcl-rag containers")
 
-    s.bound("bound", 220, 40, 560, 624, "msi00.lab [lab box, rootless podman, host networking]")
+    s.bound("bound", 220, 40, 560, 624, "container [podman, host networking]")
     s.bound("bound-in", 236, 72, 528, 476, "mcl-rag [Software system, mcl-om service]")
 
     # Edges
@@ -252,7 +252,7 @@ def containers():
     s.element("b-ext", 810, 190, 180, 76, "macula-realm", "[trust anchor]", [])
     s.element("b-ext", 810, 350, 180, 90, "Corpus repos", "[GitHub, HTTPS]",
               ["no credentials"])
-    s.element("b-later", 810, 568, 180, 80, "mcl-embedder", "[unused on msi00]",
+    s.element("b-later", 810, 568, 180, 80, "mcl-embedder", "[unused here]",
               ["embedding over the mesh"])
 
     s.text("t-rel", 230, 128, "calls", anchor="middle")

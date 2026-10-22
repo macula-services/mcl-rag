@@ -51,7 +51,7 @@
 <rect class="bg" x="0" y="0" width="1000" height="700"/>
 
 <rect class="bound" x="220" y="40" width="560" height="624" rx="12"/>
-<text class="t-bound" x="236" y="62">msi00.lab [lab box, rootless podman, host networking]</text>
+<text class="t-bound" x="236" y="62">container [podman, host networking]</text>
 <rect class="bound-in" x="236" y="72" width="528" height="476" rx="10"/>
 <text class="t-bound" x="252" y="94">mcl-rag [Software system, mcl-om service]</text>
 <path class="edge" d="M200 136H260" marker-end="url(#a)"/>
@@ -121,7 +121,7 @@
 <text class="t-desc" x="826" y="420">no credentials</text>
 <rect class="b-later" x="810" y="568" width="180" height="80" rx="10"/>
 <text class="t-name" x="826" y="596">mcl-embedder</text>
-<text class="t-type" x="826" y="614">[unused on msi00]</text>
+<text class="t-type" x="826" y="614">[unused here]</text>
 <text class="t-desc" x="826" y="638">embedding over the mesh</text>
 <text class="t-rel" x="230" y="128" text-anchor="middle">calls</text>
 <text class="t-rel" x="230" y="218" text-anchor="middle">calls</text>
