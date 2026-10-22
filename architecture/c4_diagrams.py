@@ -221,7 +221,7 @@ def containers():
 
     s.element("b-sys", 260, 100, 480, 220, "mcl-rag service",
               "[Container: OCI image, OTP 28 release, mcl_om 1.4]",
-              ["Nineteen procedures as mcl-rag/<name>, and rag.query_shard_v1",
+              ["Nineteen procedures of its own as mcl-rag/<name> and rag.query_shard_v1",
                "through macula_rag 1.1 (macula 16). From mcl-om: node",
                "identity, pinned outbound station dial, realm identity claim,",
                "provider grants, mcl-rag/info, /health on a Unix socket.",
@@ -277,7 +277,7 @@ def components():
     s.bound("bound", 16, 40, 960, 1264, "mcl-rag service [Container]")
 
     s.component("b-sys", 32, 76, 928, 84, "apps/mcl_rag: mcl_rag_service", "[mcl_om_service behaviour]",
-                ["Six callbacks. capabilities/0: the nineteen procedures, each mcl-rag/<name> v1 through mcl_om_simple_handler.",
+                ["Six callbacks. capabilities/0: its nineteen procedures, each mcl-rag/<name> v1 through mcl_om_simple_handler.",
                  "identity_spec/0: scope mcl-rag, no actions or resources, 30 days. No store_id/0 or data_dir/0: storeless."])
 
     # What mcl-om provides
@@ -306,7 +306,7 @@ def components():
                  "nothing is pinned"])
     s.component("b-cmp", 48, 448, 290, 88, "mcl_rag_mesh_rpc", "[Router]",
                 ["The 19 handlers. rag_operators gate:",
-                 "8 procedures need a verified operator"])
+                 "8 own procedures need an operator"])
     s.component("b-cmp", 354, 448, 290, 88, "HTTP API", "[cowboy, 8451]",
                 ["Loopback by default; routes from the",
                  "slices' *_api modules; no operator gate"])
@@ -371,7 +371,7 @@ def components():
     s.element("b-ext", 1000, 336, 224, 104, "Corpus repos", "[GitHub, HTTPS]",
               ["deploy/corpus-repos.json,", "cloned under corpus/<id>"])
     s.element("b-ext", 1000, 448, 224, 104, "macula-station", "[pinned]",
-              ["carries the 19 procedures", "and rag.query_shard_v1"])
+              ["carries its 19 procedures", "and rag.query_shard_v1"])
     s.element("b-ext", 1000, 1176, 224, 108, "ollama", "[127.0.0.1:11434]",
               ["e5-small f16, 384 dims;", "qwen2.5 chat for topics"])
     s.element("b-ext", 48, 1336, 440, 64, "Data volume", "[/var/lib/mcl-rag, mcl-rag-data]", [])

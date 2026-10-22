@@ -28,7 +28,7 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 
 **Retrieval, not generation.** `answer_query` embeds the query text and returns the nearest chunks with their scores. No language model writes an answer. The only chat model in the service is the topic classifier, and it only labels chunks.
 
-**Mesh calls are sealed.** Every procedure is `confidential => required`, and the service names its KEM key (`kem_advertise`), so a caller seals its query or deposit end to end and a station on the path relays only ciphertext. The caller the operator gate reads is the node id macula verified on the wire, never a field the payload carried.
+**Mesh calls are sealed.** Every procedure of its own is `confidential => required`, and the service names its KEM key (`kem_advertise`), so a caller seals its query or deposit end to end and a station on the path relays only ciphertext. The caller the operator gate reads is the node id macula verified on the wire, never a field the payload carried.
 
 ## Level 2: containers
 
@@ -36,7 +36,7 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 
 | Container | Technology | Responsibility |
 | --- | --- | --- |
-| mcl-rag service | OCI image (`ghcr.io/macula-services/mcl-rag`, deployed by digest), OTP 28.4.3 release, `mcl_om_service` behaviour | Nineteen procedures as `mcl-rag/<name>` v1, `mcl-rag/rag.query_shard_v1` through macula_rag, the corpus sync and re-embed loops. Health on the Unix socket `/run/mcl/health.sock`, local HTTP API on 8451 (loopback) |
+| mcl-rag service | OCI image (`ghcr.io/macula-services/mcl-rag`, deployed by digest), OTP 28.4.3 release, `mcl_om_service` behaviour | Nineteen procedures of its own as `mcl-rag/<name>` v1, `mcl-rag/rag.query_shard_v1` through macula_rag, the corpus sync and re-embed loops. Health on the Unix socket `/run/mcl/health.sock`, local HTTP API on 8451 (loopback) |
 | Data volume | Named volume `mcl-rag-data` at `/var/lib/mcl-rag` | One barrel database, `rag_chunks` (documents, and vectors under `vectors/`), barrel_docdb's `_barrel_system`, and the corpus checkouts under `corpus/<repo-id>`. Removing it wipes the memory and the node re-embeds the whole corpus |
 | Identity key | Named volume `mcl-rag-secrets` at `/etc/mcl/secrets` | The puzzle-hardened node key mcl-om generates on first boot; the node id survives a container recreate |
 | Corpus list | `deploy/corpus-repos.json`, bind-mounted read-only at `/etc/mcl-rag/corpus-repos.json` (or wherever `MCL_RAG_CORPUS_REPOS` names) | Which repos to sync — each named by `id`, `url` and `branch`, with optional `depth`/`paths` bounds — in the shape `schema/corpus-repos.schema.json` publishes; a list breaking it is refused, naming the entry. Each id is the watermark namespace, so renaming one re-embeds that repo |
