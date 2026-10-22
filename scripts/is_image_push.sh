@@ -33,7 +33,7 @@ CHANGED=$(git diff --name-only "$BEFORE" "$AFTER" 2>/dev/null) || build true
 
 # Documentation: any Markdown file, anything under docs/ and assets/, and the
 # licence. assets/ holds the C4 diagrams, which no build reads: a diagram-only
-# commit must not rebuild an image and restart the box.
+# commit must not rebuild and re-push an image.
 if printf '%s\n' "$CHANGED" | grep -qvE '(\.md$|^docs/|^assets/|^LICENSE$)'; then
     build true
 fi
