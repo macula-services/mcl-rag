@@ -9,6 +9,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
+- **`macula_rag` floors at `~> 1.1`** (macula-codebase-checks#4). `~> 1.0` also
+  admits 1.0.0, whose own floor is macula `~> 15.6`, so a resolve could pair
+  this service's macula 16 with a library built for 15 — the same shape as
+  the `mcl_om` rule (#14). 1.1.0 is the release on macula 16.
+
 - **The base library is macula 16** (macula-codebase-checks#4): the macula floor moves
   `~> 15.6` to `~> 16.0`, and `mcl_om` to `~> 1.4`, the release whose own base is
   macula 16. 16.0 keeps wire 1.0, so this service still speaks to every wire 1.0 box;
