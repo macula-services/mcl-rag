@@ -21,16 +21,18 @@
 %% The resolved library
 %%------------------------------------------------------------------------------
 
-%% 1.0 or a later 1.x (the RAG service contract, corpus hash and signature) is
-%% what this service is written against. A floor, not a string
-%% match: `~> 1.0' floats to 2.0, and a test pinned to a minor would break the
-%% day that ships.
-the_resolved_macula_rag_is_1_0_or_later_test() ->
+%% 1.1 or a later 1.x (the RAG service contract, corpus hash and signature) is
+%% what this service is written against, and it is what rebar.config declares:
+%% 1.0.0 is the release whose own floor is macula `~> 15.6', so `~> 1.0' could
+%% pair this service's macula 16 with a library built for 15
+%% (macula-codebase-checks#14). A floor, not a string match: `~> 1.1' floats to
+%% 2.0, and a test pinned to a minor would break the day that ships.
+the_resolved_macula_rag_is_1_1_or_later_test() ->
     ok = loaded(application:load(macula_rag)),
     {ok, Vsn} = application:get_key(macula_rag, vsn),
     [Major, Minor | _] = [list_to_integer(P) || P <- string:split(Vsn, ".", all)],
     ?assertEqual(1, Major),
-    ?assert(Minor >= 0),
+    ?assert(Minor >= 1),
     {module, _} = code:ensure_loaded(macula_rag),
     [?assert(erlang:function_exported(macula_rag, F, A))
      || {F, A} <- [{configure, 3}, {register_responder, 1}, {advertise, 2}, {status, 0},
