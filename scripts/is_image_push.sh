@@ -31,8 +31,10 @@ esac
 CHANGED=$(git diff --name-only "$BEFORE" "$AFTER" 2>/dev/null) || build true
 [ -n "$CHANGED" ] || build true
 
-# Documentation: any Markdown file, anything under docs/, and the licence.
-if printf '%s\n' "$CHANGED" | grep -qvE '(\.md$|^docs/|^LICENSE$)'; then
+# Documentation: any Markdown file, anything under docs/ and assets/, and the
+# licence. assets/ holds the C4 diagrams, which no build reads: a diagram-only
+# commit must not rebuild an image and restart the box.
+if printf '%s\n' "$CHANGED" | grep -qvE '(\.md$|^docs/|^assets/|^LICENSE$)'; then
     build true
 fi
 build false

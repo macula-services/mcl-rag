@@ -55,10 +55,10 @@
 <rect class="b-sys" x="32" y="76" width="928" height="84" rx="8"/>
 <text class="t-code" x="46" y="100">apps/mcl_rag: mcl_rag_service</text>
 <text class="t-type" x="948" y="100" text-anchor="end">[mcl_om_service behaviour]</text>
-<text class="t-desc" x="46" y="122">Six callbacks. capabilities/0: the eighteen procedures, each mcl-rag/&lt;name&gt; v1 through mcl_om_simple_handler.</text>
+<text class="t-desc" x="46" y="122">Six callbacks. capabilities/0: the nineteen procedures, each mcl-rag/&lt;name&gt; v1 through mcl_om_simple_handler.</text>
 <text class="t-desc" x="46" y="138">identity_spec/0: scope mcl-rag, no actions or resources, 30 days. No store_id/0 or data_dir/0: storeless.</text>
 <rect class="bound-in" x="32" y="180" width="928" height="112" rx="10"/>
-<text class="t-bound" x="48" y="202">mcl_om 1.0 [library: what every mcl-om service gets]</text>
+<text class="t-bound" x="48" y="202">mcl_om 1.4 [library: what every mcl-om service gets]</text>
 <rect class="b-cmp" x="48" y="208" width="168" height="68" rx="8"/>
 <text class="t-code t-small" x="60" y="228">identity key</text>
 <text class="t-desc" x="60" y="248">/etc/mcl/secrets; the node</text>
@@ -73,8 +73,8 @@
 <text class="t-desc" x="420" y="264">per procedure</text>
 <rect class="b-cmp" x="588" y="208" width="168" height="68" rx="8"/>
 <text class="t-code t-small" x="600" y="228">info, /health</text>
-<text class="t-desc" x="600" y="248">mcl-rag/info; /health on</text>
-<text class="t-desc" x="600" y="264">8450 with grants, liveness</text>
+<text class="t-desc" x="600" y="248">mcl-rag/info; /health</text>
+<text class="t-desc" x="600" y="264">on a Unix socket</text>
 <rect class="b-later" x="768" y="208" width="168" height="68" rx="8"/>
 <text class="t-code t-small" x="780" y="228">event store</text>
 <text class="t-desc" x="780" y="248">reckon-db via store_id/0:</text>
@@ -83,7 +83,7 @@
 <text class="t-bound" x="48" y="334">apps/mcl_rag [the service's processes, under mcl_rag_sup]</text>
 <rect class="b-cmp" x="48" y="344" width="440" height="88" rx="8"/>
 <text class="t-code" x="62" y="368">refresh_corpus_scheduler</text>
-<text class="t-type" x="476" y="368" text-anchor="end">[every 120 s]</text>
+<text class="t-type" x="476" y="368" text-anchor="end">[every 2 h]</text>
 <text class="t-desc" x="62" y="390">Follows each repo's branch head via the NIF, then</text>
 <text class="t-desc" x="62" y="406">hashes **/*.md; on a change: detect, schedule_reembed,</text>
 <text class="t-desc" x="62" y="422">upsert_source, embed_document</text>
@@ -96,7 +96,7 @@
 <rect class="b-cmp" x="48" y="448" width="290" height="88" rx="8"/>
 <text class="t-code" x="62" y="472">mcl_rag_mesh_rpc</text>
 <text class="t-type" x="326" y="472" text-anchor="end">[Router]</text>
-<text class="t-desc" x="62" y="494">The 17 handlers. rag_operators gate:</text>
+<text class="t-desc" x="62" y="494">The 19 handlers. rag_operators gate:</text>
 <text class="t-desc" x="62" y="510">8 procedures need a verified operator</text>
 <rect class="b-cmp" x="354" y="448" width="290" height="88" rx="8"/>
 <text class="t-code" x="368" y="472">HTTP API</text>
@@ -172,10 +172,14 @@
 <rect class="b-cmp" x="520" y="964" width="424" height="34" rx="8"/>
 <text class="t-code t-small" x="532" y="986">list_chunks_by_source</text>
 <text class="t-desc" x="932" y="986" text-anchor="end">a document's chunks</text>
-<rect class="b-cmp" x="504" y="1030" width="456" height="96" rx="8"/>
-<text class="t-desc" x="518" y="1062">* operator-only: refused with not_an_operator unless the</text>
-<text class="t-desc" x="518" y="1078">caller macula verified is in MCL_RAG_OPERATORS. No desk</text>
-<text class="t-desc" x="518" y="1094">emits events; each reads or writes rag_store directly.</text>
+<rect class="b-cmp" x="504" y="1030" width="456" height="120" rx="8"/>
+<text class="t-bound" x="520" y="1052">apps/mcl_rag [read desks]</text>
+<rect class="b-cmp" x="520" y="1062" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="532" y="1084">describe_corpus</text>
+<text class="t-desc" x="932" y="1084" text-anchor="end">the served corpus, one signed hash</text>
+<rect class="b-cmp" x="520" y="1100" width="424" height="34" rx="8"/>
+<text class="t-code t-small" x="532" y="1122">ingest_status</text>
+<text class="t-desc" x="932" y="1122" text-anchor="end">scan counters, per-repo watermarks</text>
 <rect class="bound-in" x="32" y="1156" width="928" height="132" rx="10"/>
 <text class="t-bound" x="48" y="1178">apps/rag [shared store and embedder]</text>
 <rect class="b-cmp" x="48" y="1188" width="440" height="84" rx="8"/>
@@ -202,7 +206,7 @@
 <rect class="b-ext" x="1000" y="448" width="224" height="104" rx="10"/>
 <text class="t-name" x="1016" y="476">macula-station</text>
 <text class="t-type" x="1016" y="494">[pinned]</text>
-<text class="t-desc" x="1016" y="518">carries the 17 procedures</text>
+<text class="t-desc" x="1016" y="518">carries the 19 procedures</text>
 <text class="t-desc" x="1016" y="534">and rag.query_shard_v1</text>
 <rect class="b-ext" x="1000" y="1176" width="224" height="108" rx="10"/>
 <text class="t-name" x="1016" y="1204">ollama</text>
@@ -226,4 +230,7 @@
 <text class="t-rel" x="972" y="1222" text-anchor="middle">embeds</text>
 <path class="edge" d="M268 1272V1336" marker-end="url(#a)"/>
 <text class="t-rel" x="276" y="1320">rag_chunks and _barrel_system</text>
+<text class="t-desc" x="504" y="1360">* operator-only: refused with not_an_operator unless the caller</text>
+<text class="t-desc" x="504" y="1376">macula verified is in MCL_RAG_OPERATORS. No desk emits</text>
+<text class="t-desc" x="504" y="1392">events; each reads or writes rag_store directly.</text>
 </svg>

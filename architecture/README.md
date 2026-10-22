@@ -2,7 +2,7 @@
 
 *This exists so an agent anywhere on the mesh can recall what the org already knows, and deposit what it learns, in one call.*
 
-**Status: 2026-10-17** (mcl_om 1.0, macula 15.6, macula_rag 1.0). The model was drawn from the 0.3.4 source; the versions above are the 0.9.0 release's. Everything here describes code that exists; the one thing marked *not used* is an alternative the code keeps but msi00 does not run.
+**Status: 2026-10-22** (mcl_om 1.4, macula 16.0, macula_rag 1.1, release 0.9.0). Everything here describes code that exists; the one thing marked *not used* is an alternative the code keeps but msi00 does not run.
 
 `mcl-rag` holds the mesh's shared memory: documents from a set of git repos plus the knowledge agents deposit, chunked, embedded and searchable by meaning. It answers retrieval over it, and it is one shard of its org's federated retrieval. It is an `mcl-om` service: one OTP release in one OCI container, with its node identity, pinned outbound station dial, realm identity claim, provider grants, `mcl-rag/info` and `/health` coming from [`mcl-om`](https://github.com/macula-services/mcl-om).
 
@@ -28,7 +28,7 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 
 **Retrieval, not generation.** `answer_query` embeds the query text and returns the nearest chunks with their scores. No language model writes an answer. The only chat model in the service is the topic classifier, and it only labels chunks.
 
-**Mesh calls are authenticated, not sealed.** macula verifies each caller's node id on the wire, and the operator gate reads that verified id. The service advertises no KEM key, so its calls are not sealed end to end.
+**Mesh calls are sealed.** Every procedure is `confidential => required`, and the service names its KEM key (`kem_advertise`), so a caller seals its query or deposit end to end and a station on the path relays only ciphertext. The caller the operator gate reads is the node id macula verified on the wire, never a field the payload carried.
 
 ## Level 2: containers
 
@@ -36,7 +36,7 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 
 | Container | Technology | Responsibility |
 | --- | --- | --- |
-| mcl-rag service | OCI image (`ghcr.io/macula-services/mcl-rag`, deployed by digest), OTP 28.4.3 release, `mcl_om_service` behaviour | Eighteen procedures as `mcl-rag/<name>` v1, `mcl-rag/rag.query_shard_v1` through macula_rag, the corpus sync and re-embed loops. Health on 8450, local HTTP API on 8451 (loopback) |
+| mcl-rag service | OCI image (`ghcr.io/macula-services/mcl-rag`, deployed by digest), OTP 28.4.3 release, `mcl_om_service` behaviour | Nineteen procedures as `mcl-rag/<name>` v1, `mcl-rag/rag.query_shard_v1` through macula_rag, the corpus sync and re-embed loops. Health on the Unix socket `/run/mcl/health.sock`, local HTTP API on 8451 (loopback) |
 | Data volume | Named volume `mcl-rag-data` at `/var/lib/mcl-rag` | One barrel database, `rag_chunks` (documents, and vectors under `vectors/`), barrel_docdb's `_barrel_system`, and the corpus checkouts under `corpus/<repo-id>`. Removing it wipes the memory and the node re-embeds the whole corpus |
 | Identity key | Named volume `mcl-rag-secrets` at `/etc/mcl/secrets` | The puzzle-hardened node key mcl-om generates on first boot; the node id survives a container recreate |
 | Corpus list | `deploy/corpus-repos.json`, bind-mounted read-only at `/etc/mcl-rag/corpus-repos.json` (or wherever `MCL_RAG_CORPUS_REPOS` names) | Which repos to sync — each named by `id`, `url` and `branch`, with optional `depth`/`paths` bounds — in the shape `schema/corpus-repos.schema.json` publishes; a list breaking it is refused, naming the entry. Each id is the watermark namespace, so renaming one re-embeds that repo |
@@ -54,17 +54,18 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 
 | Component | Kind | Responsibility |
 | --- | --- | --- |
-| `mcl_rag_service` | `mcl_om_service` module | Six callbacks. `capabilities/0` lists the eighteen procedures, each through `mcl_om_simple_handler` into `mcl_rag_mesh_rpc`. `identity_spec/0` claims scope `mcl-rag`, no actions or resources, 30 days. `health/0`: the store first, then the federation join. `start/1` refuses a malformed operator list |
+| `mcl_rag_service` | `mcl_om_service` module | Six callbacks. `capabilities/0` lists the nineteen procedures, each through `mcl_om_simple_handler` into `mcl_rag_mesh_rpc`, every one `confidential => required`. `identity_spec/0` claims scope `mcl-rag`, no actions or resources, 30 days. `health/0`: the store first, then the federation join. `start/1` refuses a malformed operator list |
 | `mcl_rag_mesh_rpc` | Router (`apps/mcl_rag`) | One handler per procedure. Every call passes `rag_operators` first, then the desk; replies are shaped for the wire (text, not bytes) |
 | `rag_operators` | Gate (`apps/mcl_rag`) | Eight procedures are operator-only: `prune_chunks`, `retire_document`, `ingest_document`, `upload_knowledge`, `embed_document`, `classify_topics`, `schedule_reembed`, `detect_corpus_change`. The caller is the node id macula verified on the wire, never a field the caller wrote. Anyone else gets `not_an_operator`; an empty list means nobody |
 | HTTP API | cowboy listener (`apps/mcl_rag`) | Port 8451 on loopback by default. Routes are collected from the slices' `*_api` modules. It has writes and no authentication, and does not apply the operator gate, which is why it stays on loopback. Adds `/api/rag/seed`; has no `get_document_verbatim` |
 | `join_federation`, `answer_federated_query` | macula_rag shard (`apps/mcl_rag`) | Configures macula_rag with the org, the realm name and the embedding (model, dimension), registers the responder and publishes the shard summary. A shard query is embedded locally and searched in `rag_store` |
-| `refresh_corpus_scheduler` | gen_server + Rust NIF `mcl_rag_corpus_sync_nif` (`apps/mcl_rag`) | Every 120 s, follows each repo's branch head through the NIF's `sync_to_head/5` (vendored libgit2, HTTPS only, no OS `git`; the entry's optional `depth` bounds the fetch and its `paths` the checkout), then hashes each `**/*.md`: on a change it calls `detect_corpus_change`, `schedule_reembed`, `rag_store:upsert_source/1` and `embed_document`. A failed refresh is retried on the next tick |
+| `refresh_corpus_scheduler` | gen_server + Rust NIF `mcl_rag_corpus_sync_nif` (`apps/mcl_rag`) | Every 2 h (and 60 s after a tick that met the store still opening), follows each repo's branch head through the NIF's `sync_to_head/5` (vendored libgit2, HTTPS only, no OS `git`; the entry's optional `depth` bounds the fetch and its `paths` the checkout), then walks each ingestible file: on a change it calls `detect_corpus_change`, `schedule_reembed`, `rag_store:upsert_source/1` and `embed_document`. A failed refresh is retried on the next tick |
 | `add_knowledge/`, `upload_knowledge/`, `ingest_document/`, `embed_document/`, `classify_topics/`, `prune_chunks/`, `retire_document/`, `seed_corpus/` | Write desks (`apps/embed_corpus`) | Chunk, embed and store; upsert, re-embed, label or delete. `classify_topics` asks the local qwen2.5 through `rag_topic_classifier`. `seed_corpus` is HTTP only |
 | `detect_corpus_change/`, `schedule_reembed/` | Write desks (`apps/refresh_corpus`) | Compare a file's hash with its watermark and record a change; record a re-embed request |
 | `answer_query/`, `rerank_results/` | Read desks (`apps/serve_retrieval`) | `answer_query` is `search_chunks_semantic`. `rerank_results` blends the semantic score (0.65) with lexical overlap; no reranking model |
 | `search_chunks_semantic/`, `get_chunk_by_id/`, `list_chunks_by_source/` | Read desks (`apps/query_chunks`) | Search by text (embedded as a query) or by a vector the caller made the same way, with `top_k` and optional topic filter; one chunk; a document's chunks |
 | `get_source_by_id/`, `list_sources_page/`, `get_document_verbatim/` | Read desks (`apps/query_sources`) | One source record; sources paged; a document's raw bytes (mesh only) |
+| `describe_corpus/`, `ingest_status/` | Read desks (`apps/mcl_rag`) | `describe_corpus` names the corpus this shard serves, every repo at the head the store holds it at, as one hash, signed with the node key when there is one; `ingest_status` reports the live scan counters and each repo's watermarks. Both are open to any caller the station admits |
 | `rag_store` | gen_server over barrel (`apps/rag`) | The one database, `rag_chunks`: chunk content, metadata and vectors, source records, watermarks and re-embed requests. Barrel never embeds by itself; callers pass the vector in |
 | `rag_embedder`, `rag_chunk_embedder` | Components (`apps/rag`) | `rag_embedder` decides the provider in one place, so stored vectors and queries always come from the same model: `ollama` on loopback (msi00) or `mcl_embedder` over the mesh. `rag_chunk_embedder` embeds in the caller's process, then writes, so the store's process never waits on the model |
 

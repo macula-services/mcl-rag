@@ -220,13 +220,13 @@ def containers():
     s.edge("M665 320V350")                     # corpus list
 
     s.element("b-sys", 260, 100, 480, 220, "mcl-rag service",
-              "[Container: OCI image, OTP 28 release, mcl_om 1.0]",
-              ["Eighteen procedures as mcl-rag/<name>, and rag.query_shard_v1",
+              "[Container: OCI image, OTP 28 release, mcl_om 1.4]",
+              ["Nineteen procedures as mcl-rag/<name>, and rag.query_shard_v1",
                "through macula_rag 1.1 (macula 16). From mcl-om: node",
                "identity, pinned outbound station dial, realm identity claim,",
-               "provider grants, mcl-rag/info, /health on 8450.",
+               "provider grants, mcl-rag/info, /health on a Unix socket.",
                "Local HTTP API on 8451, loopback, no authentication.",
-               "Git sync and re-embed loops, every 120 s each.",
+               "Corpus sync every 2 h; a 60 s retry while the store opens.",
                "Storeless for mcl-om: no reckon-db is started."])
 
     s.element("b-cmp", 260, 350, 150, 120, "Data volume", "[mcl-rag-data]",
@@ -277,15 +277,15 @@ def components():
     s.bound("bound", 16, 40, 960, 1264, "mcl-rag service [Container]")
 
     s.component("b-sys", 32, 76, 928, 84, "apps/mcl_rag: mcl_rag_service", "[mcl_om_service behaviour]",
-                ["Six callbacks. capabilities/0: the eighteen procedures, each mcl-rag/<name> v1 through mcl_om_simple_handler.",
+                ["Six callbacks. capabilities/0: the nineteen procedures, each mcl-rag/<name> v1 through mcl_om_simple_handler.",
                  "identity_spec/0: scope mcl-rag, no actions or resources, 30 days. No store_id/0 or data_dir/0: storeless."])
 
     # What mcl-om provides
-    s.bound("bound-in", 32, 180, 928, 112, "mcl_om 1.0 [library: what every mcl-om service gets]")
+    s.bound("bound-in", 32, 180, 928, 112, "mcl_om 1.4 [library: what every mcl-om service gets]")
     om = [("b-cmp", "identity key", ["/etc/mcl/secrets; the node", "id survives a recreate"]),
           ("b-cmp", "station dial", ["pinned seed + node id;", "{mesh, required} at boot"]),
           ("b-cmp", "realm claim", ["boot claim; a D25 grant", "per procedure"]),
-          ("b-cmp", "info, /health", ["mcl-rag/info; /health on", "8450 with grants, liveness"]),
+          ("b-cmp", "info, /health", ["mcl-rag/info; /health", "on a Unix socket"]),
           ("b-later", "event store", ["reckon-db via store_id/0:", "not used by mcl-rag"])]
     for i, (cls, name, desc) in enumerate(om):
         x = 48 + i * 180
@@ -296,7 +296,7 @@ def components():
 
     # The service's own processes (mcl_rag_sup)
     s.bound("bound-in", 32, 312, 928, 236, "apps/mcl_rag [the service's processes, under mcl_rag_sup]")
-    s.component("b-cmp", 48, 344, 440, 88, "refresh_corpus_scheduler", "[every 120 s]",
+    s.component("b-cmp", 48, 344, 440, 88, "refresh_corpus_scheduler", "[every 2 h]",
                 ["Follows each repo's branch head via the NIF, then",
                  "hashes **/*.md; on a change: detect, schedule_reembed,",
                  "upsert_source, embed_document"])
@@ -305,7 +305,7 @@ def components():
                  "(depth-bounded) and checks out its head (paths-bounded);",
                  "nothing is pinned"])
     s.component("b-cmp", 48, 448, 290, 88, "mcl_rag_mesh_rpc", "[Router]",
-                ["The 17 handlers. rag_operators gate:",
+                ["The 19 handlers. rag_operators gate:",
                  "8 procedures need a verified operator"])
     s.component("b-cmp", 354, 448, 290, 88, "HTTP API", "[cowboy, 8451]",
                 ["Loopback by default; routes from the",
@@ -350,10 +350,11 @@ def components():
                                 ("list_chunks_by_source", "a document's chunks")]):
         s.row("b-cmp", 520, 880 + 42 * i, 424, n, d)
 
-    s.rect("b-cmp", 504, 1030, 456, 96, rx=8)
-    s.text("t-desc", 518, 1062, "* operator-only: refused with not_an_operator unless the")
-    s.text("t-desc", 518, 1078, "caller macula verified is in MCL_RAG_OPERATORS. No desk")
-    s.text("t-desc", 518, 1094, "emits events; each reads or writes rag_store directly.")
+    s.rect("b-cmp", 504, 1030, 456, 120, rx=8)
+    s.text("t-bound", 520, 1052, "apps/mcl_rag [read desks]")
+    for i, (n, d) in enumerate([("describe_corpus", "the served corpus, one signed hash"),
+                                ("ingest_status", "scan counters, per-repo watermarks")]):
+        s.row("b-cmp", 520, 1062 + 38 * i, 424, n, d)
 
     # The shared store and embedder
     s.bound("bound-in", 32, 1156, 928, 132, "apps/rag [shared store and embedder]")
@@ -370,7 +371,7 @@ def components():
     s.element("b-ext", 1000, 336, 224, 104, "Corpus repos", "[GitHub, HTTPS]",
               ["deploy/corpus-repos.json,", "cloned under corpus/<id>"])
     s.element("b-ext", 1000, 448, 224, 104, "macula-station", "[pinned]",
-              ["carries the 17 procedures", "and rag.query_shard_v1"])
+              ["carries the 19 procedures", "and rag.query_shard_v1"])
     s.element("b-ext", 1000, 1176, 224, 108, "ollama", "[127.0.0.1:11434]",
               ["e5-small f16, 384 dims;", "qwen2.5 chat for topics"])
     s.element("b-ext", 48, 1336, 440, 64, "Data volume", "[/var/lib/mcl-rag, mcl-rag-data]", [])
@@ -383,6 +384,9 @@ def components():
     s.edge("M260 1126V1156"); s.text("t-rel", 268, 1145, "every desk reads or writes rag_store")
     s.edge("M944 1230H1000"); s.text("t-rel", 972, 1222, "embeds", anchor="middle")
     s.edge("M268 1272V1336"); s.text("t-rel", 276, 1320, "rag_chunks and _barrel_system")
+    s.text("t-desc", 504, 1360, "* operator-only: refused with not_an_operator unless the caller")
+    s.text("t-desc", 504, 1376, "macula verified is in MCL_RAG_OPERATORS. No desk emits")
+    s.text("t-desc", 504, 1392, "events; each reads or writes rag_store directly.")
     s.write("c4-components.svg")
 
 
