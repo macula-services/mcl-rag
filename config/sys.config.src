@@ -25,7 +25,7 @@
         {embed_provider, ollama},
         {embed_dim,      384},
         %% The model every stored vector was made with: intfloat's
-        %% multilingual-e5-small, built into msi00's ollama from intfloat's own
+        %% multilingual-e5-small, built into the host's ollama from intfloat's own
         %% weights (macula-fleet declares it by manifest digest). Federated
         %% retrieval only merges scores between shards naming the same model
         %% and dimension.

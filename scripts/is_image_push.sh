@@ -5,8 +5,8 @@
 #   scripts/is_image_push.sh <before-sha> <after-sha>
 #
 # It builds UNLESS it can show that every changed path is documentation.
-# A push to main rebuilds :latest and watchtower rolls every box watching it,
-# so a README edit is not worth a restart. But `paths-ignore' got the other
+# A push to main rebuilds and publishes the image as :main and :<sha>, so a
+# README edit is not worth a rebuild. But `paths-ignore' got the other
 # half wrong: on the push that CREATES a branch GitHub has nothing to compare
 # against and evaluates the filter on the head commit alone, so a first push
 # ending in a docs commit built no image at all.

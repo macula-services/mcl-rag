@@ -185,7 +185,8 @@ def context():
     s.text("t-rel", 310, 252, "add_knowledge,", anchor="middle")
     s.text("t-rel", 310, 282, "upload_knowledge", anchor="middle")
     s.text("t-rel", 310, 296, "(over the mesh)", anchor="middle")
-    s.text("t-rel", 690, 252, "procedures", anchor="middle")
+    s.text("t-rel", 690, 252,
+           "procedures", anchor="middle")
     s.text("t-rel", 690, 282, "(over the mesh)", anchor="middle")
     s.text("t-rel", 492, 170, "clones, fast-forwards (HTTPS)", anchor="end")
     s.text("t-rel", 145, 410, "asks: rag.query_shard_v1")
@@ -221,13 +222,14 @@ def containers():
 
     s.element("b-sys", 260, 100, 480, 220, "mcl-rag service",
               "[Container: OCI image, OTP 28 release, mcl_om 1.4]",
-              ["Nineteen procedures of its own as mcl-rag/<name> and rag.query_shard_v1",
-               "through macula_rag 1.1 (macula 16). From mcl-om: node",
-               "identity, pinned outbound station dial, realm identity claim,",
-               "provider grants, mcl-rag/info, /health on a Unix socket.",
-               "Local HTTP API on 8451, loopback, no authentication.",
-               "Corpus sync every 2 h; a 60 s retry while the store opens.",
-               "Storeless for mcl-om: no reckon-db is started."])
+              ["The service's own procedures as mcl-rag/<name> and",
+               "rag.query_shard_v1 through macula_rag 1.1 (macula 16).",
+               "mcl-om adds mcl-rag/info and mcl-rag/get_limits, both open;",
+               "capabilities/0 is the list. From mcl-om: node identity,",
+               "pinned outbound station dial, realm identity claim, provider",
+               "grants, /health on a Unix socket. Local HTTP API on 8451,",
+               "loopback, no authentication. Corpus sync every 2 h; a 60 s",
+               "retry while the store opens. Storeless: no reckon-db."])
 
     s.element("b-cmp", 260, 350, 150, 120, "Data volume", "[mcl-rag-data]",
               ["/var/lib/mcl-rag:", "barrel rag_chunks,", "corpus/<repo-id>"])
@@ -276,8 +278,9 @@ def components():
     s = Svg(1240, 1420, "mcl-rag components")
     s.bound("bound", 16, 40, 960, 1264, "mcl-rag service [Container]")
 
-    s.component("b-sys", 32, 76, 928, 84, "apps/mcl_rag: mcl_rag_service", "[mcl_om_service behaviour]",
-                ["Six callbacks. capabilities/0: its nineteen procedures, each mcl-rag/<name> v1 through mcl_om_simple_handler.",
+    s.component("b-sys", 32, 76, 928, 96, "apps/mcl_rag: mcl_rag_service", "[mcl_om_service behaviour]",
+                ["Six callbacks. capabilities/0 is the list: its own procedures as mcl-rag/<name> v1 through",
+                 "mcl_om_simple_handler, on the mesh. mcl-om adds info and get_limits, both open.",
                  "identity_spec/0: scope mcl-rag, no actions or resources, 30 days. No store_id/0 or data_dir/0: storeless."])
 
     # What mcl-om provides
@@ -285,7 +288,7 @@ def components():
     om = [("b-cmp", "identity key", ["/etc/mcl/secrets; the node", "id survives a recreate"]),
           ("b-cmp", "station dial", ["pinned seed + node id;", "{mesh, required} at boot"]),
           ("b-cmp", "realm claim", ["boot claim; a D25 grant", "per procedure"]),
-          ("b-cmp", "info, /health", ["mcl-rag/info; /health", "on a Unix socket"]),
+          ("b-cmp", "info, get_limits", ["mcl-rag/info and", "get_limits; /health"]),
           ("b-later", "event store", ["reckon-db via store_id/0:", "not used by mcl-rag"])]
     for i, (cls, name, desc) in enumerate(om):
         x = 48 + i * 180
@@ -305,8 +308,8 @@ def components():
                  "(depth-bounded) and checks out its head (paths-bounded);",
                  "nothing is pinned"])
     s.component("b-cmp", 48, 448, 290, 88, "mcl_rag_mesh_rpc", "[Router]",
-                ["The 19 handlers. rag_operators gate:",
-                 "8 own procedures need an operator"])
+                ["A handler per procedure. The gate:",
+                 "the operator-only desks need an operator"])
     s.component("b-cmp", 354, 448, 290, 88, "HTTP API", "[cowboy, 8451]",
                 ["Loopback by default; routes from the",
                  "slices' *_api modules; no operator gate"])
@@ -371,7 +374,7 @@ def components():
     s.element("b-ext", 1000, 336, 224, 104, "Corpus repos", "[GitHub, HTTPS]",
               ["deploy/corpus-repos.json,", "cloned under corpus/<id>"])
     s.element("b-ext", 1000, 448, 224, 104, "macula-station", "[pinned]",
-              ["carries its 19 procedures", "and rag.query_shard_v1"])
+              ["carries every call to", "the service's procedures"])
     s.element("b-ext", 1000, 1176, 224, 108, "ollama", "[127.0.0.1:11434]",
               ["e5-small f16, 384 dims;", "qwen2.5 chat for topics"])
     s.element("b-ext", 48, 1336, 440, 64, "Data volume", "[/var/lib/mcl-rag, mcl-rag-data]", [])

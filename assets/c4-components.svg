@@ -52,11 +52,12 @@
 
 <rect class="bound" x="16" y="40" width="960" height="1264" rx="12"/>
 <text class="t-bound" x="32" y="62">mcl-rag service [Container]</text>
-<rect class="b-sys" x="32" y="76" width="928" height="84" rx="8"/>
+<rect class="b-sys" x="32" y="76" width="928" height="96" rx="8"/>
 <text class="t-code" x="46" y="100">apps/mcl_rag: mcl_rag_service</text>
 <text class="t-type" x="948" y="100" text-anchor="end">[mcl_om_service behaviour]</text>
-<text class="t-desc" x="46" y="122">Six callbacks. capabilities/0: its nineteen procedures, each mcl-rag/&lt;name&gt; v1 through mcl_om_simple_handler.</text>
-<text class="t-desc" x="46" y="138">identity_spec/0: scope mcl-rag, no actions or resources, 30 days. No store_id/0 or data_dir/0: storeless.</text>
+<text class="t-desc" x="46" y="122">Six callbacks. capabilities/0 is the list: its own procedures as mcl-rag/&lt;name&gt; v1 through</text>
+<text class="t-desc" x="46" y="138">mcl_om_simple_handler, on the mesh. mcl-om adds info and get_limits, both open.</text>
+<text class="t-desc" x="46" y="154">identity_spec/0: scope mcl-rag, no actions or resources, 30 days. No store_id/0 or data_dir/0: storeless.</text>
 <rect class="bound-in" x="32" y="180" width="928" height="112" rx="10"/>
 <text class="t-bound" x="48" y="202">mcl_om 1.4 [library: what every mcl-om service gets]</text>
 <rect class="b-cmp" x="48" y="208" width="168" height="68" rx="8"/>
@@ -72,9 +73,9 @@
 <text class="t-desc" x="420" y="248">boot claim; a D25 grant</text>
 <text class="t-desc" x="420" y="264">per procedure</text>
 <rect class="b-cmp" x="588" y="208" width="168" height="68" rx="8"/>
-<text class="t-code t-small" x="600" y="228">info, /health</text>
-<text class="t-desc" x="600" y="248">mcl-rag/info; /health</text>
-<text class="t-desc" x="600" y="264">on a Unix socket</text>
+<text class="t-code t-small" x="600" y="228">info, get_limits</text>
+<text class="t-desc" x="600" y="248">mcl-rag/info and</text>
+<text class="t-desc" x="600" y="264">get_limits; /health</text>
 <rect class="b-later" x="768" y="208" width="168" height="68" rx="8"/>
 <text class="t-code t-small" x="780" y="228">event store</text>
 <text class="t-desc" x="780" y="248">reckon-db via store_id/0:</text>
@@ -96,8 +97,8 @@
 <rect class="b-cmp" x="48" y="448" width="290" height="88" rx="8"/>
 <text class="t-code" x="62" y="472">mcl_rag_mesh_rpc</text>
 <text class="t-type" x="326" y="472" text-anchor="end">[Router]</text>
-<text class="t-desc" x="62" y="494">The 19 handlers. rag_operators gate:</text>
-<text class="t-desc" x="62" y="510">8 own procedures need an operator</text>
+<text class="t-desc" x="62" y="494">A handler per procedure. The gate:</text>
+<text class="t-desc" x="62" y="510">the operator-only desks need an operator</text>
 <rect class="b-cmp" x="354" y="448" width="290" height="88" rx="8"/>
 <text class="t-code" x="368" y="472">HTTP API</text>
 <text class="t-type" x="632" y="472" text-anchor="end">[cowboy, 8451]</text>
@@ -206,8 +207,8 @@
 <rect class="b-ext" x="1000" y="448" width="224" height="104" rx="10"/>
 <text class="t-name" x="1016" y="476">macula-station</text>
 <text class="t-type" x="1016" y="494">[pinned]</text>
-<text class="t-desc" x="1016" y="518">carries its 19 procedures</text>
-<text class="t-desc" x="1016" y="534">and rag.query_shard_v1</text>
+<text class="t-desc" x="1016" y="518">carries every call to</text>
+<text class="t-desc" x="1016" y="534">the service's procedures</text>
 <rect class="b-ext" x="1000" y="1176" width="224" height="108" rx="10"/>
 <text class="t-name" x="1016" y="1204">ollama</text>
 <text class="t-type" x="1016" y="1222">[127.0.0.1:11434]</text>

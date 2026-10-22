@@ -4,7 +4,7 @@
 
 **Status: 2026-10-22** (mcl_om 1.4, macula 16.0, macula_rag 1.1, release 0.9.0). Everything here describes code that exists; the one thing marked *not used* is an alternative the code keeps but this deployment does not run.
 
-`mcl-rag` holds the mesh's shared memory: documents from a set of git repos plus the knowledge agents deposit, chunked, embedded and searchable by meaning. It answers retrieval over it, and it is one shard of its org's federated retrieval. It is an `mcl-om` service: one OTP release in one OCI container, with its node identity, pinned outbound station dial, realm identity claim, provider grants, `mcl-rag/info` and `/health` coming from [`mcl-om`](https://github.com/macula-services/mcl-om).
+`mcl-rag` holds the mesh's shared memory: documents from a set of git repos plus the knowledge agents deposit, chunked, embedded and searchable by meaning. It answers retrieval over it, and it is one shard of its org's federated retrieval. It is an `mcl-om` service: one OTP release in one OCI container, with its node identity, pinned outbound station dial, realm identity claim, provider grants, `mcl-rag/info`, `mcl-rag/get_limits` and `/health` coming from [`mcl-om`](https://github.com/macula-services/mcl-om).
 
 Legend used in all three diagrams: the amber box is the element in scope, blue boxes are people, grey boxes are external, and dashed boxes are not used by this deployment: `mcl-embedder` (an embedding provider the code supports, not the one this deployment runs) and mcl-om's event store wiring (which mcl-rag does not take up).
 
@@ -28,7 +28,7 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 
 **Retrieval, not generation.** `answer_query` embeds the query text and returns the nearest chunks with their scores. No language model writes an answer. The only chat model in the service is the topic classifier, and it only labels chunks.
 
-**Mesh calls are sealed.** Every procedure of its own is `confidential => required`, and the service names its KEM key (`kem_advertise`), so a caller seals its query or deposit end to end and a station on the path relays only ciphertext. The caller the operator gate reads is the node id macula verified on the wire, never a field the payload carried.
+**Mesh calls are sealed.** The service's own procedures are `confidential => required`, and the service names its KEM key (`kem_advertise`), so a caller seals its query or deposit end to end and a station on the path relays only ciphertext. The caller the operator gate reads is the node id macula verified on the wire, never a field the payload carried.
 
 ## Level 2: containers
 
@@ -36,7 +36,7 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 
 | Container | Technology | Responsibility |
 | --- | --- | --- |
-| mcl-rag service | OCI image (`ghcr.io/macula-services/mcl-rag`, deployed by digest), OTP 28.4.3 release, `mcl_om_service` behaviour | Nineteen procedures of its own as `mcl-rag/<name>` v1, `mcl-rag/rag.query_shard_v1` through macula_rag, and one corpus sync loop per tick, which re-embeds each file it finds changed. Health on the Unix socket `/run/mcl/health.sock`, local HTTP API on 8451 (loopback) |
+| mcl-rag service | OCI image (`ghcr.io/macula-services/mcl-rag`, deployed by digest), OTP 28.4.3 release, `mcl_om_service` behaviour | The service's own procedures as `mcl-rag/<name>` v1, plus `mcl-rag/rag.query_shard_v1` through macula_rag, and one corpus sync loop per tick, which re-embeds each file it finds changed. `mcl-om` adds `mcl-rag/info` and `mcl-rag/get_limits`, both open; `capabilities/0` is the list. Health on the Unix socket `/run/mcl/health.sock`, local HTTP API on 8451 (loopback) |
 | Data volume | Named volume `mcl-rag-data` at `/var/lib/mcl-rag` | One barrel database, `rag_chunks` (documents, and vectors under `vectors/`), barrel_docdb's `_barrel_system`, and the corpus checkouts under `corpus/<repo-id>`. Removing it wipes the memory and the node re-embeds the whole corpus |
 | Identity key | Named volume `mcl-rag-secrets` at `/etc/mcl/secrets` | The puzzle-hardened node key mcl-om generates on first boot; the node id survives a container recreate |
 | Corpus list | `deploy/corpus-repos.json`, bind-mounted read-only at `/etc/mcl-rag/corpus-repos.json` (or wherever `MCL_RAG_CORPUS_REPOS` names) | Which repos to sync — each named by `id`, `url` and `branch`, with optional `depth`/`paths` bounds — in the shape `schema/corpus-repos.schema.json` publishes; a list breaking it is refused, naming the entry. Each id is the watermark namespace, so renaming one re-embeds that repo |
@@ -44,7 +44,7 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 
 **Placement.** The service runs in a container on the host, with host networking: macula stations are reachable over IPv6 and a default bridge has none. The service's own compose file (`deploy/docker-compose.yml`) carries what the service knows about itself; placement (which box, station, realm, secrets) belongs to macula-fleet.
 
-**What mcl-om gives it, and what it leaves.** From mcl-om: the node key on the identity volume, the pinned station dial (`MACULA_STATION_SEEDS` paired index for index with `MACULA_STATION_NODE_IDS`; with `{mesh, required}` a boot missing the realm, its key or the pinned stations stops and names each one), the boot identity claim with `MCL_SERVICE_NAME` and `MCL_BOX` labels, capability adverts gated on the realm's D25 grants, `mcl-rag/info`, and `/health`. mcl-om would also start a reckon-db event store for a service that exports `store_id/0` and `data_dir/0`; mcl-rag exports neither, so no event store runs. Its state is the barrel database.
+**What mcl-om gives it, and what it leaves.** From mcl-om: the node key on the identity volume, the pinned station dial (`MACULA_STATION_SEEDS` paired index for index with `MACULA_STATION_NODE_IDS`; with `{mesh, required}` a boot missing the realm, its key or the pinned stations stops and names each one), the boot identity claim with `MCL_SERVICE_NAME` and `MCL_BOX` labels, capability adverts gated on the realm's D25 grants, `mcl-rag/info`, `mcl-rag/get_limits`, and `/health`. mcl-om would also start a reckon-db event store for a service that exports `store_id/0` and `data_dir/0`; mcl-rag exports neither, so no event store runs. Its state is the barrel database.
 
 **Startup.** Opening the store rebuilds the vector index, several minutes on the full corpus. Meanwhile `/health` reports `degraded, store_opening` and every call is refused with `{error, store_opening}`; the image's health check has a 900 s start period to cover it.
 
@@ -54,9 +54,9 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 
 | Component | Kind | Responsibility |
 | --- | --- | --- |
-| `mcl_rag_service` | `mcl_om_service` module | Six callbacks. `capabilities/0` lists the nineteen procedures, each through `mcl_om_simple_handler` into `mcl_rag_mesh_rpc`, every one `confidential => required`. `identity_spec/0` claims scope `mcl-rag`, no actions or resources, 30 days. `health/0`: the store first, then the federation join. `start/1` refuses a malformed operator list |
-| `mcl_rag_mesh_rpc` | Router (`apps/mcl_rag`) | One handler per procedure. Every call passes `rag_operators` first, then the desk; replies are shaped for the wire (text, not bytes) |
-| `rag_operators` | Gate (`apps/mcl_rag`) | Eight procedures are operator-only: `prune_chunks`, `retire_document`, `ingest_document`, `upload_knowledge`, `embed_document`, `classify_topics`, `schedule_reembed`, `detect_corpus_change`. The caller is the node id macula verified on the wire, never a field the caller wrote. Anyone else gets `not_an_operator`; an empty list means nobody |
+| `mcl_rag_service` | `mcl_om_service` module | Six callbacks. `capabilities/0` is the list: each of its own procedures routes through `mcl_om_simple_handler` into `mcl_rag_mesh_rpc` and carries `confidential => required`. `identity_spec/0` claims scope `mcl-rag`, no actions or resources, 30 days. `health/0`: the store first, then the federation join. `start/1` refuses a malformed operator list |
+| `mcl_rag_mesh_rpc` | Router (`apps/mcl_rag`) | A handler per procedure. Every call passes `rag_operators` first, then the desk; replies are shaped for the wire (text, not bytes) |
+| `rag_operators` | Gate (`apps/mcl_rag`) | The operator-only procedures are `prune_chunks`, `retire_document`, `ingest_document`, `upload_knowledge`, `embed_document`, `classify_topics`, `schedule_reembed`, `detect_corpus_change`. The caller is the node id macula verified on the wire, never a field the caller wrote. Anyone else gets `not_an_operator`; an empty list means nobody |
 | HTTP API | cowboy listener (`apps/mcl_rag`) | Port 8451 on loopback by default. Routes are collected from the slices' `*_api` modules. It has writes and no authentication, and does not apply the operator gate, which is why it stays on loopback. Adds `/api/rag/seed`; has no route for `get_document_verbatim`, `describe_corpus` or `ingest_status` |
 | `join_federation`, `answer_federated_query` | macula_rag shard (`apps/mcl_rag`) | Configures macula_rag with the org, the realm name and the embedding (model, dimension), registers the responder and publishes the shard summary. A shard query is embedded locally and searched in `rag_store` |
 | `refresh_corpus_scheduler` | gen_server + Rust NIF `mcl_rag_corpus_sync_nif` (`apps/mcl_rag`) | Every 2 h (and 60 s after a tick that met the store still opening), follows each repo's branch head through the NIF's `sync_to_head/5` (vendored libgit2, HTTPS only, no OS `git`; the entry's optional `depth` bounds the fetch and its `paths` the checkout), then walks each ingestible file: on a change it calls `detect_corpus_change`, `schedule_reembed`, `rag_store:upsert_source/1` and `embed_document`. A failed refresh is retried on the next tick |
@@ -70,10 +70,6 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 | `rag_embedder`, `rag_chunk_embedder` | Components (`apps/rag`) | `rag_embedder` decides the provider in one place, so stored vectors and queries always come from the same model: `ollama` on loopback or `mcl_embedder` over the mesh. `rag_chunk_embedder` embeds in the caller's process, then writes, so the store's process never waits on the model |
 
 **No events.** The desks keep the command, handler and desk-per-capability shape, but none emits a domain event: every write goes straight to `rag_store`. A few command modules carry the `evoq_command` behaviour for their `from_map`/`validate` shape; nothing dispatches them through evoq, and no event store runs. So `embed_corpus`, `refresh_corpus` and `serve_retrieval` list `evoq` and not `reckon_db` or `reckon_evoq`; a test holds every app to listing only what its modules use.
-
-## Open questions
-
-- [ ] macula-fleet `origin/main` (19e27d8, 2026-09-29) declares an `ollama.container` for the box but no mcl-rag unit yet, and records the box as installed by a hand-run script rather than reconciled. Which file carries mcl-rag's placement, and which station does it pin?
 
 ## Editing the diagrams
 
