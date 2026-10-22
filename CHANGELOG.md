@@ -7,7 +7,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Unreleased
 
-### Fixed
+### Changed
+
+- **The base library is macula 16** (macula-codebase-checks#4): the macula floor moves
+  `~> 15.6` to `~> 16.0`, and `mcl_om` to `~> 1.4`, the release whose own base is
+  macula 16. 16.0 keeps wire 1.0, so this service still speaks to every wire 1.0 box;
+  what it adds is the revocation bound (macula#118): an endorsement admits its holder
+  for at most 24 hours, and a gated overlay context must pass `member_standing`. This
+  service gates no overlay and issues no endorsement.
 
 - Every app the release names carries the release version (mcl-rag#33). The desk
   apps sat at 0.4.0 through v0.9.0 while the release tuple said the tag's

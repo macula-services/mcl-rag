@@ -30,8 +30,8 @@ info_round_trip_test_() ->
           %% later, the stable wire the flag day (macula-fleet#27) moves every
           %% service to. mcl_om 1.0 keeps 0.33.3's fix (register/1 replies at
           %% once and advertises after, which nineteen procedures need to boot).
-          ?_assert(at_least(maps:get(mcl_om_version, Reply), [1, 0, 0])),
-          ?_assert(at_least(maps:get(macula_version, Reply), [15, 6, 0]))]
+          ?_assert(at_least(maps:get(mcl_om_version, Reply), [1, 4, 0])),
+          ?_assert(at_least(maps:get(macula_version, Reply), [16, 0, 0]))]
      end}.
 
 %% The service must leave `info' to mcl_om: declaring its own refuses boot.
