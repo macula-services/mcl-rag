@@ -21,8 +21,8 @@
 %% The resolved library
 %%------------------------------------------------------------------------------
 
-%% 1.0 (the RAG service contract, corpus hash and signature, on macula 15) or a
-%% later 1.x is what this service is written against. A floor, not a string
+%% 1.0 or a later 1.x (the RAG service contract, corpus hash and signature) is
+%% what this service is written against. A floor, not a string
 %% match: `~> 1.0' floats to 2.0, and a test pinned to a minor would break the
 %% day that ships.
 the_resolved_macula_rag_is_1_0_or_later_test() ->

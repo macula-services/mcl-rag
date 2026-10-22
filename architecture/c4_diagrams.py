@@ -222,7 +222,7 @@ def containers():
     s.element("b-sys", 260, 100, 480, 220, "mcl-rag service",
               "[Container: OCI image, OTP 28 release, mcl_om 1.0]",
               ["Eighteen procedures as mcl-rag/<name>, and rag.query_shard_v1",
-               "through macula_rag 1.0 (macula 15.6). From mcl-om: node",
+               "through macula_rag 1.1 (macula 16). From mcl-om: node",
                "identity, pinned outbound station dial, realm identity claim,",
                "provider grants, mcl-rag/info, /health on 8450.",
                "Local HTTP API on 8451, loopback, no authentication.",
