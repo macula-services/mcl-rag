@@ -70,8 +70,8 @@ Everything else is in the README's Configuration table: your realm (`MCL_REALM`,
 
 ## 4. Get your grants
 
-Your realm's operator grants your node a provider authorization for each procedure you serve.
-Until then nothing is advertised, and `/health` names the missing grants.
+Your realm's operator grants your node a provider authorization for each procedure of its own that you serve.
+Until then nothing of its own is advertised, and `/health` names the missing grants.
 
 ## 5. Be found
 

@@ -74,8 +74,8 @@
 <text class="t-desc" x="420" y="264">per procedure</text>
 <rect class="b-cmp" x="588" y="208" width="168" height="68" rx="8"/>
 <text class="t-code t-small" x="600" y="228">info, get_limits</text>
-<text class="t-desc" x="600" y="248">mcl-rag/info and</text>
-<text class="t-desc" x="600" y="264">get_limits; /health</text>
+<text class="t-desc" x="600" y="248">mcl-rag/info, get_limits</text>
+<text class="t-desc" x="600" y="264">both open; /health</text>
 <rect class="b-later" x="768" y="208" width="168" height="68" rx="8"/>
 <text class="t-code t-small" x="780" y="228">event store</text>
 <text class="t-desc" x="780" y="248">reckon-db via store_id/0:</text>

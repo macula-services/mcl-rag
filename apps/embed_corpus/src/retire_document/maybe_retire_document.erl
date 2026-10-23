@@ -13,7 +13,7 @@
 %%% resolves a document through its source record and answers
 %%% `not_ingested' without one, so chunks that outlived their source --
 %%% or never had one, as the earliest `seed_corpus' wrote chunks only --
-%%% could not be removed by any capability at all. Found live
+%%% could not be removed by any capability of its own at all. Found live
 %%% (2026-09-02): 33 markdown files deleted from mcl-corpus months ago
 %%% were still being returned by semantic search as current guidance,
 %%% with no source record to retire them by. So a missing source record

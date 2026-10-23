@@ -1,8 +1,10 @@
-%% @doc `mcl-rag/info', the procedure mcl_om 0.28 answers for this service with
-%% no code of its own: who it is, its versions and what it advertises.
+%% @doc `mcl-rag/info' and `mcl-rag/get_limits', the two open procedures mcl_om
+%% answers for this service with no code of its own: who it is, its versions and
+%% what it advertises.
 %%
-%% Built from this service's real info/0 and its real capabilities/0 with
-%% `info' added the way mcl_om:boot/2 adds it, then sent through macula's own
+%% Built from this service's real info/0 and its real capabilities/0, with
+%% `info' added the way mcl_om_info:with_info/1 adds it (mcl_om adds
+%% `get_limits' at boot), then sent through macula's own
 %% frame codec, the path a reply takes. What arrives must be text, never bytes,
 %% and name this service, its procedures and the mcl_om 0.28 / macula 12.2 pair
 %% it was built with (12.2 under an older mcl_om lets a failed publish

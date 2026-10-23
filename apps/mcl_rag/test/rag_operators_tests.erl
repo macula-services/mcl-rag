@@ -20,7 +20,7 @@
 %% Which procedures
 %%------------------------------------------------------------------------------
 
-%% Every procedure that deletes or rewrites the store, and nothing else.
+%% Every procedure of its own that deletes or rewrites the store, and nothing else.
 the_operator_only_procedures_are_exactly_these_test() ->
     ?assertEqual(?OPERATOR_ONLY, lists:sort(rag_operators:operator_only())).
 

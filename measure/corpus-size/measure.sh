@@ -1,6 +1,6 @@
 #!/bin/sh
 # The exact commands behind measure/corpus-size/README.md, for re-running on
-# the corpus box (msi00) when the numbers need refreshing. Prints the checkout
+# the corpus box when the numbers need refreshing. Prints the checkout
 # table and the depth tables; clones into $SCRATCH.
 #
 #   CORPUS=<path to the corpus volume's corpus/> SCRATCH=<scratch dir> ./measure.sh [repo...]

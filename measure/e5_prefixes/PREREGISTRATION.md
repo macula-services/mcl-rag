@@ -1,7 +1,7 @@
 # Do e5's query/passage prefixes help mcl-rag's retrieval?
 
 This exists so mcl-rag embeds text the way that retrieves best on the model it
-runs (macula/multilingual-e5-small:f16, built on msi00 from intfloat's weights).
+runs (macula/multilingual-e5-small:f16, built on a lab box from intfloat's weights).
 
 Fixed before any result was seen (this file, `corpus.json`, `queries.json` and
 `measure.py` are committed before the run):
@@ -12,7 +12,7 @@ Fixed before any result was seen (this file, `corpus.json`, `queries.json` and
 - **Queries:** 20, paraphrased (not copied) from 20 of the passages, 15 English
   and 5 Dutch; each has exactly one relevant passage. The other 15 passages are
   distractors.
-- **Model:** the one Terra declares for msi00, reached through ollama's
+- **Model:** the one Terra declares for the host, reached through ollama's
   `/api/embed` as mcl-rag's `barrel_embed_ollama` does. Cosine similarity.
 - **Metrics:** recall@5 (primary), MRR@10 (secondary), per variant: raw text,
   and `passage: ` on passages with `query: ` on queries.
@@ -30,8 +30,8 @@ exact command.
 
 ## Result (2026-09-29)
 
-Run on msi00 inside `ci-runners.slice`, from this directory at mcl-rag
-`054bcb5` (inputs unchanged since `a6dda76`), against msi00's ollama:
+Run on a lab box inside `ci-runners.slice`, from this directory at mcl-rag
+`054bcb5` (inputs unchanged since `a6dda76`), against the host's ollama:
 
     python3 measure.py --model macula/multilingual-e5-small:f16
 

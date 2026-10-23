@@ -8,7 +8,7 @@
 %%%
 %%% Where the list is: `MCL_RAG_CORPUS_REPOS' (env), else the app env
 %%% `corpus_repos_config', else `/etc/mcl-rag/corpus-repos.json', the mount
-%%% msi00's unit uses. deploy/corpus-repos.json is the list this repo ships.
+%%% the mount the deployed unit uses. deploy/corpus-repos.json is the list this repo ships.
 %%%
 %%% File shape:
 %%%   {"repos": [{"id": "macula", "url": "https://...", "branch": "main"}, ...]}

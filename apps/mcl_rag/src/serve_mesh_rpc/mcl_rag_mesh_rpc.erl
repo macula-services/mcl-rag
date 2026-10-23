@@ -1,4 +1,4 @@
-%%% @doc The actual request-handling logic for every capability
+%%% @doc The actual request-handling logic for every capability of its own
 %%% `mcl_rag_service:capabilities/0` advertises.
 %%%
 %%% Real traffic to mcl-rag flows over the mesh. A plugin
@@ -25,7 +25,7 @@
 -export([
     start_link/0,
     dispatch/2,
-    %% Handlers — invoked by the SDK on inbound RPC. One per capability.
+    %% Handlers — invoked by the SDK on inbound RPC. One handler per capability of its own.
     handle_ingest_document/1,
     handle_embed_document/1,
     handle_upload_knowledge/1,
@@ -108,7 +108,7 @@ handle_ingest_status(P)          -> route(<<"mcl-rag.ingest_status">>, P).
 %% through their `*_api' modules, where jsx wants bare binaries.
 %% `get_document_verbatim' shapes itself: its `raw_bytes' really are bytes and
 %% must stay so; so does `describe_corpus''s `signature'.
-%% Every procedure passes the operator gate first: open ones pass for anyone,
+%% Every procedure of its own passes the operator gate first: open ones pass for anyone,
 %% the destructive ones only for a verified operator (rag_operators).
 route(Method, P) ->
     guarded(rag_operators:authorized(procedure(Method), P), Method, P).

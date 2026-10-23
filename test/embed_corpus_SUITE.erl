@@ -134,7 +134,7 @@ get_document_verbatim_round_trip(_Config) ->
 %% Chunks can outlive their source record -- the earliest seed_corpus
 %% wrote chunks with no source at all -- and prune_chunks resolves a
 %% document THROUGH its source record, so those chunks could not be
-%% removed by any capability. Live (2026-09-02): 33 documents deleted
+%% removed by any capability of its own. Live (2026-09-02): 33 documents deleted
 %% from the corpus months earlier were still answering searches.
 retire_document_takes_orphan_chunks(_Config) ->
     DocId = fresh_id(),

@@ -2,7 +2,7 @@
 
 This exists so the bounds mcl-rag#5 added are picked from numbers, not guesses.
 
-Measured 2026-10-10 on msi00, against the live corpus volume
+Measured 2026-10-10 on a lab box, against the live corpus volume
 (`mcl-rag-data-v2`, the 2026-10-10 state) and fresh depth-bounded clones of the
 same branches, with the OS `git` (a measuring tool here, never a runtime
 dependency: the service uses the vendored-libgit2 NIF). `measure.sh` is the
@@ -77,5 +77,5 @@ For these repos that still leaves the worktree (and the walk) as the thing
 - Sizes are the 2026-10-10 tips of the branches the corpus follows, not the
   exact ingested objects (same heads; a handful of files may have moved since
   the corpus was fetched).
-- Clone times are one run each on msi00's link; treat them as scale, not
+- Clone times are one run each on a lab box's link; treat them as scale, not
   benchmarks.

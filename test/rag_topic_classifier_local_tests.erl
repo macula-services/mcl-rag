@@ -1,6 +1,6 @@
 %%% @doc The topic classifier on the node's own ollama (Raf, 2026-09-29).
 %%%
-%%% One backend: msi00's ollama on loopback, through its OpenAI-compatible
+%%% One backend: the host's ollama on loopback, through its OpenAI-compatible
 %%% chat endpoint, with a local model. No hosted LLM, no API key, no second
 %%% backend: nothing leaves the box, and a failure is returned as it is.
 %%% `httpc' is mocked so no network is touched; every request is recorded so

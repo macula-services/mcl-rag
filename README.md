@@ -176,7 +176,7 @@ what stops a config table in a README and the real environment drifting.
 
 A `v*` tag publishes `ghcr.io/macula-services/mcl-rag:<version>` and nothing else, signed
 by digest with its SBOM and provenance (macula-ci-images' `attest-image.yml`). A push to
-`main` publishes `:main` and `:<sha>`, which nothing follows, and nothing moves `:latest`.
+`main` publishes `:main` and `:<sha>`, which nothing follows. Nothing moves `:latest`.
 The fleet runs a release by digest: macula-fleet's pin-releases workflow finds the signed
 release, verifies it was signed on its tag and pins `<version>@sha256:<digest>`
 (macula-fleet#14, #15), so a green `v*` tag is the deploy. To roll back, revert the pin and
@@ -188,9 +188,10 @@ Three things CI cannot do for you:
    the host with a bare `unauthorized` that names nothing. Check it after the
    first build. On ghcr the `org.opencontainers.image.source` label in the
    Containerfile is what links the package to the repository.
-2. The host needs `MCL_REALM`, `MCL_REALM_NAME`, `MCL_REALM_KEY`, the pinned
-   station pair and `MCL_RAG_IMAGE_DIGEST` supplied from its deploy config,
-   and its own ollama on `127.0.0.1:11434` holding the embedding model
+2. The host needs `MCL_REALM`, `MCL_REALM_NAME`, `MCL_REALM_KEY`, the stations
+   it dials (each seed paired with its node id) and `MCL_RAG_IMAGE_DIGEST`
+   supplied from its deploy config, plus its own ollama on `127.0.0.1:11434`
+   holding the embedding model
    (`macula/multilingual-e5-small:f16`) and the classifier's
    (`qwen2.5:7b-instruct-q4_K_M`). No API key: both models are local.
 3. The data volume is the memory. Recreating the container keeps it, but

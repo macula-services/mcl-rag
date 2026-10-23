@@ -22,7 +22,7 @@ Legend used in all three diagrams: the amber box is the element in scope, blue b
 | Corpus repos | The public GitHub repos in `deploy/corpus-repos.json` (51 today), cloned over HTTPS (or from an absolute path on the box), no credentials; each entry's branch head is followed on every tick — nothing is pinned — with optional `depth`/`paths` bounds |
 | Other mcl-rag shards | The org's federated retrieval (`macula_rag`): a peer asks this shard with `mcl-rag/rag.query_shard_v1`. Scores merge only between shards naming the same model and dimension |
 | macula-station | The pinned home station the service dials out to over QUIC; every call to and from this node goes through it |
-| macula-realm | Takes the boot identity claim and grants a D25 provider authorization for each procedure; its public key (`MCL_REALM_KEY`) is the trust anchor for every advertisement |
+| macula-realm | Takes the boot identity claim and grants a D25 provider authorization for each procedure of its own; its public key (`MCL_REALM_KEY`) is the trust anchor for every advertisement |
 | ollama on the host | The host's own model server on loopback `127.0.0.1:11434`: embeddings and the topic classifier. No API key, no hosted LLM, nothing leaves the box |
 | mcl-embedder | Embedding over the mesh (`mcl-embedder/embed`), for a node that cannot embed locally. Supported by the code (`embed_provider mcl_embedder`), not used here |
 

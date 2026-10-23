@@ -102,7 +102,7 @@
 %% get_watermark/2 -- times out waiting its turn, not because anything
 %% is actually stuck. Verified live, back when the embedder round-trip
 %% itself still ran inside handle_call: refresh_corpus_scheduler
-%% crash-looped indefinitely on beam03 with {timeout, {gen_server, call,
+%% crash-looped indefinitely on a lab box with {timeout, {gen_server, call,
 %% [rag_store, {get_watermark, ...}]}} on its very first tick, every 5
 %% seconds, never completing a pass. Embedding has since moved out to
 %% the caller (rag_chunk_embedder), but the write burst remains. 60s
@@ -537,7 +537,7 @@ dimension() ->
     rag_embedder:dimension().
 
 %% Provider selection. Defaults to `ollama', the node's own on loopback, which
-%% is what msi00 runs (config/sys.config.src, 2026-09-29). `mcl_embedder'
+%% is what the host runs (config/sys.config.src, 2026-09-29). `mcl_embedder'
 %% embeds over the mesh instead, for a node that cannot embed locally (the
 %% beam Celerons have no AVX2) -- see rag_embed_mcl_embedder.
 %% The provider is decided in one place, rag_embedder:provider/0, so the store

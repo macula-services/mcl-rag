@@ -10,7 +10,7 @@
 %%% and vector lookups, never an outbound call.
 %%%
 %%% Provider selection mirrors `rag_store:embedder()': `ollama' (the
-%%% node's own, on loopback; msi00's since 2026-09-29) or `mcl_embedder'
+%%% node's own, on loopback; the host's since 2026-09-29) or `mcl_embedder'
 %%% (over the mesh, for a node that cannot embed locally).
 %%%
 %%% Every text is embedded in a role: `passage' for what is stored, `query'

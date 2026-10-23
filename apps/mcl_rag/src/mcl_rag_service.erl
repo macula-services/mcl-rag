@@ -1,7 +1,7 @@
 %% @doc The mcl_om service contract for mcl-rag: the mesh's shared memory.
 %%
 %% Retrieval over a realm-bound corpus, and the deposits agents remember into
-%% it, served as nineteen org-namespaced procedures under `mcl-rag'. Its data
+%% it, served as nineteen org-namespaced procedures of its own under `mcl-rag'. Its data
 %% is one barrel database, `rag_chunks' (documents and vectors), under the
 %% data dir. A store migrated from the predecessor service opens as it is.
 %%
@@ -46,8 +46,8 @@ stop(_State) -> ok.
 %% meanwhile. The federated procedure is macula_rag's, not one of the
 %% nineteen, so mcl_om's provider_grants never lists it: join_federation
 %% reports its grant here. Whether callers can REACH each of the nineteen
-%% (its D25 provider grant) is reported by mcl_om's /health itself, combined
-%% with this verdict.
+%% procedures of its own (its D25 provider grant) is reported by mcl_om's
+%% /health itself, combined with this verdict.
 health() ->
     store_health(whereis(rag_store)).
 
@@ -57,11 +57,11 @@ store_health(_Pid)      -> opened(rag_store:status()).
 opened(open)    -> join_federation:health();
 opened(opening) -> {degraded, store_opening}.
 
-%% The nineteen procedures, registered by mcl_om as `mcl-rag/<name>' (the org
+%% The nineteen procedures of its own, registered by mcl_om as `mcl-rag/<name>' (the org
 %% comes from config). Each goes through mcl_om's simple handler into
 %% mcl_rag_mesh_rpc's handler of the same name.
 %%
-%% ⚠ EIGHT ARE OPERATOR-ONLY: every procedure that deletes, replaces or
+%% ⚠ EIGHT ARE OPERATOR-ONLY: every procedure of its own that deletes, replaces or
 %% rewrites what the store holds (rag_operators:operator_only/0) refuses a
 %% caller whose verified node id is not in `operators'. Queries and
 %% add_knowledge stay open to any caller the station admits.

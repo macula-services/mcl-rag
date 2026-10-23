@@ -62,9 +62,9 @@
         %% listener, no health port on the host.
         {health_socket,     "/run/mcl/health.sock"},
         {capability_topic,  <<"_mesh.cap.">>},
-        %% The org the nineteen procedures are served under: `mcl-rag/<name>'.
+        %% The org the nineteen procedures of its own are served under: `mcl-rag/<name>'.
         %% The realm must have granted THIS node a provider authorization for
-        %% each (D25), or nothing is advertised and /health says so.
+        %% each (D25), or nothing of its own is advertised and /health says so.
         {org,               <<"mcl-rag">>},
         {service_name,      <<"mcl-rag">>},
         %% THE REALM IS AN APPLICATION ENV, NOT A SHELL VARIABLE, and this file
@@ -92,8 +92,8 @@
         %% An earlier version of this file said the realm's key comes from a
         %% `foundation_realm_trust_list' DHT record rather than from here.
         %% That is WRONG for this path and cost a deployment: `macula_direct_dial'
-        %% never supplies the foundation form, so the pinned key is the only
-        %% way an advertisement is ever trusted.
+        %% never supplies the foundation form, so an advertisement is trusted
+        %% only when that key is pinned.
         {realm_key,         <<"${MCL_REALM_KEY}">>},
         %% ⚠ THE SERVICE IS NOTHING WITHOUT THE MESH. With `required' (mcl_om
         %% 0.33.1) a boot missing MCL_REALM, MCL_REALM_KEY,
@@ -122,10 +122,10 @@
     %% believe it had chosen a difficulty that nothing reads.
     %%
     %% NAMES ITS KEM KEY (#16): every advertisement, the nineteen procedures
-    %% and macula_rag's rag.query_shard_v1 alike, carries an ML-KEM key, so a
+    %% of its own and macula_rag's rag.query_shard_v1 alike, carries an ML-KEM key, so a
     %% caller seals its query or deposit end to end and a station relays only
     %% ciphertext. A property of the service, so a literal here and not a
-    %% per-box variable. The nineteen procedures and macula_rag's
+    %% per-box variable. The nineteen procedures of its own and macula_rag's
     %% rag.query_shard_v1 are `required' and refuse a clear call, which needs
     %% this switch (mcl_om and macula_rag both refuse `required' without it).
     {macula, [

@@ -22,7 +22,7 @@ mcl_embedder_is_the_mesh_client_test() ->
         ?assertMatch({rag_embed_mcl_embedder, #{dimension := _}}, rag_embedder:provider())
     end).
 
-%% What msi00 runs: the node's own ollama, url and model from config, the
+%% What the host runs: the node's own ollama, url and model from config, the
 %% loopback url when none is set.
 ollama_is_the_nodes_own_on_loopback_test() ->
     with_env([{embed_provider, ollama}, {embed_url, <<"http://127.0.0.1:11434">>},

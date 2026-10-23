@@ -288,7 +288,7 @@ def components():
     om = [("b-cmp", "identity key", ["/etc/mcl/secrets; the node", "id survives a recreate"]),
           ("b-cmp", "station dial", ["pinned seed + node id;", "{mesh, required} at boot"]),
           ("b-cmp", "realm claim", ["boot claim; a D25 grant", "per procedure"]),
-          ("b-cmp", "info, get_limits", ["mcl-rag/info and", "get_limits; /health"]),
+          ("b-cmp", "info, get_limits", ["mcl-rag/info, get_limits", "both open; /health"]),
           ("b-later", "event store", ["reckon-db via store_id/0:", "not used by mcl-rag"])]
     for i, (cls, name, desc) in enumerate(om):
         x = 48 + i * 180
