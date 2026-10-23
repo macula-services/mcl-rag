@@ -6,9 +6,10 @@
 %% `info' added the way mcl_om_info:with_info/1 adds it (mcl_om adds
 %% `get_limits' at boot), then sent through macula's own
 %% frame codec, the path a reply takes. What arrives must be text, never bytes,
-%% and name this service, its procedures and the mcl_om 0.28 / macula 12.2 pair
-%% it was built with (12.2 under an older mcl_om lets a failed publish
-%% announcement kill the publishing process).
+%% and name this service, its procedures and the mcl_om 1.4 / macula 16.0 pair
+%% it runs on (under an older mcl_om and macula 12.2, a failed publish
+%% announcement killed the publishing process; the floors asserted below are
+%% what this tree builds against).
 -module(mcl_rag_info_tests).
 
 -include_lib("eunit/include/eunit.hrl").
