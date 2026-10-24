@@ -51,7 +51,7 @@
 <rect class="bg" x="0" y="0" width="1000" height="700"/>
 
 <rect class="bound" x="220" y="40" width="560" height="624" rx="12"/>
-<text class="t-bound" x="236" y="62">host [podman, host networking, one unit per element]</text>
+<text class="t-bound" x="236" y="62">host [podman, host networking]</text>
 <rect class="bound-in" x="236" y="72" width="528" height="476" rx="10"/>
 <text class="t-bound" x="252" y="94">mcl-rag [Software system, mcl-om service]</text>
 <path class="edge" d="M200 136H260" marker-end="url(#a)"/>

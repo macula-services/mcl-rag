@@ -205,7 +205,7 @@ def context():
 def containers():
     s = Svg(1000, 700, "mcl-rag containers")
 
-    s.bound("bound", 220, 40, 560, 624, "host [podman, host networking, one unit per element]")
+    s.bound("bound", 220, 40, 560, 624, "host [podman, host networking]")
     s.bound("bound-in", 236, 72, 528, 476, "mcl-rag [Software system, mcl-om service]")
 
     # Edges
