@@ -2,7 +2,7 @@
 
 *This exists so an agent anywhere on the mesh can recall what the org already knows, and deposit what it learns, in one call.*
 
-**Status: 2026-10-22** (mcl_om 1.4, macula 16.0, macula_rag 1.1, release 0.9.0). Everything here describes code that exists; the one thing marked *not used* is an alternative the code keeps but this deployment does not run.
+**Status: 2026-10-22, mcl-rag 0.9.0** (the 0.9.0 image runs mcl_om 1.0, macula 15.6 and macula_rag 1.0; the tree has moved to mcl_om 1.4, macula 16.0 and macula_rag 1.1, which is Unreleased). Everything here describes code that exists; the one thing marked *not used* is an alternative the code keeps but this deployment does not run.
 
 `mcl-rag` holds the mesh's shared memory: documents from a set of git repos plus the knowledge agents deposit, chunked, embedded and searchable by meaning. It answers retrieval over it, and it is one shard of its org's federated retrieval. It is an `mcl-om` service: one OTP release in one OCI container, with its node identity, pinned outbound station dial, realm identity claim, provider grants, `mcl-rag/info`, `mcl-rag/get_limits` and `/health` coming from [`mcl-om`](https://github.com/macula-services/mcl-om).
 

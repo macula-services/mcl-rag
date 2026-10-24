@@ -205,7 +205,7 @@ def context():
 def containers():
     s = Svg(1000, 700, "mcl-rag containers")
 
-    s.bound("bound", 220, 40, 560, 624, "container [podman, host networking]")
+    s.bound("bound", 220, 40, 560, 624, "host [podman, host networking, one unit per element]")
     s.bound("bound-in", 236, 72, 528, 476, "mcl-rag [Software system, mcl-om service]")
 
     # Edges
@@ -221,9 +221,10 @@ def containers():
     s.edge("M665 320V350")                     # corpus list
 
     s.element("b-sys", 260, 100, 480, 220, "mcl-rag service",
-              "[Container: OCI image, OTP 28 release, mcl_om 1.4]",
+              "[Container: OCI image, OTP 28 release, mcl_om]",
               ["The service's own procedures as mcl-rag/<name> and",
-               "rag.query_shard_v1 through macula_rag 1.1 (macula 16).",
+               "rag.query_shard_v1 through macula_rag; release 0.9.0 runs",
+               "mcl_om 1.0 and macula 15.6, the tree mcl_om 1.4 on macula 16.",
                "mcl-om adds mcl-rag/info and mcl-rag/get_limits, both open;",
                "capabilities/0 is the list. From mcl-om: node identity,",
                "pinned outbound station dial, realm identity claim, provider",
