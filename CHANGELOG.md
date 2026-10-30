@@ -5,21 +5,29 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 0.10.0 - 2026-10-30
 
 ### Changed
 
+- **The base library is macula 18** (macula-io/macula#147, mcl-om#41): the macula
+  floor moves `~> 16.0` to `~> 18.0`, and `mcl_om` to `~> 1.6`, the release whose
+  own base is macula 18. 18 keeps wire 1.0, so this service still speaks to every
+  wire 1.0 box; what it adds is the caller class a handler-bearing capability
+  must name and the source rule a subscription must name.
+
+- **Every procedure names who may call it.** mcl_om 1.6 refuses the boot of a
+  handler-bearing capability that names no `auth`, so without this the service
+  would not have come up at all. All nineteen name `auth => open`: any identified
+  caller that reaches the mesh may ask. That is a different question from the
+  `confidential => required` they already carried, and it is unchanged — `open`
+  decides who may ask, sealing decides how they must ask, so a query, a deposit
+  or an operator write still crosses a station only as ciphertext. A test now
+  fails if a procedure is added without a policy.
+
 - **`macula_rag` floors at `~> 1.1`** (macula-codebase-checks#4). `~> 1.0` also
   admits 1.0.0, whose own floor is macula `~> 15.6`, so a resolve could pair
-  this service's macula 16 with a library built for 15, the same shape as
+  this service's macula 18 with a library built for 15, the same shape as
   the `mcl_om` rule (#14). 1.1.0 is the release on macula 16.
-
-- **The base library is macula 16** (macula-codebase-checks#4): the macula floor moves
-  `~> 15.6` to `~> 16.0`, and `mcl_om` to `~> 1.4`, the release whose own base is
-  macula 16. 16.0 keeps wire 1.0, so this service still speaks to every wire 1.0 box;
-  what it adds is the revocation bound (macula#118): an endorsement admits its holder
-  for at most 24 hours, and a gated overlay context must pass `member_standing`. This
-  service gates no overlay and issues no endorsement.
 
 - Every app the release names carries the release version (mcl-rag#33). The desk
   apps sat at 0.4.0 through v0.9.0 while the release tuple said the tag's

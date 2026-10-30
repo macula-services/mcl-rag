@@ -98,6 +98,16 @@ every_procedure_refuses_a_clear_call_test() ->
     ?assertMatch({error, {mcl_om_confidential_required_without_kem_advertise, _}},
                  mcl_om_capabilities:confidentiality_verdict(Caps, disabled)).
 
+%% MACULA 18 ASKS WHO MAY CALL, and mcl_om 1.6 refuses the boot of a
+%% handler-bearing capability that names nothing (macula#147, mcl-om#41). The
+%% refusal happens on a live node at boot, so a forgotten policy shows up as a
+%% shard going quiet; asserting it here is what turns that into a failing test.
+%% It is a separate question from the sealing one above: whoever may ask, the
+%% answer still crosses a station only as ciphertext.
+every_procedure_names_who_may_call_it_test() ->
+    ?assertEqual([], [N || #{name := N} = C <- ?SERVICE:capabilities(),
+                           maps:get(auth, C, none) =:= none]).
+
 the_shipped_config_names_the_org_test() ->
     {ok, Text} = file:read_file(alongside("config/sys.config.src")),
     ?assertNotEqual(nomatch, binary:match(Text, <<"{org,               <<\"mcl-rag\">>}">>)).

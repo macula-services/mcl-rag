@@ -80,8 +80,16 @@ capabilities() ->
 %% Each names the KEM key (#16, kem_advertise in sys.config) and refuses a call
 %% in the clear: a query, a deposit or an operator write crosses a station only
 %% as ciphertext.
+%%
+%% Each also names WHO MAY CALL IT, which macula 18 requires of a
+%% handler-bearing capability (macula#147, mcl-om#41: mcl_om 1.6 refuses the
+%% boot of one that names nothing). `open' is what this service has always
+%% served -- any identified caller that reaches the mesh may ask -- and it is
+%% not the same question as `confidential => required': open decides who may
+%% ask, sealing decides how they must ask. Whoever asks, the answer crosses a
+%% station only as ciphertext.
 cap(Name) ->
-    #{name => Name, version => 1, confidential => required,
+    #{name => Name, version => 1, confidential => required, auth => open,
       handler => {mcl_om_simple_handler,
                   {mcl_rag_mesh_rpc, binary_to_atom(<<"handle_", Name/binary>>)}}}.
 

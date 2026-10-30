@@ -223,8 +223,8 @@ def containers():
     s.element("b-sys", 260, 100, 480, 220, "mcl-rag service",
               "[Container: OCI image, OTP 28 release, mcl_om]",
               ["The service's own procedures as mcl-rag/<name> and",
-               "rag.query_shard_v1 through macula_rag; release 0.9.0 runs",
-               "mcl_om 1.0 and macula 15.6, the tree mcl_om 1.4 on macula 16.",
+               "rag.query_shard_v1 through macula_rag; release 0.10.0 runs",
+               "mcl_om 1.6 and macula 18.0, both sealing every call.",
                "mcl-om adds mcl-rag/info and mcl-rag/get_limits, both open;",
                "capabilities/0 is the list. From mcl-om: node identity,",
                "pinned outbound station dial, realm identity claim, provider",
@@ -285,7 +285,7 @@ def components():
                  "identity_spec/0: scope mcl-rag, no actions or resources, 30 days. No store_id/0 or data_dir/0: storeless."])
 
     # What mcl-om provides
-    s.bound("bound-in", 32, 180, 928, 112, "mcl_om 1.4 [library: what every mcl-om service gets]")
+    s.bound("bound-in", 32, 180, 928, 112, "mcl_om 1.6 [library: what every mcl-om service gets]")
     om = [("b-cmp", "identity key", ["/etc/mcl/secrets; the node", "id survives a recreate"]),
           ("b-cmp", "station dial", ["pinned seed + node id;", "{mesh, required} at boot"]),
           ("b-cmp", "realm claim", ["boot claim; a D25 grant", "per procedure"]),
