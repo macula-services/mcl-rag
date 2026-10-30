@@ -24,7 +24,7 @@
 %% 1.1 or a later 1.x (the RAG service contract, corpus hash and signature) is
 %% what this service is written against, and it is what rebar.config declares:
 %% 1.0.0 is the release whose own floor is macula `~> 15.6', so `~> 1.0' could
-%% pair this service's macula 16 with a library built for 15
+%% pair this service's macula 18 with a library built for 15
 %% (macula-codebase-checks#14). A floor, not a string match: `~> 1.1' floats to
 %% 2.0, and a test pinned to a minor would break the day that ships.
 the_resolved_macula_rag_is_1_1_or_later_test() ->

@@ -6,7 +6,7 @@
 %% `info' added the way mcl_om_info:with_info/1 adds it (mcl_om adds
 %% `get_limits' at boot), then sent through macula's own
 %% frame codec, the path a reply takes. What arrives must be text, never bytes,
-%% and name this service, its procedures and the mcl_om 1.4 / macula 16.0 pair
+%% and name this service, its procedures and the mcl_om 1.6 / macula 18.0 pair
 %% it runs on (under an older mcl_om and macula 12.2, a failed publish
 %% announcement killed the publishing process; the floors asserted below are
 %% what this tree builds against).
@@ -29,10 +29,12 @@ info_round_trip_test_() ->
           ?_assertEqual([{text, C} || C <- [<<(?ORG)/binary, "/info">> | Own]],
                         maps:get(capabilities, Reply)),
           ?_assertEqual([], [V || V <- lists:flatten(maps:values(Reply)), is_binary(V)]),
-          %% Floors, not exact minors: mcl_om 1.4 or later WITH macula 16.0 or
-          %% later: 16 keeps wire 1.0, the wire the flag day (macula-fleet#27)
-          %% moved every service to. mcl_om 1.4 keeps 0.33.3's fix (register/1 replies at
-          %% once and advertises after, which nineteen procedures need to boot).
+          %% Floors, not exact minors: mcl_om 1.6 or later WITH macula 18.0 or
+          %% later: 18 keeps wire 1.0, the wire the flag day (macula-fleet#27)
+          %% moved every service to. mcl_om 1.6 keeps 0.33.3's fix (register/1
+          %% replies at once and advertises after, which nineteen procedures
+          %% need to boot) and is where a handler-bearing capability must name
+          %% its callers (macula#147).
           ?_assert(at_least(maps:get(mcl_om_version, Reply), [1, 6, 0])),
           ?_assert(at_least(maps:get(macula_version, Reply), [18, 0, 0]))]
      end}.
