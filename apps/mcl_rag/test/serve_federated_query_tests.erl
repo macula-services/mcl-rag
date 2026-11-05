@@ -21,22 +21,35 @@
 %% The resolved library
 %%------------------------------------------------------------------------------
 
-%% 1.1 or a later 1.x (the RAG service contract, corpus hash and signature) is
-%% what this service is written against, and it is what rebar.config declares:
-%% 1.0.0 is the release whose own floor is macula `~> 15.6', so `~> 1.0' could
-%% pair this service's macula 18 with a library built for 15
-%% (macula-codebase-checks#14). A floor, not a string match: `~> 1.1' floats to
-%% 2.0, and a test pinned to a minor would break the day that ships.
-the_resolved_macula_rag_is_1_1_or_later_test() ->
+%% 2.x (the RAG service contract, corpus hash and signature, on macula 18) is
+%% what this service is written against, and it is what rebar.config declares.
+%% 1.1 bound macula:subscribe/4, which macula 18 removed (#44).
+the_resolved_macula_rag_is_2_test() ->
     ok = loaded(application:load(macula_rag)),
     {ok, Vsn} = application:get_key(macula_rag, vsn),
-    [Major, Minor | _] = [list_to_integer(P) || P <- string:split(Vsn, ".", all)],
-    ?assertEqual(1, Major),
-    ?assert(Minor >= 1),
+    [Major | _] = [list_to_integer(P) || P <- string:split(Vsn, ".", all)],
+    ?assertEqual(2, Major),
     {module, _} = code:ensure_loaded(macula_rag),
     [?assert(erlang:function_exported(macula_rag, F, A))
      || {F, A} <- [{configure, 3}, {register_responder, 1}, {advertise, 2}, {status, 0},
                    {corpus_hash, 1}, {sign_corpus, 2}, {verify_corpus, 3}]].
+
+%% Versions are resolved HERE, not in macula_rag: rebar3 lets this service's own
+%% macula constraint win over the library's. So the check that every macula
+%% call the library binds is exported runs against the macula this service
+%% resolved; 0.10.0 and 0.10.1 would have failed it on subscribe/4 (#44).
+every_macula_call_macula_rag_makes_is_exported_here_test() ->
+    Missing = [{Name, M, F, A} || {Name, Fun} <- maps:to_list(macula_rag:default_io()),
+                                  {type, external} <- [erlang:fun_info(Fun, type)],
+                                  {module, M} <- [erlang:fun_info(Fun, module)],
+                                  {name, F} <- [erlang:fun_info(Fun, name)],
+                                  {arity, A} <- [erlang:fun_info(Fun, arity)],
+                                  not exported(M, F, A)],
+    ?assertEqual([], Missing).
+
+exported(M, F, A) ->
+    {module, M} = code:ensure_loaded(M),
+    erlang:function_exported(M, F, A).
 
 %%------------------------------------------------------------------------------
 %% Answering a shard query
@@ -91,7 +104,9 @@ joining_configures_answers_and_summarizes_test() ->
                        embedding => #{model => <<"macula/multilingual-e5-small:f16">>, dim => 384},
                        %% A peer's query to this shard is sealed or refused, as
                        %% every other procedure's call is (#16).
-                       confidential => required},
+                       confidential => required,
+                       %% Any realm member may ask; macula 18 has no default.
+                       auth => {callers, members}},
                      Opts),
         ?assertEqual(1, meck:num_calls(macula_rag, register_responder,
                                        [fun answer_federated_query:answer/2])),

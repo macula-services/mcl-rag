@@ -98,7 +98,11 @@ options() ->
       embedding  => rag_embedder:embedding(),
       %% rag.query_shard_v1 refuses a peer's query in the clear, as every
       %% other procedure refuses a clear call (#16); needs kem_advertise.
-      confidential => required}.
+      confidential => required,
+      %% Who may ask this shard: a member of the realm, as macula checks it
+      %% against the realm key the pool pinned. macula 18 has no default
+      %% (macula#147), and macula_rag 2.0 refuses a configuration without it.
+      auth => {callers, members}}.
 
 to_bin(L) when is_list(L) -> unicode:characters_to_binary(L);
 to_bin(Other) -> Other.

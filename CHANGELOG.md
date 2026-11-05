@@ -5,6 +5,26 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.10.2 - 2026-11-05
+
+### Fixed
+
+- **The service starts on macula 18 and serves** (#44). 0.10.0 and 0.10.1 died at
+  boot: macula_rag 1.1 bound `macula:subscribe` with four arguments, which macula 18
+  removed, and rebar3 let this service's `{macula, "~> 18.0"}` win over the
+  library's own `~> 16.0` without a word. The federation directory crashed with
+  `undef` the first time it subscribed, the application stopped, and the unit
+  restarted in a loop, so no `mcl-rag/*` procedure was ever reachable. On macula_rag
+  2.0 (macula-io/macula-rag#3), which subscribes with `sources` and advertises with
+  `auth`. The shard procedure takes `auth => {callers, members}`: any realm member
+  may ask it, checked against the pinned realm key.
+- **The image ships the versions CI tested.** `rebar.lock` is committed, and the
+  Containerfile copies it before `rebar3 get-deps`; it was gitignored, so every
+  image build resolved its dependencies afresh.
+- A test checks that every macula call the resolved macula_rag binds is exported by
+  the resolved macula. Versions are resolved here, not in the library, so this is
+  where that check has to run.
+
 ## 0.10.1 - 2026-11-05
 
 ### Fixed

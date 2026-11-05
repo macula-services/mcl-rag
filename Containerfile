@@ -32,9 +32,11 @@ RUN erl -noshell -eval ' \
 
 WORKDIR /build
 
-# Dependencies resolve from rebar.config alone, so this layer survives every
-# change to config/ and apps/ and the Rust toolchain is not re-run per commit.
-COPY rebar.config ./
+# Dependencies resolve from rebar.config and rebar.lock alone, so this layer
+# survives every change to config/ and apps/ and the Rust toolchain is not
+# re-run per commit. The lock makes get-deps fetch exactly the versions CI
+# tested, not whatever the constraints resolve to on the day of the build (#44).
+COPY rebar.config rebar.lock ./
 RUN rebar3 get-deps
 
 COPY config ./config
