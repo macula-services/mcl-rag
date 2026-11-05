@@ -50,6 +50,8 @@
     tag_chunk/2,
     search_text/2,
     search_vector/2,
+    search_text_in_topics/3,
+    search_vector_in_topics/3,
     get/1,
     size/0,
     upsert_source/1,
@@ -85,6 +87,10 @@
 %% deposited it, and the sha256 of the stored text.
 -define(PROVENANCE_FIELDS, [<<"repo_id">>, <<"commit">>, <<"content_sha256">>,
                             <<"deposited_by">>]).
+%% The chunk fields the vector index carries as a hit's metadata.
+-define(METADATA_FIELDS, [<<"source_path">>, <<"header_path">>, <<"kind">>,
+                          <<"start_line">>, <<"end_line">>, <<"type">>,
+                          <<"topics">> | ?PROVENANCE_FIELDS]).
 -define(SOURCE_ID_PREFIX, "source:").
 -define(WATERMARK_ID_PREFIX, "watermark:").
 -define(REEMBED_ID_PREFIX, "reembed:").
@@ -154,7 +160,9 @@ forget_chunk(ChunkId) when is_binary(ChunkId) ->
 %% @doc Tag an existing chunk with topic labels. Merges `Topics' into
 %% the chunk's document metadata (under `<<"topics">>') using the same
 %% upsert-with-rev pattern as `put_chunk'. The chunk must already
-%% exist — this is an enrichment step, not a creation step.
+%% exist — this is an enrichment step, not a creation step. Each topic is
+%% stored lowercased and trimmed (`topic_key/1'), the form a topic-scoped
+%% search looks it up by.
 -spec tag_chunk(binary(), [binary()]) -> ok | {error, term()}.
 tag_chunk(ChunkId, Topics) when is_binary(ChunkId), is_list(Topics) ->
     gen_server:call(?MODULE, {tag_chunk, ChunkId, Topics}, ?CALL_TIMEOUT).
@@ -175,6 +183,29 @@ search_text(QueryText, TopK)
 search_vector(Vector, TopK)
   when is_list(Vector), is_integer(TopK), TopK > 0 ->
     gen_server:call(?MODULE, {search_vector, Vector, TopK}, ?CALL_TIMEOUT).
+
+%% @doc `search_text/2' within the chunks tagged with any of `Topics'
+%% (mcl-rag#42). The query is embedded in the caller's process, as there.
+-spec search_text_in_topics(binary(), [binary() | string()], pos_integer()) ->
+    {ok, [map()]} | {error, term()}.
+search_text_in_topics(QueryText, Topics, TopK)
+  when is_binary(QueryText), is_list(Topics), is_integer(TopK), TopK > 0 ->
+    case rag_embedder:embed(query, QueryText) of
+        {ok, Vector} -> search_vector_in_topics(Vector, Topics, TopK);
+        {error, _} = E -> E
+    end.
+
+%% @doc The `TopK' best hits among the chunks tagged with any of `Topics',
+%% however the rest of the store ranks against `Vector' (mcl-rag#42). The
+%% tagged chunks are looked up first (barrel indexes a list field by
+%% membership) and each is scored exactly, so a tagged deposit is never lost
+%% behind untagged corpus text, which filtering the index's answer afterwards
+%% did. A topic matches case-blind and trimmed, the way `tag_chunk/2' stores it.
+-spec search_vector_in_topics([float()], [binary() | string()], pos_integer()) ->
+    {ok, [map()]} | {error, term()}.
+search_vector_in_topics(Vector, Topics, TopK)
+  when is_list(Vector), is_list(Topics), is_integer(TopK), TopK > 0 ->
+    gen_server:call(?MODULE, {search_vector_in_topics, Vector, Topics, TopK}, ?CALL_TIMEOUT).
 
 -spec get(binary()) -> {ok, map()} | {error, not_found} | refused().
 get(ChunkId) when is_binary(ChunkId) ->
@@ -371,6 +402,9 @@ chunk_op({tag_chunk, ChunkId, Topics}) ->
 chunk_op({search_vector, Vector, TopK}) ->
     fun(Db) -> distinct_hits(Db, Vector, TopK) end;
 
+chunk_op({search_vector_in_topics, Vector, Topics, TopK}) ->
+    fun(Db) -> tagged_hits(Db, Vector, Topics, TopK) end;
+
 chunk_op({get, Id}) ->
     fun(Db) -> chunk_from_doc(barrel:get_doc(Db, Id)) end;
 
@@ -518,9 +552,7 @@ open_in(ok) ->
             mode => sync,
             embedder => embedder(),
             dimensions => dimension(),
-            metadata_fields => [<<"source_path">>, <<"header_path">>, <<"kind">>,
-                                <<"start_line">>, <<"end_line">>, <<"type">>,
-                                <<"topics">> | ?PROVENANCE_FIELDS]
+            metadata_fields => ?METADATA_FIELDS
         }
     }).
 
@@ -618,7 +650,8 @@ tag_chunk_doc(Db, ChunkId, Topics) ->
     tag_chunk_doc(Db, ChunkId, Topics, barrel:get_doc(Db, ChunkId)).
 
 tag_chunk_doc(Db, ChunkId, Topics, {ok, Doc}) ->
-    Updated = with_stored_vector(Db, ChunkId, Doc#{<<"topics">> => Topics}),
+    Keys = first_of_each([topic_key(T) || T <- Topics]),
+    Updated = with_stored_vector(Db, ChunkId, Doc#{<<"topics">> => Keys}),
     normalize_write(put_doc_upsert(Db, ChunkId, Updated));
 tag_chunk_doc(_Db, _ChunkId, _Topics, {error, _} = E) ->
     E.
@@ -666,6 +699,62 @@ chunk_count(Db) ->
 
 distinct_hits(Db, Vector, TopK) ->
     distinct(Db, barrel:search_vector(Db, Vector, #{k => TopK * ?OVERFETCH}), TopK).
+
+%% The tagged chunks, each scored against `Vector' as the index scores
+%% (cosine similarity), best first; then collapsed the way `distinct/3'
+%% collapses an index answer. A tagged chunk with no vector is not searchable
+%% (`put_chunk/3'), here as in the index, and a vector of another length is
+%% not comparable, so neither is scored. A topic is looked up as given and as
+%% `tag_chunk/2' stores it, so a chunk tagged before topics were normalised
+%% is still found by the spelling it was tagged with.
+tagged_hits(Db, Vector, Topics, TopK) ->
+    Keys = lists:usort([topic_key(T) || T <- Topics] ++ [as_binary(T) || T <- Topics]),
+    Query = #{where => [{missing, [<<"type">>]}, any_topic(Keys)]},
+    ranked(Db, Vector, collect_found(Db, Query, 0, ?FIND_ALL, none, []), TopK).
+
+ranked(Db, Vector, {ok, Docs}, TopK) ->
+    Scored = lists:filtermap(fun(D) -> scored(Db, Vector, find_doc(D)) end, Docs),
+    Best = lists:sublist(lists:reverse(lists:keysort(1, Scored)), TopK * ?OVERFETCH),
+    distinct(Db, {ok, [Raw || {_Score, Raw} <- Best]}, TopK);
+ranked(_Db, _Vector, {error, _} = E, _TopK) ->
+    E.
+
+any_topic([Key]) -> {path, [<<"topics">>], Key};
+any_topic(Keys)  -> {'or', [{path, [<<"topics">>], K} || K <- Keys]}.
+
+scored(Db, Vector, #{<<"id">> := Id, <<"content">> := Content} = Doc) ->
+    case barrel:vector_get(Db, Id) of
+        {ok, #{vector := Stored}} when is_list(Stored), length(Stored) =:= length(Vector) ->
+            Score = cosine(Vector, Stored),
+            {true, {Score, #{key => Id, score => Score, text => Content,
+                             metadata => maps:with(?METADATA_FIELDS, Doc)}}};
+        _NoVector ->
+            false
+    end;
+scored(_Db, _Vector, _NotAChunk) ->
+    false.
+
+cosine(A, B) ->
+    cosine_of(dot(A, B), math:sqrt(dot(A, A)) * math:sqrt(dot(B, B))).
+
+cosine_of(_Dot, Norms) when Norms < 1.0e-10 -> 0.0;
+cosine_of(Dot, Norms)                       -> Dot / Norms.
+
+dot(A, B) -> lists:foldl(fun({X, Y}, Acc) -> Acc + X * Y end, 0.0, lists:zip(A, B)).
+
+%% A list without its repeats, in the order given: a topic list's order is
+%% the classifier's ranking.
+first_of_each(List) ->
+    lists:reverse(element(1, lists:foldl(fun first_of/2, {[], #{}}, List))).
+
+first_of(X, {Kept, Seen}) when is_map_key(X, Seen) -> {Kept, Seen};
+first_of(X, {Kept, Seen})                          -> {[X | Kept], Seen#{X => true}}.
+
+%% The one spelling a topic is stored and looked up by.
+topic_key(T) -> string:lowercase(string:trim(as_binary(T))).
+
+as_binary(T) when is_binary(T) -> T;
+as_binary(T) when is_list(T)   -> unicode:characters_to_binary(T).
 
 distinct(Db, {ok, RawHits}, TopK) ->
     {ok, lists:sublist(collapsed([hit(Db, H) || H <- RawHits]), TopK)};
@@ -839,14 +928,14 @@ find_doc(Doc)                 -> Doc.
 %% and the reason `list_sources_page' caps `limit' at 200.
 list_sources_page(Db, Offset, Limit) ->
     Query = #{where => [{path, [<<"type">>], <<"source">>}]},
-    case collect_sources(Db, Query, Offset, Limit, none, []) of
+    case collect_found(Db, Query, Offset, Limit, none, []) of
         {ok, Docs}     -> {ok, [source_row(find_doc(D)) || D <- Docs]};
         {error, _} = E -> E
     end.
 
 %% One call of the walk: skip what is left of `Offset', take what is
 %% left of `Limit', then follow the cursor while both are outstanding.
-collect_sources(Db, Query, Skip, Take, Cursor, Acc) ->
+collect_found(Db, Query, Skip, Take, Cursor, Acc) ->
     case barrel:find(Db, Query, fetch_opts(Skip + Take, Cursor)) of
         {ok, Docs, Meta} ->
             {Left, Got} = take_skipping(Skip, Take, Docs),
@@ -870,7 +959,7 @@ walk_on(_Db, _Query, _Left, Need, _Meta, Acc) when Need =< 0 ->
     {ok, lists:reverse(Acc)};
 walk_on(Db, Query, Left, Need, Meta, Acc) ->
     case next_chunk(Meta) of
-        {ok, Token} -> collect_sources(Db, Query, Left, Need, Token, Acc);
+        {ok, Token} -> collect_found(Db, Query, Left, Need, Token, Acc);
         none        -> {ok, lists:reverse(Acc)}
     end.
 

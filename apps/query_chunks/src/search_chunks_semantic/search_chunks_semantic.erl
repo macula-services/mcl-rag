@@ -17,16 +17,16 @@
 %%%
 %%% Both forms accept an optional `top_k` field, default 10.
 %%%
-%%% Optional `<<"topics">> := [binary()]` filters results to chunks
-%%% tagged with any of the given topics. Over-fetches from the vector
-%%% index (3x top_k) then post-filters by topic metadata, returning the
-%%% top_k best matches that pass the filter.
+%%% Optional `<<"topics">> := [binary()]` searches only the chunks
+%%% tagged with any of the given topics (case-blind): the top_k best of
+%%% those, however the rest of the store ranks (mcl-rag#42). It used to
+%%% filter the index's answer afterwards, so tagged chunks outranked by
+%%% untagged text came back short or empty.
 -module(search_chunks_semantic).
 
 -export([handle/1]).
 
 -define(DEFAULT_TOP_K, 10).
--define(TOPIC_OVERFETCH_MULTIPLIER, 3).
 
 %% Uses mcl_om_wire:field/2 throughout for PARAMS lookups (query
 %% args from the wire), not hard #{<<"...">> := ...} patterns --
@@ -34,9 +34,6 @@
 %% (binary_to_existing_atom), so a hard binary-key match here silently
 %% never matches a real mesh caller's payload. See mcl_om_wire's own
 %% moduledoc and mcl-corpus's antipatterns skill for the full story.
-%% `has_any_topic/2''s own `Meta'/`Topics' lookups are UNCHANGED -- that
-%% map is a stored chunk's own internal metadata from rag_store, never
-%% wire input, so it isn't exposed to this hazard.
 -spec handle(map()) -> {ok, [map()]} | {error, term()}.
 handle(Params) when is_map(Params) ->
     handle_(mcl_om_wire:field(<<"query_vector">>, Params),
@@ -47,52 +44,30 @@ handle(_) ->
 handle_(V, _Text, Params) when is_list(V) ->
     sized(V, length(V), rag_embedder:dimension(), Params);
 handle_(_V, Text, Params) when is_binary(Text) ->
-    search_with_topics(Params, fun() -> rag_store:search_text(Text, fetch_k(Params)) end);
+    searched_text(Text, topics(Params), top_k(Params));
 handle_(_V, _Text, _Params) ->
     {error, query_text_or_vector_required}.
 
 sized(V, Dim, Dim, Params) ->
-    search_with_topics(Params, fun() -> rag_store:search_vector(V, fetch_k(Params)) end);
+    searched_vector(V, topics(Params), top_k(Params));
 sized(_V, Got, Expected, _Params) ->
     {error, {dimension_mismatch, Expected, Got}}.
 
-search_with_topics(Params, SearchFun) ->
-    case SearchFun() of
-        {ok, Hits} ->
-            Filtered = maybe_filter_by_topics(Hits, Params),
-            {ok, lists:sublist(Filtered, top_k(Params))};
-        {error, _} = E ->
-            E
-    end.
+searched_text(Text, [], TopK)     -> rag_store:search_text(Text, TopK);
+searched_text(Text, Topics, TopK) -> rag_store:search_text_in_topics(Text, Topics, TopK).
 
-maybe_filter_by_topics(Hits, Params) ->
-    maybe_filter_by_topics_(Hits, mcl_om_wire:field(<<"topics">>, Params)).
+searched_vector(V, [], TopK)     -> rag_store:search_vector(V, TopK);
+searched_vector(V, Topics, TopK) -> rag_store:search_vector_in_topics(V, Topics, TopK).
 
-maybe_filter_by_topics_(Hits, Topics) when is_list(Topics), Topics =/= [] ->
-    TopicSet = sets:from_list([normalize_topic(T) || T <- Topics]),
-    [H || H <- Hits, has_any_topic(H, TopicSet)];
-maybe_filter_by_topics_(Hits, _Topics) ->
-    Hits.
+%% The topics to search within; none (absent, empty or not a list of
+%% strings) searches the whole store.
+topics(Params) ->
+    topics_(mcl_om_wire:field(<<"topics">>, Params)).
 
-has_any_topic(Hit, TopicSet) ->
-    Meta = maps:get(meta, Hit, #{}),
-    Topics = maps:get(<<"topics">>, Meta, []),
-    ChunkTopics = sets:from_list([normalize_topic(T) || T <- Topics]),
-    not sets:is_empty(sets:intersection(TopicSet, ChunkTopics)).
-
-normalize_topic(T) when is_binary(T) -> string:lowercase(string:trim(T));
-normalize_topic(T) when is_list(T)   -> normalize_topic(list_to_binary(T)).
-
-%% When filtering by topics, over-fetch from the vector index so the
-%% post-filter still has enough candidates to fill top_k. Without a
-%% topic filter, fetch exactly top_k.
-fetch_k(Params) ->
-    fetch_k_(mcl_om_wire:field(<<"topics">>, Params), Params).
-
-fetch_k_(Topics, Params) when is_list(Topics), Topics =/= [] ->
-    top_k(Params) * ?TOPIC_OVERFETCH_MULTIPLIER;
-fetch_k_(_Topics, Params) ->
-    top_k(Params).
+topics_(Topics) when is_list(Topics) ->
+    [T || T <- Topics, is_binary(T) orelse io_lib:printable_unicode_list(T)];
+topics_(_NotAList) ->
+    [].
 
 top_k(Params) ->
     case mcl_om_wire:field(<<"top_k">>, Params) of

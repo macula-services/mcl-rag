@@ -5,6 +5,21 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+- **A search scoped to topics returns the best tagged chunks, however the rest of
+  the store ranks** (mcl-rag#42). `search_chunks_semantic` and `answer_query` used
+  to filter the vector index's answer afterwards: `top_k * 3` candidates out of the
+  whole store, then the tagged ones kept. A few tagged deposits beside a corpus
+  that sat closer to the query were never among them, and the answer came back
+  short or empty. The store now looks the tagged chunks up through barrel's
+  membership index and scores each one exactly (cosine, as the index scores), so
+  `topics` really means "search only these". A topic still matches case-blind and
+  trimmed; `tag_chunk` now stores it that way (order kept, repeats dropped), and a
+  chunk tagged earlier is still found by the spelling it was tagged with.
+
 ## 0.10.0 - 2026-10-30
 
 ### Changed
