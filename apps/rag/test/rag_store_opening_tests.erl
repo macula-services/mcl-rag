@@ -101,6 +101,10 @@ with_held_open(Test) ->
         Self ! {opener, self()},
         receive release -> {ok, ?DB} end
     end),
+    %% The open's one-time pass finds its marker (nothing to normalise), and
+    %% the stopped store closes what it opened.
+    ok = meck:expect(barrel, get_doc, fun(_, <<"migration:", _/binary>>) -> {ok, #{}} end),
+    ok = meck:expect(barrel, close, fun(_) -> ok end),
     Dir = scratch_dir(),
     ok = application:set_env(mcl_rag, data_dir, Dir),
     Was = application:get_env(mcl_rag, embed_provider),

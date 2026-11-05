@@ -17,8 +17,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   short or empty. The store now looks the tagged chunks up through barrel's
   membership index and scores each one exactly (cosine, as the index scores), so
   `topics` really means "search only these". A topic still matches case-blind and
-  trimmed; `tag_chunk` now stores it that way (order kept, repeats dropped), and a
-  chunk tagged earlier is still found by the spelling it was tagged with.
+  trimmed: every write (`add_knowledge`, `tag_chunk`) now stores it that way (order
+  kept, repeats dropped), and the first open after upgrading rewrites chunks tagged
+  earlier to that spelling, once, keeping their vectors. Topics that are not a list
+  of strings are refused with `invalid_topics`.
+- **A stopped store closes its database.** It used to leave it open, so a store
+  started again in the same VM on another data directory got the old database
+  back.
 
 ## 0.10.0 - 2026-10-30
 

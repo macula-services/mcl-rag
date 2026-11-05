@@ -44,12 +44,12 @@ handle(_) ->
 handle_(V, _Text, Params) when is_list(V) ->
     sized(V, length(V), rag_embedder:dimension(), Params);
 handle_(_V, Text, Params) when is_binary(Text) ->
-    searched_text(Text, topics(Params), top_k(Params));
+    with_topics(topics(Params), fun(Topics) -> searched_text(Text, Topics, top_k(Params)) end);
 handle_(_V, _Text, _Params) ->
     {error, query_text_or_vector_required}.
 
 sized(V, Dim, Dim, Params) ->
-    searched_vector(V, topics(Params), top_k(Params));
+    with_topics(topics(Params), fun(Topics) -> searched_vector(V, Topics, top_k(Params)) end);
 sized(_V, Got, Expected, _Params) ->
     {error, {dimension_mismatch, Expected, Got}}.
 
@@ -59,15 +59,27 @@ searched_text(Text, Topics, TopK) -> rag_store:search_text_in_topics(Text, Topic
 searched_vector(V, [], TopK)     -> rag_store:search_vector(V, TopK);
 searched_vector(V, Topics, TopK) -> rag_store:search_vector_in_topics(V, Topics, TopK).
 
-%% The topics to search within; none (absent, empty or not a list of
-%% strings) searches the whole store.
+%% The topics to search within: none (absent or empty) searches the whole
+%% store. A list holding anything but strings is refused rather than widened
+%% to the whole store.
 topics(Params) ->
     topics_(mcl_om_wire:field(<<"topics">>, Params)).
 
+topics_(undefined) -> {ok, []};
 topics_(Topics) when is_list(Topics) ->
-    [T || T <- Topics, is_binary(T) orelse io_lib:printable_unicode_list(T)];
+    case lists:all(fun is_topic/1, Topics) of
+        true  -> {ok, Topics};
+        false -> {error, invalid_topics}
+    end;
 topics_(_NotAList) ->
-    [].
+    {error, invalid_topics}.
+
+is_topic(T) when is_binary(T) -> true;
+is_topic(T) when is_list(T)   -> io_lib:printable_unicode_list(T);
+is_topic(_)                   -> false.
+
+with_topics({ok, Topics}, Search)  -> Search(Topics);
+with_topics({error, _} = E, _Search) -> E.
 
 top_k(Params) ->
     case mcl_om_wire:field(<<"top_k">>, Params) of

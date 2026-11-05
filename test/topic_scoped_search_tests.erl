@@ -45,6 +45,62 @@ tagged_chunks_outranked_by_the_corpus_are_found_test_() ->
         end)
     end}.
 
+%% A chunk an older release tagged in its caller's spelling (add_knowledge
+%% passed topics through as given) is rewritten to the stored spelling by the
+%% open's pass (rag_store:open_db/0 runs topics_normalised/1 before the store
+%% answers), keeping its vector, and the pass leaves a marker so a later open
+%% does not scan again. Driven on the database handle the open itself holds.
+a_chunk_tagged_in_an_older_spelling_is_normalised_by_the_open_test_() ->
+    {timeout, 180, fun() ->
+        Dir = scratch_dir(),
+        Was = application:get_env(mcl_rag, embed_provider),
+        ok = application:set_env(mcl_rag, data_dir, Dir),
+        ok = application:set_env(mcl_rag, embed_provider, ?PROVIDER),
+        {ok, _} = application:ensure_all_started(barrel),
+        {ok, Db} = rag_store:open_without_passes(),
+        try
+            Vector = axis_vector(1, 0.5, [{360, 1.0}]),
+            {ok, _} = barrel:put_doc(Db, #{<<"id">> => <<"old-1">>,
+                                           <<"content">> => <<"tagged before #42">>,
+                                           <<"source_path">> => <<"deposits/old-1">>,
+                                           <<"topics">> => [<<" Crew:Harbor ">>, <<"Ops">>, <<"crew:harbor">>],
+                                           <<"_embedding">> => Vector}),
+            {ok, Untagged} = barrel:get_doc(Db, <<"old-1">>),
+            ?assertEqual([<<" Crew:Harbor ">>, <<"Ops">>, <<"crew:harbor">>], maps:get(<<"topics">>, Untagged)),
+
+            ?assertEqual({ok, Db}, rag_store:topics_normalised({ok, Db})),
+
+            {ok, Doc} = barrel:get_doc(Db, <<"old-1">>),
+            ?assertEqual([<<"crew:harbor">>, <<"ops">>], maps:get(<<"topics">>, Doc)),
+            ?assertEqual(<<"tagged before #42">>, maps:get(<<"content">>, Doc)),
+            %% Still in the vector index: the rewrite carried the stored vector.
+            {ok, Hits} = barrel:search_vector(Db, Vector, #{k => 1}),
+            ?assertEqual([<<"old-1">>], [maps:get(key, H) || H <- Hits]),
+            %% Found by the stored spelling a scoped lookup uses.
+            {ok, Tagged, _} = barrel:find(Db, #{where => [{path, [<<"topics">>], <<"crew:harbor">>}]}, #{}),
+            ?assertEqual(1, length(Tagged)),
+            %% The marker: a second pass is a no-op that touches nothing.
+            {ok, #{<<"_rev">> := Rev}} = barrel:get_doc(Db, <<"old-1">>),
+            ?assertMatch({ok, #{<<"type">> := <<"migration">>}},
+                         barrel:get_doc(Db, <<"migration:topics_normalised_v1">>)),
+            ?assertEqual({ok, Db}, rag_store:topics_normalised({ok, Db})),
+            ?assertMatch({ok, #{<<"_rev">> := Rev}}, barrel:get_doc(Db, <<"old-1">>))
+        after
+            _ = barrel:close(Db),
+            application:unset_env(mcl_rag, data_dir),
+            restore_provider(Was),
+            file:del_dir_r(Dir)
+        end
+    end}.
+
+%% A topics field that is not a list of strings is refused, not widened to a
+%% search of the whole store.
+topics_that_are_not_strings_are_refused_test() ->
+    ?assertEqual({error, invalid_topics},
+                 search_chunks_semantic:handle(#{<<"query_vector">> => query(), <<"topics">> => [1]})),
+    ?assertEqual({error, invalid_topics},
+                 search_chunks_semantic:handle(#{<<"query_vector">> => query(), <<"topics">> => <<"crew:harbor">>})).
+
 %%------------------------------------------------------------------------------
 %% helpers
 %%------------------------------------------------------------------------------
@@ -93,6 +149,10 @@ axis_vector(Axis, Lead, Others) ->
 %% scratch directory removed afterwards, with the stub embedder.
 with_store(Test) ->
     Dir = scratch_dir(),
+    try with_store_in(Dir, Test) after file:del_dir_r(Dir) end.
+
+%% The store on `Dir', which the caller removes.
+with_store_in(Dir, Test) ->
     ok = application:set_env(mcl_rag, data_dir, Dir),
     Was = application:get_env(mcl_rag, embed_provider),
     ok = application:set_env(mcl_rag, embed_provider, ?PROVIDER),
@@ -103,8 +163,7 @@ with_store(Test) ->
     after
         _ = application:stop(rag),
         application:unset_env(mcl_rag, data_dir),
-        restore_provider(Was),
-        file:del_dir_r(Dir)
+        restore_provider(Was)
     end.
 
 restore_provider({ok, P}) -> application:set_env(mcl_rag, embed_provider, P);

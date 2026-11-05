@@ -81,6 +81,13 @@
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
+-ifdef(TEST).
+%% The store's database opened as the node opens it but without the open's
+%% passes (topics_normalised/1): a test writes data as an older release left
+%% it, then lets the real open run over it.
+-export([open_without_passes/0, topics_normalised/1]).
+-endif.
+
 -define(DB_NAME, rag_chunks).
 %% Stored on every chunk (and source) so a hit carries its provenance without a
 %% second read: the corpus repo and the commit it was ingested at, or who
@@ -91,6 +98,9 @@
 -define(METADATA_FIELDS, [<<"source_path">>, <<"header_path">>, <<"kind">>,
                           <<"start_line">>, <<"end_line">>, <<"type">>,
                           <<"topics">> | ?PROVENANCE_FIELDS]).
+%% barrel's own default for one find answer; asking for no more than what a
+%% page still needs keeps a small page the small read it always was.
+-define(FETCH_CHUNK, 1000).
 -define(SOURCE_ID_PREFIX, "source:").
 -define(WATERMARK_ID_PREFIX, "watermark:").
 -define(REEMBED_ID_PREFIX, "reembed:").
@@ -366,7 +376,14 @@ status() ->
 %% Opening the full store rebuilds its HNSW index: 227 s for 22,316
 %% vectors on a workstation, longer on a Celeron. Run inside this process it
 %% blocked every caller for all of that, and each died on the call timeout.
+%%
+%% The store traps exits so that `terminate/2' runs when it is stopped and
+%% closes the database it opened: barrel answers a second open of a name it
+%% still holds with that same database, whatever directory the second open
+%% names, so a store that stopped without closing would hand its successor
+%% in the same VM the old data.
 init([]) ->
+    process_flag(trap_exit, true),
     Store = self(),
     _ = spawn_link(fun() -> Store ! {opened, open_db()} end),
     {ok, #state{}}.
@@ -489,8 +506,15 @@ handle_info({opened, {ok, Db}}, #state{db = opening} = S) ->
 %% stay up answering every call with an error nobody is shown.
 handle_info({opened, {error, Reason}}, #state{db = opening} = S) ->
     {stop, {store_open_failed, Reason}, S};
+%% The opener's own exit: a normal one follows its `opened' message; any
+%% other is a failed open and stops the store with the opener's reason, as
+%% the link did before the store trapped exits.
+handle_info({'EXIT', _Opener, normal}, S) -> {noreply, S};
+handle_info({'EXIT', _Opener, Reason}, S) -> {stop, Reason, S};
 handle_info(_, S) -> {noreply, S}.
-terminate(_, _)   -> ok.
+
+terminate(_, #state{db = opening}) -> ok;
+terminate(_, #state{db = Db})      -> _ = barrel:close(Db), ok.
 
 %%% Internals — the open state
 %%
@@ -531,7 +555,7 @@ reply_result(Result, State) -> {reply, Result, State}.
 %% pipeline suites did, the first time they ran instead of skipping). A dir
 %% that cannot be made is named, with its path, in the store's stop reason.
 open_db() ->
-    open_in(dirs_made([data_dir(), vector_data_dir()])).
+    topics_normalised(open_in(dirs_made([data_dir(), vector_data_dir()]))).
 
 dirs_made([]) -> ok;
 dirs_made([Dir | Rest]) -> dir_made(filelib:ensure_path(Dir), Dir, Rest).
@@ -587,7 +611,7 @@ embedder() ->
 %% binary value too, or the doc would end up with both an atom and a
 %% binary variant of the same field.
 put_chunk_doc(Db, Id, Content, Meta) ->
-    Shaped = json_shape(Meta),
+    Shaped = with_topic_keys(json_shape(Meta)),
     Doc = Shaped#{<<"id">> => Id, <<"content">> => Content},
     normalize_write(put_doc_upsert(Db, Id, Doc)).
 
@@ -596,7 +620,7 @@ put_chunk_doc(Db, Id, Content, Meta) ->
 %% (`EMBEDDING_SRC_CLIENT'), so barrel indexes it synchronously without
 %% calling the embedder — a fast barrel write + HNSW insert, no mesh call.
 put_chunk_with_vector_doc(Db, Id, Content, Meta, Vector) ->
-    Shaped = json_shape(Meta),
+    Shaped = with_topic_keys(json_shape(Meta)),
     Doc = Shaped#{<<"id">> => Id, <<"content">> => Content,
                   <<"_embedding">> => Vector},
     normalize_write(put_doc_upsert(Db, Id, Doc)).
@@ -704,11 +728,15 @@ distinct_hits(Db, Vector, TopK) ->
 %% (cosine similarity), best first; then collapsed the way `distinct/3'
 %% collapses an index answer. A tagged chunk with no vector is not searchable
 %% (`put_chunk/3'), here as in the index, and a vector of another length is
-%% not comparable, so neither is scored. A topic is looked up as given and as
-%% `tag_chunk/2' stores it, so a chunk tagged before topics were normalised
-%% is still found by the spelling it was tagged with.
+%% not comparable, so neither is scored. A topic is looked up by `topic_key/1',
+%% the one spelling every write stores and the open normalises older chunks to
+%% (`topics_normalised/1').
+%%
+%% Cost: one docdb read per chunk carrying a topic, plus its vector, inside one
+%% call (under `?CALL_TIMEOUT'). Cheap for deposits; a broad classifier topic
+%% over a large corpus costs one read per chunk it tags.
 tagged_hits(Db, Vector, Topics, TopK) ->
-    Keys = lists:usort([topic_key(T) || T <- Topics] ++ [as_binary(T) || T <- Topics]),
+    Keys = lists:usort([topic_key(T) || T <- Topics]),
     Query = #{where => [{missing, [<<"type">>]}, any_topic(Keys)]},
     ranked(Db, Vector, collect_found(Db, Query, 0, ?FIND_ALL, none, []), TopK).
 
@@ -749,6 +777,70 @@ first_of_each(List) ->
 
 first_of(X, {Kept, Seen}) when is_map_key(X, Seen) -> {Kept, Seen};
 first_of(X, {Kept, Seen})                          -> {[X | Kept], Seen#{X => true}}.
+
+%% A chunk document's topics in their stored spelling, when it carries any.
+with_topic_keys(#{<<"topics">> := Topics} = Doc) when is_list(Topics) ->
+    Doc#{<<"topics">> := first_of_each([topic_key(T) || T <- Topics])};
+with_topic_keys(Doc) ->
+    Doc.
+
+%% Every chunk tagged before topics were stored by `topic_key/1' (mcl-rag#42),
+%% rewritten once to that spelling when the store opens, so a topic-scoped
+%% search finds it case-blind as the post-ranking filter did. The pass runs
+%% inside the open, before the store answers any call, and leaves a marker so
+%% a later open skips it; a chunk already in its stored spelling is not
+%% rewritten. A pass that fails stops the open, naming the chunk.
+-define(TOPICS_NORMALISED_ID, <<"migration:topics_normalised_v1">>).
+
+topics_normalised({ok, Db}) ->
+    normalised_once(Db, barrel:get_doc(Db, ?TOPICS_NORMALISED_ID));
+topics_normalised({error, _} = E) ->
+    E.
+
+normalised_once(Db, {ok, _Marker}) ->
+    {ok, Db};
+normalised_once(Db, _NoMarker) ->
+    marked(Db, retagged_from(Db, none)).
+
+%% Every chunk, one page of barrel's cursor at a time, so the pass holds one
+%% page in memory however large the store. barrel's path index has no entry
+%% for a list field as a whole (`{exists, [<<"topics">>]}' matches nothing),
+%% so the pass reads every chunk once and rewrites those whose topics are not
+%% in the stored spelling.
+retagged_from(Db, Cursor) ->
+    Query = #{where => [{missing, [<<"type">>]}]},
+    case barrel:find(Db, Query, fetch_opts(?FETCH_CHUNK, Cursor)) of
+        {ok, Docs, Meta} -> retagged_on(Db, retagged(Db, Docs), next_chunk(Meta));
+        {error, _} = E   -> E
+    end.
+
+retagged_on(Db, ok, {ok, Token})  -> retagged_from(Db, Token);
+retagged_on(_Db, ok, none)        -> ok;
+retagged_on(_Db, {error, _} = E, _Next) -> E.
+
+retagged(Db, Docs) ->
+    lists:foldl(fun(D, ok) -> retag(Db, find_doc(D)); (_D, Failed) -> Failed end, ok, Docs).
+
+retag(Db, #{<<"id">> := Id, <<"topics">> := Topics} = Doc) when is_list(Topics) ->
+    retag_unless_stored(Db, Id, Topics, maps:get(<<"topics">>, with_topic_keys(Doc)));
+retag(_Db, _NoTopicList) ->
+    ok.
+
+retag_unless_stored(_Db, _Id, Stored, Stored) -> ok;
+retag_unless_stored(Db, Id, Topics, _Keys) ->
+    case tag_chunk_doc(Db, Id, Topics) of
+        ok             -> ok;
+        {error, Why}   -> {error, {topics_not_normalised, Id, Why}}
+    end.
+
+marked(Db, ok) ->
+    Marker = #{<<"id">> => ?TOPICS_NORMALISED_ID, <<"type">> => <<"migration">>},
+    case normalize_write(put_doc_upsert(Db, ?TOPICS_NORMALISED_ID, Marker)) of
+        ok             -> {ok, Db};
+        {error, _} = E -> E
+    end;
+marked(_Db, {error, _} = E) ->
+    E.
 
 %% The one spelling a topic is stored and looked up by.
 topic_key(T) -> string:lowercase(string:trim(as_binary(T))).
@@ -945,9 +1037,6 @@ collect_found(Db, Query, Skip, Take, Cursor, Acc) ->
             E
     end.
 
-%% barrel's own default for one answer; asking for no more than what the
-%% page still needs keeps a small page the small read it always was.
--define(FETCH_CHUNK, 1000).
 
 fetch_opts(Want, none) ->
     #{chunk_size => min(Want, ?FETCH_CHUNK)};
@@ -1100,3 +1189,8 @@ put_reembed_request_doc(Db, #{document_id := DocId} = Req) ->
         ok             -> {ok, #{request_id => RequestId}};
         {error, _} = E -> E
     end.
+
+-ifdef(TEST).
+open_without_passes() ->
+    open_in(dirs_made([data_dir(), vector_data_dir()])).
+-endif.
